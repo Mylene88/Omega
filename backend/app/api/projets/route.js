@@ -281,7 +281,7 @@ export async function POST(request) {
       if (securisedData.suivis && securisedData.suivis.length > 0) {
         const suivisData = securisedData.suivis.map(s => ({
           id_projet: projetExistant.id_projet,
-          contenu: s.suivi,
+          suivi: s.suivi,
           created_by: s.created_by,
           created_at: new Date()
         }));
