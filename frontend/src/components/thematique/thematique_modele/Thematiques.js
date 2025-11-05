@@ -42,7 +42,9 @@ export default function Thematiques({ value = [], onChange, title = 'Thematique(
       // Mapper les propriétés du backend vers le format attendu par le composant
       const mappedThematiques = value.map(t => {
         const mapped = {
-          id: t.id || t.id_thematique || genId(),  // Utiliser id ou id_thematique
+          // ✅ FIX: Toujours générer un ID unique pour chaque thématique du formulaire
+          // Ne pas utiliser id_thematique car il représente la catégorie, pas l'instance
+          id: genId(),
           modeleThematique: t.modeleThematique || t.modele || '',  // Utiliser modeleThematique ou modele
           fields: t.fields || {}
         };
@@ -52,7 +54,8 @@ export default function Thematiques({ value = [], onChange, title = 'Thematique(
 
       console.log('📦 Thématiques finales après mapping:', mappedThematiques);
       setThematiques(mappedThematiques);
-      setOpenStates(mappedThematiques.map(p => p.id));
+      // ✅ Ne pas ouvrir toutes les thématiques par défaut, seulement la première
+      setOpenStates([mappedThematiques[0]?.id].filter(Boolean));
     }
   }, [value]);
 
