@@ -521,7 +521,10 @@ export async function POST(request) {
             ...normalFields,
             // ✅ Toujours utiliser created_at/created_by car les thématiques sont supprimées puis recréées
             created_at: new Date(),
-            created_by: body.created_by || body.updated_by || 404
+            created_by: body.created_by || body.updated_by || 404,
+            // ✅ Ajouter updated_at et updated_by comme NULL pour satisfaire le modèle Sequelize
+            updated_at: null,
+            updated_by: null
           };
 
           console.log(`      💾 Insertion dans ${schema}.${tableName}:`, JSON.stringify(dataToInsert, null, 2));
