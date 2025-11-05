@@ -450,9 +450,20 @@ export default function Map({ onSelect }) {
                                 <!-- Description -->
                                 <div style="margin-bottom: 12px;">
                                     <div style="font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 4px;">DESCRIPTION</div>
-                                    <div style="font-size: 12px; color: ${description !== 'Aucune description' ? '#475569' : '#94a3b8'}; 
-                                        line-height: 1.5; font-style: ${description !== 'Aucune description' ? 'normal' : 'italic'};">
-                                        ${description !== 'Aucune description' && description.length > 150 ? description.substring(0, 150) + '...' : description}
+                                    <div style="
+                                        font-size: 12px;
+                                        color: ${description !== 'Aucune description' ? '#475569' : '#94a3b8'};
+                                        line-height: 1.5;
+                                        font-style: ${description !== 'Aucune description' ? 'normal' : 'italic'};
+                                        display: -webkit-box;
+                                        -webkit-line-clamp: 3;
+                                        -webkit-box-orient: vertical;
+                                        overflow: hidden;
+                                        text-overflow: ellipsis;
+                                        word-wrap: break-word;
+                                        word-break: break-word;
+                                    ">
+                                        ${description}
                                     </div>
                                 </div>
 
@@ -461,18 +472,18 @@ export default function Map({ onSelect }) {
                                     <!-- Communes -->
                                     <div style="display: flex; align-items: flex-start; gap: 8px;">
                                         <span style="font-size: 16px;">📍</span>
-                                        <div style="flex: 1;">
+                                        <div style="flex: 1; min-width: 0;">
                                             <div style="font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 2px;">COMMUNE(S)</div>
-                                            <div style="font-size: 13px; color: #1e293b; font-weight: 500;">${communesText}</div>
+                                            <div style="font-size: 13px; color: #1e293b; font-weight: 500; word-wrap: break-word; word-break: break-word;">${communesText}</div>
                                         </div>
                                     </div>
 
                                     <!-- Type de porteur -->
                                     <div style="display: flex; align-items: flex-start; gap: 8px;">
                                         <span style="font-size: 16px;">👥</span>
-                                        <div style="flex: 1;">
+                                        <div style="flex: 1; min-width: 0;">
                                             <div style="font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 2px;">TYPE DE PORTEUR</div>
-                                            <div style="font-size: 13px; color: #1e293b; font-weight: 500;">${typePorteur}</div>
+                                            <div style="font-size: 13px; color: #1e293b; font-weight: 500; word-wrap: break-word; word-break: break-word;">${typePorteur}</div>
                                         </div>
                                     </div>
 
