@@ -1,0 +1,201 @@
+// backend/app/api/admin/snapshots/route.js
+
+import { NextResponse } from 'next/server';
+import { getProjectSnapshots, createSnapshot } from '@/backend/lib/auditHelper';
+import db from '@/backend/models';
+
+/**
+ * Middleware pour vérifier que l'utilisateur est admin
+ */
+function checkAdminAccess(request) {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { isAdmin: false, userId: null };
+  }
+  return { isAdmin: true, userId: null };
+}
+
+/**
+ * GET /api/admin/snapshots
+ * Récupère les snapshots d'un projet ou de tous les projets
+ *
+ * Query params:
+ * - idProjet: ID du projet (optionnel)
+ * - limit: nombre max de snapshots (défaut: 50)
+ * - type: type de snapshot (AUTO, MANUAL, BEFORE_DELETE)
+ */
+export async function GET(request) {
+  try {
+    // Vérifier l'accès admin
+    const { isAdmin } = checkAdminAccess(request);
+    if (!isAdmin) {
+      return NextResponse.json({
+        success: false,
+        message: 'Accès non autorisé. Authentification admin requise.'
+      }, { status: 403 });
+    }
+
+    // Extraire les paramètres de requête
+    const { searchParams } = new URL(request.url);
+    const idProjet = searchParams.get('idProjet');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const type = searchParams.get('type');
+
+    let snapshots;
+
+    if (idProjet) {
+      // Récupérer les snapshots d'un projet spécifique
+      snapshots = await getProjectSnapshots(idProjet, limit);
+    } else {
+      // Récupérer tous les snapshots récents
+      const where = {};
+      if (type) {
+        where.snapshot_type = type;
+      }
+
+      snapshots = await db.ProjetSnapshot.findAll({
+        where,
+        include: [
+          {
+            model: db.User,
+            as: 'creator',
+            attributes: ['id_user', 'username', 'prenom', 'nom']
+          },
+          {
+            model: db.Projet,
+            as: 'projet',
+            attributes: ['id_projet', 'nom_projet']
+          }
+        ],
+        order: [['created_at', 'DESC']],
+        limit
+      });
+    }
+
+    // Formater les données pour le frontend
+    const formattedSnapshots = snapshots.map(snapshot => ({
+      id: snapshot.id_snapshot,
+      idProjet: snapshot.id_projet,
+      projetNom: snapshot.projet?.nom_projet || 'Projet inconnu',
+      snapshotType: snapshot.snapshot_type,
+      description: snapshot.description,
+      snapshotData: snapshot.snapshot_data, // Données complètes du projet
+      creator: snapshot.creator ? {
+        id: snapshot.creator.id_user,
+        username: snapshot.creator.username,
+        nomComplet: `${snapshot.creator.prenom || ''} ${snapshot.creator.nom || ''}`.trim()
+      } : null,
+      createdAt: snapshot.created_at
+    }));
+
+    return NextResponse.json({
+      success: true,
+      data: formattedSnapshots,
+      count: formattedSnapshots.length,
+      filters: {
+        idProjet,
+        type,
+        limit
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur GET /api/admin/snapshots:', error);
+    return NextResponse.json({
+      success: false,
+      message: 'Erreur lors de la récupération des snapshots',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/admin/snapshots
+ * Crée un nouveau snapshot manuel d'un projet
+ *
+ * Body:
+ * - idProjet: ID du projet (requis)
+ * - description: description du snapshot (optionnel)
+ */
+export async function POST(request) {
+  try {
+    // Vérifier l'accès admin
+    const { isAdmin, userId } = checkAdminAccess(request);
+    if (!isAdmin) {
+      return NextResponse.json({
+        success: false,
+        message: 'Accès non autorisé. Authentification admin requise.'
+      }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { idProjet, description } = body;
+
+    if (!idProjet) {
+      return NextResponse.json({
+        success: false,
+        message: 'idProjet est requis'
+      }, { status: 400 });
+    }
+
+    // Récupérer les données complètes du projet
+    const projet = await db.Projet.findByPk(idProjet, {
+      include: [
+        { model: db.ProjetPorteur, as: 'porteurs' },
+        { model: db.ProjetSuivi, as: 'suivis' },
+        { model: db.Document, as: 'documents' },
+        { model: db.ProjetGeometry, as: 'geometry' },
+        { model: db.ProjetInThematique, as: 'projet_in_thematiques' }
+      ]
+    });
+
+    if (!projet) {
+      return NextResponse.json({
+        success: false,
+        message: 'Projet non trouvé'
+      }, { status: 404 });
+    }
+
+    // Créer le snapshot
+    const snapshot = await createSnapshot({
+      idProjet,
+      projetData: projet.toJSON(),
+      snapshotType: 'MANUAL',
+      description: description || `Snapshot manuel créé le ${new Date().toLocaleString('fr-FR')}`,
+      userId
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Snapshot créé avec succès',
+      data: {
+        id: snapshot.id_snapshot,
+        idProjet: snapshot.id_projet,
+        snapshotType: snapshot.snapshot_type,
+        description: snapshot.description,
+        createdAt: snapshot.created_at
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur POST /api/admin/snapshots:', error);
+    return NextResponse.json({
+      success: false,
+      message: 'Erreur lors de la création du snapshot',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
+  }
+}
+
+/**
+ * OPTIONS pour CORS
+ */
+export async function OPTIONS() {
+  return NextResponse.json({}, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
