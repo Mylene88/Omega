@@ -166,8 +166,8 @@ export default function FormulairePage() {
                         const historiqueFormate = projetComplet.suivis.map(suivi => ({
                             id: suivi.id,
                             description: suivi.contenu ?? '',
-                            date: suivi.dateCreation ?? null,     // ISO brut uniquement
-                            auteur: suivi.creePar ?? null         // objet { id, username, nomComplet }
+                            dateTime: suivi.dateCreation ?? null,     // ✅ Utiliser dateTime au lieu de date
+                            author: suivi.creePar?.username || suivi.creePar?.nomComplet || 'Utilisateur inconnu'  // ✅ Extraire le username de l'objet
                         }));
 
                         setSuiviData({
