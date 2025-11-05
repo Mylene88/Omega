@@ -561,15 +561,14 @@ export default function Sidebar({ projectId, onClose }) {
                                 </div>
                             </div>
                         ))
-                    )
-                ) : (
-                    <div className="empty-state">
-                        <p className="empty-message">Aucune thématique associée</p>
-                    </div>
-                )}
-            </div>
-        )}
-    </div>
+                    ) : (
+                        <div className="empty-state">
+                            <p className="empty-message">Aucune thématique associée</p>
+                        </div>
+                    )}
+                                </div>
+                            )}
+                        </div>
 
 
 
