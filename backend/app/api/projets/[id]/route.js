@@ -386,13 +386,15 @@ export async function GET(request, { params }) {
                 }
               });
 
-// ✅ RÉCUPÉRER LES DONNÉES AVEC LES RELATIONS
+// ✅ RÉCUPÉRER LES DONNÉES AVEC LES RELATIONS (uniquement le plus récent)
 const donnees = await Model.findAll({
   where: {
     id_project: id,
     id_thematique: assoc.thematique.id_thematique
   },
-  include: includeOptions
+  include: includeOptions,
+  order: [[modeleConfig.primaryKey, 'DESC']], // Récupérer le plus récent
+  limit: 1 // Limiter à 1 enregistrement pour éviter les doublons
 });
 
 console.log(`✅ ${donnees.length} enregistrement(s) trouvé(s) pour ${modeleValue}`);
