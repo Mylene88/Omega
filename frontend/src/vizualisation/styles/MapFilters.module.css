@@ -1,0 +1,214 @@
+/* Conteneur principal */
+.map-filters-container-horizontal {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(5px);
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  overflow: visible;
+}
+
+/* Rangée de filtres */
+.filter-row-single {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+/* Recherche élastique */
+.searchWrap {
+  flex: 1;
+  min-width: 250px;
+}
+
+.searchWrap input {
+  width: 100%;
+  height: 38px;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* Groupes libellé + contrôle */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.label {
+  font-size: 15px;
+  font-weight: 600;
+  font-family: 'MARIANNE';
+  color: #333;
+  white-space: nowrap;
+}
+
+/* ✅ BOX SCROLLABLE pour Services et Thématiques */
+.scrollableBox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  max-height: 120px; /* Hauteur max avant scroll */
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 200px;
+}
+
+/* Style de la scrollbar (optionnel, moderne) */
+.scrollableBox::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollableBox::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.scrollableBox::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.scrollableBox::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* ✅ Boutons filtres (Services/Thématiques) */
+.filterButton {
+  width: 100%; /* Prend toute la largeur de la box */
+  padding: 15px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  color: #333;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filterButton:hover {
+  background: #e8f4f8;
+  border-color: #0078d4;
+}
+
+.filterButtonActive {
+  background: #0078d4;
+  color: white;
+  border-color: #0078d4;
+  font-weight: 600;
+}
+
+.filterButtonActive:hover {
+  background: #005a9e;
+}
+
+/* Statuts en ligne */
+.filter-statuts-inline {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.checkboxLabel span {
+  white-space: nowrap;
+}
+
+/* Info filtres actifs */
+.activeFiltersInfo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #0078d4;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.filterBadge {
+  background: #0078d4;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Bouton reset */
+.resetButton {
+  padding: 8px 16px;
+  border: 1px solid #d32f2f;
+  border-radius: 4px;
+  background: white;
+  color: #d32f2f;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.resetButton:hover:not(:disabled) {
+  background: #d32f2f;
+  color: white;
+}
+
+.resetButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Ajout à la fin du fichier */
+
+/* Bouton de changement de vue */
+.viewToggleButton {
+  padding: 10px 20px;
+  background: #fff;
+  border: 2px solid #3498db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #3498db;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  min-width: 120px;
+  justify-content: center;
+}
+
+.viewToggleButton:hover {
+  background: #3498db;
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(52,152,219,0.3);
+}

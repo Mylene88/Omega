@@ -1,0 +1,399 @@
+/*global.css*/
+
+:root {
+  --color-primary: #2F80ED;
+  --color-primary-dark: #1C65C7;
+  --color-secondary: #E3F2FD;
+  --color-text: #333333;
+  --color-bg: #F6F9FC;
+  --color-border: #B0BEC5;
+}
+
+
+/* Focus visible pour les éléments interactifs */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid #4a90e2;
+  outline-offset: 2px;
+}
+
+/* Fallback :focus discret (si focus-visible non supporté) */
+a:focus,
+button:focus,
+input:focus,
+select:focus,
+textarea:focus,
+[role="button"]:focus {
+  outline: 2px solid #4a90e2;
+  outline-offset: 2px;
+}
+
+/* Optionnel: supprimer le contour au clic souris mais pas clavier */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  font-size: 17px;
+  color: #4F4F4F;
+  font-family: 'MARIANNE';
+  /*font-style: normal;*/
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  text-align: left;
+}
+
+input,
+textarea,
+select {
+  margin-bottom: 20px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #B0BEC5;
+  border-radius: 8px;
+  font-size: 14px;
+  background-color: #F6F9FC;
+  color: #333;
+  transition: 0.2s ease;
+  box-sizing: border-box;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  background-color: #fff;
+  border-color: #2F80ED;
+  box-shadow: 0 0 0 3px rgba(47, 128, 237, 0.1);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* === BOUTONS === */
+.button-group {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 30px;
+}
+
+.button,
+.tool-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.button-primary {
+  background-color: #2F80ED;
+  color: #fff;
+  transition: background-color 0.3s ease;
+}
+
+.button-primary:hover {
+  background-color: #1c65c7;
+}
+
+.button-secondary {
+  background-color: #e3f2fd;
+  color: #2F80ED;
+  transition: background-color 0.3s ease;
+}
+
+.button-secondary:hover {
+  background-color: #cbe4f9;
+}
+
+.form-group {
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+.radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-top: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #4F4F4F;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.radio-group input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #2F80ED;
+  cursor: pointer;
+  margin-right: 6px;
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.suivi-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 15px;
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.suivi-user {
+  font-weight: bold;
+  color: #007BFF;
+  margin-right: 8px;
+}
+
+.suivi-entry {
+  border-left: 4px solid #007BFF;
+  padding: 12px 15px;
+  border-radius: 6px;
+  background-color: #f9f9f9;
+  font-family: "Segoe UI", sans-serif;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.suivi-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  margin-bottom: 5px;
+  justify-content: space-between;
+}
+
+.suivi-supprimer {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: #dc3545;
+  transition: transform 0.2s;
+}
+
+.suivi-supprimer:hover {
+  transform: scale(1.2);
+}
+
+.suivi-icon {
+  font-size: 18px;
+}
+
+.suivi-type {
+  text-transform: capitalize;
+  color: #333;
+}
+
+.suivi-date {
+  margin-left: auto;
+  font-size: 0.85em;
+  color: #777;
+  font-style: italic;
+}
+
+.suivi-text {
+  font-size: 0.95em;
+  color: #444;
+  margin-top: 5px;
+}
+
+.checkbox-group {
+  display: flex;
+  gap: 15px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  font-size: 14px;
+  color: #4F4F4F;
+  margin-bottom: 20px;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #2F80ED;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  border: 1px solid #B0BEC5;
+  border-radius: 4px;
+  background-color: #fff;
+  position: relative;
+}
+
+.checkbox-label input[type="checkbox"]::before {
+  content: "✔";
+  position: absolute;
+  font-size: 12px;
+  left: 2px;
+  top: -1px;
+  color: #2F80ED;
+  display: none;
+}
+
+.checkbox-label input[type="checkbox"]:checked::before {
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapsible-content,
+  .collapsible-icon {
+    transition: none;
+  }
+}
+
+.tooltip-container {
+  position: relative;
+  display: inline-block;
+  margin-left: 5px;
+}
+
+.tooltip-icon {
+  color: #007BFF;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.tooltip-text {
+  visibility: hidden;
+  width: 220px;
+  background-color: #ffffe1;
+  color: #000;
+  text-align: left;
+  border: 1px solid #000;
+  padding: 5px;
+  border-radius: 4px;
+  font-size: 15px;
+  position: absolute;
+  z-index: 10;
+  top: 20px;
+  /*left: 0;*/
+}
+
+.tooltip-container:hover .tooltip-text {
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tooltip-text {
+    transition: none;
+  }
+}
+
+/* Fix pour les blocs operation-block - VERSION FINALE avec scroll */
+.operation-block {
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  /*overflow: hidden;*/
+  border-left: 4px solid #3b82f6;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.operation-block .collapsible-header {
+  background-color: #f3f4f6;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  text-align: left;
+}
+
+.operation-block .collapsible-header .collapsible-title {
+  font-weight: 600;
+  color: #1f2937;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.operation-block .collapsible-header .collapsible-icon {
+  transition: transform 0.2s ease;
+  display: inline-block;
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+}
+
+.operation-block.is-open .collapsible-header .collapsible-icon {
+  transform: rotate(90deg);
+}
+
+.operation-block .collapsible-content {
+  background-color: #ffffff;
+  padding: 1rem;
+  display: none;
+  width: 100%;
+  box-sizing: border-box;
+  max-height: 70vh;
+  overflow-y: auto;
+  /*overflow-x: hidden;*/
+}
+
+.operation-block.is-open .collapsible-content {
+  display: block;
+}
+
+/* Style de la scrollbar pour une meilleure apparence */
+.operation-block .collapsible-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.operation-block .collapsible-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.operation-block .collapsible-content::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.operation-block .collapsible-content::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
