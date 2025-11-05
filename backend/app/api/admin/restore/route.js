@@ -2,18 +2,8 @@
 
 import { NextResponse } from 'next/server';
 import { logAudit, createSnapshot } from '@/backend/lib/auditHelper';
+import { requireAdmin } from '@/backend/lib/adminAuthHelper';
 import db from '@/backend/models';
-
-/**
- * Middleware pour vérifier que l'utilisateur est admin
- */
-function checkAdminAccess(request) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return { isAdmin: false, userId: null };
-  }
-  return { isAdmin: true, userId: null };
-}
 
 /**
  * POST /api/admin/restore
@@ -28,14 +18,12 @@ export async function POST(request) {
 
   try {
     // Vérifier l'accès admin
-    const { isAdmin, userId } = checkAdminAccess(request);
-    if (!isAdmin) {
+    const adminCheck = await requireAdmin(request);
+    if (!adminCheck.allowed) {
       await transaction.rollback();
-      return NextResponse.json({
-        success: false,
-        message: 'Accès non autorisé. Authentification admin requise.'
-      }, { status: 403 });
+      return NextResponse.json(adminCheck.response, { status: adminCheck.status });
     }
+    const userId = adminCheck.userId;
 
     const body = await request.json();
     const { snapshotId, createBackup = true } = body;

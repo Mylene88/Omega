@@ -24,11 +24,21 @@ const AdminPage = () => {
 
   // Vérifier l'authentification admin
   useEffect(() => {
+    const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    // TODO: Vérifier réellement si l'utilisateur est admin via le backend
-    if (!user || !user.id_user) {
-      alert('Accès non autorisé');
-      navigate('/');
+
+    // Vérifier que l'utilisateur est connecté
+    if (!token || !user || !user.id_user) {
+      navigate('/admin/login', { replace: true });
+      return;
+    }
+
+    // Vérifier que l'utilisateur est admin
+    const userRole = user.role?.libelle?.toLowerCase();
+    if (userRole !== 'admin' && userRole !== 'administrateur') {
+      alert('❌ Accès refusé. Seuls les administrateurs peuvent accéder à cette page.');
+      navigate('/login', { replace: true });
+      return;
     }
   }, [navigate]);
 
