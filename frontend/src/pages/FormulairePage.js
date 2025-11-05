@@ -155,7 +155,7 @@ export default function FormulairePage() {
 
                                 // Copier tous les champs sauf les métadonnées
                                 Object.keys(donneesModele).forEach(key => {
-                                    if (!['id', 'commentaires', 'dateCreation', 'dateMiseAJour'].includes(key)) {
+                                    if (!['id', 'dateCreation', 'dateMiseAJour'].includes(key)) {
                                         fields[key] = donneesModele[key];
                                         console.log(`  ✅ ${key}:`, donneesModele[key], `(type: ${typeof donneesModele[key]})`);
                                     }
@@ -168,8 +168,7 @@ export default function FormulairePage() {
                                     id_thematique: t.id,
                                     libelle: t.libelle,
                                     modele: modeleKey,  // "EnR-eolien", "EnR-methanisation", etc.
-                                    fields: fields,
-                                    commentaires: donneesModele.commentaires || '',
+                                    fields: fields,  // Contient maintenant les commentaires
                                     dateAjout: t.dateAjout,
                                     ajoutePar: t.ajoutePar
                                 };
