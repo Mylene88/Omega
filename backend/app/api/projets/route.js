@@ -370,13 +370,13 @@ export async function POST(request) {
     const { getModelByValue } = require('@/backend/lib/config');
     const oldAssociations = await ProjetInThematique.findAll({
       where: { id_projet: nouveauProjet.id_projet },
-      include: [{ model: Thematique, attributes: ['id_thematique', 'libelle'] }],
+      include: [{ model: Thematique, as: 'thematique', attributes: ['id_thematique', 'libelle'] }],
       transaction
     });
 
     for (const assoc of oldAssociations) {
       // Essayer de trouver et supprimer les données du modèle de thématique
-      const thematique = assoc.Thematique;
+      const thematique = assoc.thematique;
       if (thematique) {
         // On doit trouver toutes les tables qui ont id_projet et id_thematique
         const allModels = Object.keys(db).filter(k =>
