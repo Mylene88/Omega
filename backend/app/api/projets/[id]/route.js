@@ -405,22 +405,16 @@ console.log(`✅ ${donnees.length} enregistrement(s) trouvé(s) pour ${modeleVal
     if (field.type === 'checkbox-multiple' && field.relationTable) {
   const assocM2M = findBelongsToManyAssociation(Model, field.enumTable, field.enumSchema, field.relationTable);
   const relatedData = assocM2M ? d[assocM2M.as] : null;
-  const labelKey = field.enumTable === 'type_sol_enum' ? 'libelle' : 'value';
+  // ✅ Pour l'édition : renvoyer les IDs au lieu des libellés
   formattedData[field.name] = Array.isArray(relatedData)
-    ? relatedData.map(item => item[labelKey] ?? item.value ?? item.libelle).join(', ')
-    : '-';
+    ? relatedData.map(item => item.id)
+    : fieldValue;
 }
 
     // ✅ CAS 2: Champ avec enumTable (select simple)
    else if (field.enumTable) {
-  const assocBT = Object.values(Model.associations || {}).find(a =>
-    a.associationType !== 'BelongsToMany' &&
-    a.target?.tableName === field.enumTable &&
-    a.target?.options?.schema === modeleConfig.schema
-  );
-  const enumData = d[assocBT?.as || field.enumTable];
-  const labelKey = field.enumTable === 'type_sol_enum' ? 'libelle' : 'value';
-  formattedData[field.name] = enumData?.[labelKey] ?? fieldValue ?? '-';
+  // ✅ Pour l'édition : garder l'ID original au lieu du libellé
+  formattedData[field.name] = fieldValue;
 }
 
     // ✅ CAS 3: Champ normal
