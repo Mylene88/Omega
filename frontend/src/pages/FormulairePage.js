@@ -379,7 +379,7 @@ export default function FormulairePage() {
                 nom_projet: projetData.nom_projet || 'Nouveau projet',
                 description: projetData.description || '',
                 statut_projet_id: projetData.statut_projet_id ?? null,
-                date_ident_projet: projetData.date_ident_projet ?? new Date(),
+                date_ident_projet: projetData.date_ident_projet ?? null,
                 created_by: currentUser.id_user,
                 updated_by: currentUser.id_user,
                 service_id: suiviData.service_id ?? null,

@@ -130,7 +130,7 @@ export default function ProjetDetailPanel({
                                         selectedProjectDetails.date_ident_projet)
                                             ? new Date(selectedProjectDetails.projet?.dateIdentification ||
                                                     selectedProjectDetails.date_ident_projet).toLocaleDateString('fr-FR')
-                                            : 'N/A'}
+                                            : 'Aucune date renseignée'}
                                     </span>
                                 </div>
 
