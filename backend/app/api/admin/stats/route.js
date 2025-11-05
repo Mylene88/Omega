@@ -2,7 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import { getActivityStats } from '@/backend/lib/auditHelper';
-import { requireAdmin } from '@/backend/lib/adminAuthHelper';
+import { requireAdminWithLogging } from '@/backend/lib/adminMiddleware';
 import db from '@/backend/models';
 
 /**
@@ -15,10 +15,13 @@ import db from '@/backend/models';
  */
 export async function GET(request) {
   try {
-    // Vérifier l'accès admin
-    const adminCheck = await requireAdmin(request);
-    if (!adminCheck.allowed) {
-      return NextResponse.json(adminCheck.response, { status: adminCheck.status });
+    // Vérifier l'accès admin avec logging automatique
+    const authResult = await requireAdminWithLogging(request, 'VIEW_STATS', 'statistics');
+    if (authResult.error) {
+      return NextResponse.json(
+        { success: false, message: authResult.error.message },
+        { status: authResult.error.status }
+      );
     }
 
     // Extraire les paramètres de requête
