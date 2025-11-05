@@ -108,15 +108,52 @@ export default function FormulairePage() {
 
                     // ✅ Transformation des THÉMATIQUES (backend → frontend)
                     console.log('🏷️ Thématiques reçues:', projetComplet.thematiques);
-                    const thematiquesFormatees = (projetComplet.thematiques || []).map(t => ({
-                        id_thematique: t.id_thematique,
-                        libelle: t.libelle,
-                        modele: t.modele,
-                        fields: t.fields || {},
-                        commentaires: t.commentaires || '',
-                        dateAjout: t.dateAjout,
-                        ajoutePar: t.ajoutePar
-                    }));
+
+                    const thematiquesFormatees = (projetComplet.thematiques || []).flatMap(t => {
+                        // Le backend envoie modele comme un tableau JSON : "[\"eolien\", \"methanisation\"]"
+                        let modeles = [];
+                        try {
+                            modeles = typeof t.modele === 'string' ? JSON.parse(t.modele) : t.modele;
+                        } catch (e) {
+                            console.error('❌ Erreur parsing modele:', t.modele, e);
+                            modeles = [];
+                        }
+
+                        // Si modeles est vide ou n'est pas un tableau, retourner un tableau vide
+                        if (!Array.isArray(modeles) || modeles.length === 0) {
+                            return [];
+                        }
+
+                        // Créer une thématique frontend pour chaque modèle
+                        return modeles.map(modeleValue => {
+                            const modeleKey = `${t.libelle}-${modeleValue}`;
+
+                            // Extraire les fields depuis donnees[modeleValue]
+                            const donneesModele = t.donnees?.[modeleValue]?.[0] || {};
+                            const fields = {};
+
+                            // Copier tous les champs sauf les métadonnées
+                            Object.keys(donneesModele).forEach(key => {
+                                if (!['id', 'commentaires', 'dateCreation', 'dateMiseAJour'].includes(key)) {
+                                    fields[key] = donneesModele[key];
+                                }
+                            });
+
+                            console.log(`📝 Mapping ${modeleKey}:`, { donneesModele, fields });
+
+                            return {
+                                id_thematique: t.id,
+                                libelle: t.libelle,
+                                modele: modeleKey,  // "EnR-eolien", "EnR-methanisation", etc.
+                                fields: fields,
+                                commentaires: donneesModele.commentaires || '',
+                                dateAjout: t.dateAjout,
+                                ajoutePar: t.ajoutePar
+                            };
+                        });
+                    });
+
+                    console.log('✅ Thématiques formatées pour le frontend:', thematiquesFormatees);
                     setThematiqueData(thematiquesFormatees);
 
                     // ✅ Transformation des DOCUMENTS (backend → frontend)
