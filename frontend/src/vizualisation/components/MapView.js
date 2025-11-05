@@ -542,105 +542,23 @@ export default function Map({ onSelect }) {
 
 
 
-                        // ✅ Obtenir les coordonnées du feature
-                        let featureLatlng;
-                        if (geom.type === 'Point') {
-                            featureLatlng = L.latLng(geom.coordinates[1], geom.coordinates[0]);
-                        } else if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
-                            const bounds = layer.getBounds();
-                            featureLatlng = bounds.getCenter();
-                        } else if (geom.type === 'LineString' || geom.type === 'MultiLineString') {
-                            const bounds = layer.getBounds();
-                            featureLatlng = bounds.getCenter();
-                        }
-
-                        // ✅ Fonction pour calculer dynamiquement la direction du tooltip
-                        const updateTooltipDirection = () => {
-                            if (!mapRef.current || !featureLatlng) return;
-
-                            const map = mapRef.current;
-                            const point = map.latLngToContainerPoint(featureLatlng);
-                            const mapSize = map.getSize();
-
-                            // Calculer la position relative (0 = haut/gauche, 1 = bas/droite)
-                            const relativeY = point.y / mapSize.y;
-                            const relativeX = point.x / mapSize.x;
-
-                            let direction = 'top';
-                            let offset = [0, -10];
-
-                            // 🔝 Si en haut de la carte (< 40%), tooltip en BAS
-                            if (relativeY < 0.4) {
-                                direction = 'bottom';
-                                offset = [0, 20];
-                                console.log(`📍 Projet en HAUT (${(relativeY * 100).toFixed(0)}%) → Tooltip en BAS`);
-                            }
-                            // 🔽 Si en bas de la carte (> 60%), tooltip en HAUT
-                            else if (relativeY > 0.6) {
-                                direction = 'top';
-                                offset = [0, -10];
-                                console.log(`📍 Projet en BAS (${(relativeY * 100).toFixed(0)}%) → Tooltip en HAUT`);
-                            }
-                            // ↔️ Au milieu, vérifier les côtés
-                            else {
-                                // ← Si trop à gauche, tooltip à DROITE
-                                if (relativeX < 0.25) {
-                                    direction = 'right';
-                                    offset = [15, 0];
-                                    console.log(`📍 Projet à GAUCHE (${(relativeX * 100).toFixed(0)}%) → Tooltip à DROITE`);
-                                }
-                                // → Si trop à droite, tooltip à GAUCHE
-                                else if (relativeX > 0.75) {
-                                    direction = 'left';
-                                    offset = [-15, 0];
-                                    console.log(`📍 Projet à DROITE (${(relativeX * 100).toFixed(0)}%) → Tooltip à GAUCHE`);
-                                }
-                                // Au centre, tooltip en HAUT par défaut
-                                else {
-                                    direction = 'top';
-                                    offset = [0, -10];
-                                    console.log(`📍 Projet AU CENTRE → Tooltip en HAUT`);
-                                }
-                            }
-
-                            // Unbind puis rebind avec la nouvelle configuration
-                            layer.unbindTooltip();
-                            layer.bindTooltip(tooltipContent, {
-                                permanent: false,
-                                direction: direction,
-                                offset: offset,
-                                className: 'custom-card-tooltip',
-                                opacity: 1
-                            });
-                        };
-
-                        // ✅ Bind initial du tooltip (par défaut en haut)
+                        // ✅ SOLUTION SIMPLE: Afficher TOUS les tooltips vers le BAS
+                        // Cela garantit que tout le contenu est toujours visible
                         layer.bindTooltip(tooltipContent, {
                             permanent: false,
-                            direction: 'top',
-                            offset: [0, -10],
+                            direction: 'bottom',  // ⬇️ TOUJOURS EN BAS
+                            offset: [0, 20],      // Décalage de 20px vers le bas
                             className: 'custom-card-tooltip',
                             opacity: 1
                         });
 
-                        // ✅ Recalculer la direction AVANT d'afficher le tooltip
+                        // Effet hover visuel
                         layer.on('mouseover', function () {
-                            // Recalculer la position optimale du tooltip
-                            updateTooltipDirection();
-
-                            // Appliquer l'effet hover visuel
                             if (geom.type !== 'Point') {
                                 this.setStyle({
                                     weight: 5,
                                     fillOpacity: 0.6
                                 });
-                            }
-                        });
-
-                        // ✅ Recalculer lors des déplacements/zoom de la carte
-                        map.on('moveend zoomend', () => {
-                            if (featureLatlng) {
-                                updateTooltipDirection();
                             }
                         });
 
