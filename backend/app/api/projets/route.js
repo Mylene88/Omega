@@ -499,6 +499,12 @@ export async function POST(request) {
           const junctionFields = {};
 
           for (const [fieldName, fieldValue] of Object.entries(them.fields)) {
+            // ✅ Exclure la clé primaire des champs à insérer (auto-incrémentée)
+            if (fieldName === modeleConfig.primaryKey) {
+              console.log(`      ⏩ Ignorer la clé primaire: ${fieldName}`);
+              continue;
+            }
+
             const fieldConfig = modeleConfig.fields?.find(f => f.name === fieldName);
 
             if (fieldConfig && fieldConfig.type === 'checkbox-multiple' && fieldConfig.relationTable) {
