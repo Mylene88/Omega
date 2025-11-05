@@ -542,14 +542,76 @@ export default function Map({ onSelect }) {
 
 
 
-                        // ✅ SOLUTION SIMPLE: Afficher TOUS les tooltips vers le BAS
-                        // Cela garantit que tout le contenu est toujours visible
+                        // ✅ Obtenir les coordonnées du feature pour calculer sa position
+                        let featureLatlng;
+                        if (geom.type === 'Point') {
+                            featureLatlng = L.latLng(geom.coordinates[1], geom.coordinates[0]);
+                        } else if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
+                            const bounds = layer.getBounds();
+                            featureLatlng = bounds.getCenter();
+                        } else if (geom.type === 'LineString' || geom.type === 'MultiLineString') {
+                            const bounds = layer.getBounds();
+                            featureLatlng = bounds.getCenter();
+                        }
+
+                        // ✅ Fonction pour déterminer la direction optimale du tooltip
+                        const getOptimalTooltipDirection = () => {
+                            if (!mapRef.current || !featureLatlng) {
+                                return { direction: 'bottom', offset: [0, 20] };
+                            }
+
+                            const map = mapRef.current;
+                            const point = map.latLngToContainerPoint(featureLatlng);
+                            const mapSize = map.getSize();
+
+                            // Position relative verticale (0 = tout en haut, 1 = tout en bas)
+                            const relativeY = point.y / mapSize.y;
+
+                            // 🔝 Projet dans la moitié SUPÉRIEURE de la carte (< 50%) → Tooltip EN BAS
+                            if (relativeY < 0.5) {
+                                return { direction: 'bottom', offset: [0, 20] };
+                            }
+                            // 🔽 Projet dans la moitié INFÉRIEURE de la carte (>= 50%) → Tooltip EN HAUT
+                            else {
+                                return { direction: 'top', offset: [0, -10] };
+                            }
+                        };
+
+                        // Stocker la direction actuelle pour pouvoir la comparer
+                        let currentDirection = null;
+
+                        // Calculer la direction initiale
+                        const tooltipConfig = getOptimalTooltipDirection();
+                        currentDirection = tooltipConfig.direction;
+
+                        // Bind le tooltip avec la direction calculée
                         layer.bindTooltip(tooltipContent, {
                             permanent: false,
-                            direction: 'bottom',  // ⬇️ TOUJOURS EN BAS
-                            offset: [0, 20],      // Décalage de 20px vers le bas
+                            direction: tooltipConfig.direction,
+                            offset: tooltipConfig.offset,
                             className: 'custom-card-tooltip',
                             opacity: 1
+                        });
+
+                        // ✅ Recalculer la direction du tooltip lors de l'ouverture
+                        layer.on('tooltipopen', function(e) {
+                            const newConfig = getOptimalTooltipDirection();
+
+                            // Si la direction a changé, rebind le tooltip
+                            if (newConfig.direction !== currentDirection) {
+                                currentDirection = newConfig.direction;
+
+                                layer.unbindTooltip();
+                                layer.bindTooltip(tooltipContent, {
+                                    permanent: false,
+                                    direction: newConfig.direction,
+                                    offset: newConfig.offset,
+                                    className: 'custom-card-tooltip',
+                                    opacity: 1
+                                });
+                                // Ouvrir immédiatement le nouveau tooltip
+                                layer.openTooltip();
+                            }
                         });
 
                         // Effet hover visuel
