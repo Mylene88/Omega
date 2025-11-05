@@ -184,7 +184,7 @@ export async function GET() {
   }
 }
 
-// POST → créer un projet
+// POST → créer ou mettre à jour un projet
 export async function POST(request) {
   const transaction = await db.sequelize.transaction();
   const extra = {}; // Pour stocker des données additionnelles à retourner
@@ -203,6 +203,18 @@ export async function POST(request) {
     console.log('   - suivis:', body.suivis);
     console.log('   - thematiques:', body.thematiques);
     console.log('   - documents:', body.documents);
+
+    // ✅ Vérifier si le projet existe déjà (mode édition)
+    const projetExistant = await Projet.findOne({
+      where: { id_projet: body.id_projet },
+      transaction
+    });
+
+    const isUpdate = !!projetExistant;
+    console.log(`\n4. Mode détecté: ${isUpdate ? '✏️ MISE À JOUR' : '✨ CRÉATION'}`);
+    if (isUpdate) {
+      console.log('   Projet existant trouvé:', projetExistant.id_projet);
+    }
 
     // Sécurisation des données
     const securisedData = {
@@ -225,37 +237,102 @@ export async function POST(request) {
       geometry: body.geometry ? body.geometry : null
     };
 
-    console.log('\n4. Données sécurisées avant Projet.create:');
+    console.log('\n5. Données sécurisées:');
     console.log('   - porteurs:', securisedData.porteurs);
     console.log('   - suivis:', securisedData.suivis);
-    //console.log('   - documents:', securisedData.documents);
 
-    console.log('\n5. Option include pour Projet.create:');
+    let nouveauProjet;
 
-    const includeOptions = [
-      { model: ProjetPorteur, as: 'porteurs' },
-      { model: ProjetSuivi, as: 'suivis' },
-      { model: ProjetGeometry, as: 'geometry' },
+    if (isUpdate) {
+      // ✅ MODE MISE À JOUR
+      console.log('\n6. 🔄 Mise à jour du projet...');
 
-    ];
+      // Mettre à jour les champs du projet
+      await projetExistant.update({
+        nom_projet: securisedData.nom_projet,
+        description: securisedData.description,
+        statut_projet_id: securisedData.statut_projet_id,
+        date_ident_projet: securisedData.date_ident_projet,
+        projet_signale: securisedData.projet_signale,
+        charte_accueil: securisedData.charte_accueil,
+        service_id: securisedData.service_id,
+        referent_ddt: securisedData.referent_ddt,
+        updated_by: securisedData.updated_by,
+        updated_at: new Date()
+      }, { transaction });
 
-    console.log('   Includes:', includeOptions.map(inc => `${inc.model.name} (as: ${inc.as})`));
+      // ✅ Supprimer les anciennes relations
+      console.log('\n   🗑️  Suppression des anciennes relations...');
+      await ProjetPorteur.destroy({ where: { id_projet: projetExistant.id_projet }, transaction });
+      await ProjetSuivi.destroy({ where: { id_projet: projetExistant.id_projet }, transaction });
+      await ProjetGeometry.destroy({ where: { id_projet: projetExistant.id_projet }, transaction });
 
-    console.log('\n6. Appel de Projet.create...');
+      // ✅ Créer les nouvelles relations porteurs
+      if (securisedData.porteurs && securisedData.porteurs.length > 0) {
+        const porteursData = securisedData.porteurs.map(p => ({
+          ...p,
+          id_projet: projetExistant.id_projet
+        }));
+        await ProjetPorteur.bulkCreate(porteursData, { transaction });
+        console.log(`   ✅ ${porteursData.length} porteurs mis à jour`);
+      }
 
-    const nouveauProjet = await Projet.create(securisedData, {
-      include: includeOptions,
-      transaction
-    });
+      // ✅ Créer les nouvelles relations suivis
+      if (securisedData.suivis && securisedData.suivis.length > 0) {
+        const suivisData = securisedData.suivis.map(s => ({
+          id_projet: projetExistant.id_projet,
+          contenu: s.suivi,
+          created_by: s.created_by,
+          created_at: new Date()
+        }));
+        await ProjetSuivi.bulkCreate(suivisData, { transaction });
+        console.log(`   ✅ ${suivisData.length} suivis mis à jour`);
+      }
 
-    console.log('\n7. Projet créé avec succès!');
-    console.log('   ID:', nouveauProjet.id_projet);
+      // ✅ Créer la nouvelle géométrie
+      if (securisedData.geometry) {
+        await ProjetGeometry.create({
+          id_projet: projetExistant.id_projet,
+          ...securisedData.geometry
+        }, { transaction });
+        console.log('   ✅ Géométrie mise à jour');
+      }
+
+      nouveauProjet = projetExistant;
+      console.log('\n7. ✅ Projet mis à jour avec succès!');
+      console.log('   ID:', nouveauProjet.id_projet);
+    } else {
+      // ✅ MODE CRÉATION
+      console.log('\n6. Option include pour Projet.create:');
+
+      const includeOptions = [
+        { model: ProjetPorteur, as: 'porteurs' },
+        { model: ProjetSuivi, as: 'suivis' },
+        { model: ProjetGeometry, as: 'geometry' },
+      ];
+
+      console.log('   Includes:', includeOptions.map(inc => `${inc.model.name} (as: ${inc.as})`));
+      console.log('\n6. Appel de Projet.create...');
+
+      nouveauProjet = await Projet.create(securisedData, {
+        include: includeOptions,
+        transaction
+      });
+
+      console.log('\n7. Projet créé avec succès!');
+      console.log('   ID:', nouveauProjet.id_projet);
+    }
 
 
   // ✅  SECTION POUR LES DOCUMENTS
-    // Création des documents
+    // Création ou mise à jour des documents
+    if (isUpdate) {
+      console.log('\n8. 📄 Mise à jour des documents...');
+      await Document.destroy({ where: { id_projet: nouveauProjet.id_projet }, transaction });
+    }
+
     if (Array.isArray(body.documents) && body.documents.length > 0) {
-      console.log('\n8. 📄 Création des documents...');
+      console.log(isUpdate ? ' Documents reçus pour mise à jour:' : '\n8. 📄 Création des documents...');
       console.log(' Documents reçus:', JSON.stringify(body.documents, null, 2));
 
       const documentsFiltered = body.documents.filter(doc =>
@@ -276,7 +353,7 @@ export async function POST(request) {
           validate: true
         });
 
-        console.log(` ✅ ${createdDocuments.length} documents créés`);
+        console.log(` ✅ ${createdDocuments.length} documents ${isUpdate ? 'mis à jour' : 'créés'}`);
       } else {
         console.log(' ⚠️ Aucun document valide à insérer (liens vides)');
       }
@@ -285,8 +362,57 @@ export async function POST(request) {
     }
 
 
+  // ✅ Suppression des anciennes thématiques en mode mise à jour
+  if (isUpdate) {
+    console.log('\n9. 🗑️ Suppression des anciennes associations thématiques...');
+
+    // Supprimer les données des tables de modèles de thématiques
+    const { getModelByValue } = require('@/backend/lib/config');
+    const oldAssociations = await ProjetInThematique.findAll({
+      where: { id_projet: nouveauProjet.id_projet },
+      include: [{ model: Thematique, attributes: ['id_thematique', 'libelle'] }],
+      transaction
+    });
+
+    for (const assoc of oldAssociations) {
+      // Essayer de trouver et supprimer les données du modèle de thématique
+      const thematique = assoc.Thematique;
+      if (thematique) {
+        // On doit trouver toutes les tables qui ont id_projet et id_thematique
+        const allModels = Object.keys(db).filter(k =>
+          !['sequelize', 'Sequelize', 'DataTypes'].includes(k) &&
+          db[k].tableName &&
+          db[k].rawAttributes &&
+          db[k].rawAttributes.id_project &&
+          db[k].rawAttributes.id_thematique
+        );
+
+        for (const modelKey of allModels) {
+          try {
+            await db[modelKey].destroy({
+              where: {
+                id_project: nouveauProjet.id_projet,
+                id_thematique: thematique.id_thematique
+              },
+              transaction
+            });
+          } catch (err) {
+            console.log(`   ⚠️ Pas de données à supprimer dans ${modelKey}`);
+          }
+        }
+      }
+    }
+
+    // Supprimer les associations
+    await ProjetInThematique.destroy({
+      where: { id_projet: nouveauProjet.id_projet },
+      transaction
+    });
+    console.log('   ✅ Anciennes thématiques supprimées');
+  }
+
   if (Array.isArray(body.thematiques) && body.thematiques.length > 0) {
-    console.log('\n8. 🔥 Création des associations thématiques...');
+    console.log(`\n${isUpdate ? '9' : '8'}. 🔥 ${isUpdate ? 'Mise à jour' : 'Création'} des associations thématiques...`);
     console.log(' Thématiques reçues:', JSON.stringify(body.thematiques, null, 2));
 
     // ✅ LOGS POUR DÉBUGGER
@@ -307,7 +433,7 @@ export async function POST(request) {
         return {
           id_projet: nouveauProjet.id_projet,
           id_thematique: them.id_thematique,
-          ajoute_par: body.created_by || them.ajoute_par || 404,
+          ajoute_par: body.created_by || body.updated_by || them.ajoute_par || 404,
           date_ajout: new Date()
         };
       })
@@ -326,7 +452,7 @@ export async function POST(request) {
       });
 
       const liaisonIds = createdThematiques.map(t => t.id);
-      console.log(` ✅ ${createdThematiques.length} liaisons créées`);
+      console.log(` ✅ ${createdThematiques.length} liaisons ${isUpdate ? 'mises à jour' : 'créées'}`);
       console.log(' Liaison IDs:', liaisonIds);
 
       extra.liaisonIds = liaisonIds;
@@ -335,7 +461,7 @@ export async function POST(request) {
       console.log(' IDs créés:', createdThematiques.map(t => `projet: ${t.id_projet}, thematique: ${t.id_thematique}`));
     }
   } else {
-  console.log('\n8. ⚠️ Aucune thématique à associer (thematiques vide ou non fourni)');
+  console.log(`\n${isUpdate ? '9' : '8'}. ⚠️ Aucune thématique à associer (thematiques vide ou non fourni)`);
   }
 
    // ✅ 10. SAUVEGARDE DES DONNÉES SPÉCIFIQUES AUX MODÈLES DE THÉMATIQUES
@@ -392,12 +518,19 @@ export async function POST(request) {
           const dataToInsert = {
             id_project: nouveauProjet.id_projet,
             id_thematique: them.id_thematique,
-            ...normalFields,
-            created_at: new Date(),
-            created_by: body.created_by || 404
+            ...normalFields
           };
 
-          console.log(`      💾 Insertion dans ${schema}.${tableName}:`, JSON.stringify(dataToInsert, null, 2));
+          // ✅ Ajouter les champs de timestamp selon le mode
+          if (isUpdate) {
+            dataToInsert.updated_at = new Date();
+            dataToInsert.updated_by = body.updated_by || body.created_by || 404;
+          } else {
+            dataToInsert.created_at = new Date();
+            dataToInsert.created_by = body.created_by || 404;
+          }
+
+          console.log(`      💾 ${isUpdate ? 'Mise à jour' : 'Insertion'} dans ${schema}.${tableName}:`, JSON.stringify(dataToInsert, null, 2));
           const createdRecord = await targetModel.create(dataToInsert, { transaction });
           const recordId = createdRecord.dataValues[modeleConfig.primaryKey];
           console.log(`      ✅ Enregistré avec succès (${modeleConfig.primaryKey}: ${recordId})`);
@@ -429,7 +562,7 @@ export async function POST(request) {
         projet: nouveauProjet,
         liaisonIds: extra?.liaisonIds || []
       }
-    }, { status: 201 });
+    }, { status: isUpdate ? 200 : 201 });
 
   } catch (error) {
     await transaction.rollback();
