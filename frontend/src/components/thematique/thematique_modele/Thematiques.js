@@ -1,7 +1,7 @@
 // frontend/src/components/thematique/thematique_modele/Thematiques.js
 // FIXED: Use relative URLs to let setupProxy.js handle routing
 
-import { useId, useState, useEffect } from 'react';
+import { useId, useState, useEffect, useRef } from 'react';
 import '../../common/Collapsible/collapsible.css';
 import styles from '../../../styles/ThematiqueSection.module.css';
 
@@ -31,11 +31,13 @@ export default function Thematiques({ value = [], onChange, title = 'Thematique(
 
   const [thematiques, setThematiques] = useState(initial);
   const [openStates, setOpenStates] = useState(initial.map(p => p.id));
+  const isInitialized = useRef(false);
 
-  // ✅ Synchroniser l'état avec les props value quand elles changent (mode édition)
+  // ✅ Synchroniser l'état avec les props value QUE lors du premier chargement (mode édition)
   useEffect(() => {
-    if (value && value.length > 0) {
-      console.log('🔄 Synchronisation des thématiques depuis les props:', value);
+    if (value && value.length > 0 && !isInitialized.current) {
+      console.log('🔄 Initialisation des thématiques depuis les props:', value);
+      isInitialized.current = true;
 
       // Mapper les propriétés du backend vers le format attendu par le composant
       const mappedThematiques = value.map(t => {
