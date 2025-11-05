@@ -339,10 +339,12 @@ export default function VueListe({
                                         <div className="last-update-info">
                                             <span className="update-label">Dernière modification:</span>
                                             <span className="update-date">
-                                                {new Date(p.date_maj || p.updated_at).toLocaleDateString('fr-FR', {
+                                                {new Date(p.date_maj || p.updated_at).toLocaleString('fr-FR', {
                                                     day: '2-digit',
                                                     month: '2-digit',
-                                                    year: 'numeric'
+                                                    year: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
                                                 })}
                                             </span>
                                             {(p.updated_by_name || p.modifier_nom) && (
