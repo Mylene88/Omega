@@ -162,6 +162,10 @@ export default function FormulairePage() {
                                         if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null && 'id' in value[0]) {
                                             value = value.map(item => item.id);
                                         }
+                                        // ✅ Si c'est un objet simple { id, value }, extraire l'ID
+                                        else if (typeof value === 'object' && value !== null && 'id' in value && 'value' in value) {
+                                            value = value.id;
+                                        }
 
                                         fields[key] = value;
                                         console.log(`  ✅ ${key}:`, value, `(type: ${typeof value})`);
