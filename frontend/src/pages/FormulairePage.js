@@ -167,7 +167,7 @@ export default function FormulairePage() {
                             id: suivi.id,
                             description: suivi.contenu ?? '',
                             dateTime: suivi.dateCreation ?? null,     // ✅ Utiliser dateTime au lieu de date
-                            author: suivi.creePar?.username || suivi.creePar?.nomComplet || 'Utilisateur inconnu'  // ✅ Extraire le username de l'objet
+                            author: suivi.creePar?.nomComplet || suivi.creePar?.username || 'Utilisateur inconnu'  // ✅ Prioriser le nom complet
                         }));
 
                         setSuiviData({
