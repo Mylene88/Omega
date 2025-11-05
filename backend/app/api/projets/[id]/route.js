@@ -249,9 +249,23 @@ export async function GET(request, { params }) {
       return null;
     }
 
+// ✅ Dédupliquer les thématiques par id_thematique pour éviter de traiter plusieurs fois la même thématique
+    const thematiquesDedupliquees = [];
+    const seenThematiqueIds = new Set();
+
+    for (const assoc of thematiqueAssociations) {
+      const thematiqueId = assoc.thematique.id_thematique;
+      if (!seenThematiqueIds.has(thematiqueId)) {
+        seenThematiqueIds.add(thematiqueId);
+        thematiquesDedupliquees.push(assoc);
+      }
+    }
+
+    console.log(`📊 Thématiques avant déduplication: ${thematiqueAssociations.length}, après: ${thematiquesDedupliquees.length}`);
+
 // Enrichir les thématiques avec les données des modèles
     const thematiquesAvecDonnees = await Promise.all(
-        thematiqueAssociations.map(async (assoc) => {
+        thematiquesDedupliquees.map(async (assoc) => {
           const modeles = JSON.parse(assoc.thematique.modele);
           const thematiqueLibelle = assoc.thematique.libelle;
           const donneesModeles = {};

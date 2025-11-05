@@ -423,23 +423,30 @@ export async function POST(request) {
       console.log(`   [${index}] fields:`, them.fields)
     });
 
-    const thematiqueRecords = body.thematiques
-      .map((them, index) => {
-        if (!them.id_thematique) {
-          console.error(`   ❌ [${index}] ERREUR: id_thematique est undefined/null pour:`, them);
-          return null;
-        }
+    // ✅ Créer les records avec déduplication par id_thematique
+    const thematiqueRecordsMap = new Map();
 
-        return {
+    body.thematiques.forEach((them, index) => {
+      if (!them.id_thematique) {
+        console.error(`   ❌ [${index}] ERREUR: id_thematique est undefined/null pour:`, them);
+        return;
+      }
+
+      // Ne créer qu'une seule association par id_thematique (pas par modèle)
+      if (!thematiqueRecordsMap.has(them.id_thematique)) {
+        thematiqueRecordsMap.set(them.id_thematique, {
           id_projet: nouveauProjet.id_projet,
           id_thematique: them.id_thematique,
           ajoute_par: body.created_by || body.updated_by || them.ajoute_par || 404,
           date_ajout: new Date()
-        };
-      })
-      .filter(record => record !== null);
+        });
+      }
+    });
 
-    console.log(' 📋 Records à créer dans projet_in_thematique:', JSON.stringify(thematiqueRecords, null, 2));
+    const thematiqueRecords = Array.from(thematiqueRecordsMap.values());
+
+    console.log(` 📋 Records à créer dans projet_in_thematique (après déduplication): ${thematiqueRecords.length}`);
+    console.log(' Détails:', JSON.stringify(thematiqueRecords, null, 2));
 
     if (thematiqueRecords.length === 0) {
       console.warn(' ⚠️ Aucune thématique valide à insérer!');
