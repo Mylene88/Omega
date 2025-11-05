@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import { Op } from 'sequelize';
 import { getFormattedThematiqueLabel } from '@/backend/lib/config';
 import db from '@/backend/models';
+import { logAudit, createSnapshot, extractRequestInfo } from '@/backend/lib/auditHelper';
 
 const {
   Projet,
@@ -839,18 +840,67 @@ export async function PATCH(request, { params }) {
   //DELETE /api/projets/[id] - Suppression d'un projet
 
 export async function DELETE(request, { params }) {
+  const transaction = await db.sequelize.transaction();
+
   try {
     const { id } = await params;
 
-    const projet = await Projet.findByPk(id);
+    // 1. Récupérer le projet complet avant suppression
+    const projet = await Projet.findByPk(id, {
+      include: [
+        { model: ProjetPorteur, as: 'porteurs' },
+        { model: ProjetSuivi, as: 'suivis' },
+        { model: Document, as: 'documents' },
+        { model: ProjetGeometry, as: 'geometry' },
+        { model: ProjetInThematique, as: 'projet_in_thematiques' }
+      ],
+      transaction
+    });
+
     if (!projet) {
+      await transaction.rollback();
       return NextResponse.json({
         success: false,
         message: 'Projet non trouvé'
       }, { status: 404 });
     }
 
-    await projet.destroy();
+    const projetData = projet.toJSON();
+    const { userIp, userAgent } = extractRequestInfo(request);
+
+    // Extraire l'userId depuis le body si disponible, sinon null
+    const body = await request.json().catch(() => ({}));
+    const userId = body.deleted_by || null;
+
+    // 2. Créer un snapshot AVANT suppression
+    await createSnapshot({
+      idProjet: id,
+      projetData: projetData,
+      snapshotType: 'BEFORE_DELETE',
+      description: `Snapshot automatique avant suppression du projet "${projetData.nom_projet}"`,
+      userId,
+      transaction
+    });
+    console.log('✅ Snapshot BEFORE_DELETE créé');
+
+    // 3. Enregistrer dans l'audit log
+    await logAudit({
+      tableName: 'projet',
+      recordId: id,
+      action: 'DELETE',
+      oldValues: projetData,
+      newValues: null,
+      userId,
+      userIp,
+      userAgent,
+      transaction
+    });
+    console.log('✅ Audit log DELETE enregistré');
+
+    // 4. Supprimer le projet (les relations en cascade seront supprimées automatiquement)
+    await projet.destroy({ transaction });
+
+    await transaction.commit();
 
     return NextResponse.json({
       success: true,
@@ -858,7 +908,8 @@ export async function DELETE(request, { params }) {
     });
 
   } catch (error) {
-    console.error(`Erreur DELETE /api/projets/${params?.id}:`, error);
+    await transaction.rollback();
+    console.error(`❌ Erreur DELETE /api/projets/${params?.id}:`, error);
     return NextResponse.json({
       success: false,
       message: 'Erreur lors de la suppression du projet',
