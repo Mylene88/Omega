@@ -330,6 +330,43 @@ export default function VueListe({
                                         )}
                                     </div>
                                 )}
+                            </div>
+
+                            {/* ✅ FOOTER: Date de modification + Bouton Modifier */}
+                            <div className="project-card-footer">
+                                <div className="footer-left">
+                                    {p.date_maj || p.updated_at ? (
+                                        <div className="last-update-info">
+                                            <span className="update-label">Dernière modification:</span>
+                                            <span className="update-date">
+                                                {new Date(p.date_maj || p.updated_at).toLocaleDateString('fr-FR', {
+                                                    day: '2-digit',
+                                                    month: '2-digit',
+                                                    year: 'numeric'
+                                                })}
+                                            </span>
+                                            {(p.updated_by_name || p.modifier_nom) && (
+                                                <span className="update-author">
+                                                    par {p.updated_by_name || p.modifier_nom}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="last-update-info">
+                                            <span className="update-label">Créé le:</span>
+                                            <span className="update-date">
+                                                {p.date_creation || p.created_at ?
+                                                    new Date(p.date_creation || p.created_at).toLocaleDateString('fr-FR', {
+                                                        day: '2-digit',
+                                                        month: '2-digit',
+                                                        year: 'numeric'
+                                                    })
+                                                    : 'N/A'
+                                                }
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
 
                                 <button
                                     className="badge badge-edit edit-btn"
