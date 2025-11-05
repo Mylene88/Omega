@@ -458,9 +458,14 @@ export default function ProjetDetailPanel({
                                                                     } else if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
-                                                                        displayValue = value.join(', ');
+                                                                        // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
+                                                                        displayValue = value.map(item =>
+                                                                            typeof item === 'object' && item !== null
+                                                                                ? (item.value || item.libelle || item.id)
+                                                                                : item
+                                                                        ).join(', ');
                                                                     } else if (typeof value === 'object' && value !== null) {
-                                                                        displayValue = value.value || JSON.stringify(value);
+                                                                        displayValue = value.value || value.libelle || JSON.stringify(value);
                                                                     } else {
                                                                         displayValue = String(value);
                                                                     }
@@ -496,9 +501,14 @@ export default function ProjetDetailPanel({
                                                                     if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
-                                                                        displayValue = value.join(', ');
+                                                                        // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
+                                                                        displayValue = value.map(item =>
+                                                                            typeof item === 'object' && item !== null
+                                                                                ? (item.value || item.libelle || item.id)
+                                                                                : item
+                                                                        ).join(', ');
                                                                     } else if (typeof value === 'object' && value !== null) {
-                                                                        displayValue = value.value || JSON.stringify(value);
+                                                                        displayValue = value.value || value.libelle || JSON.stringify(value);
                                                                     } else {
                                                                         displayValue = String(value);
                                                                     }
