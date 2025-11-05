@@ -126,7 +126,13 @@ export default function FormulairePage() {
 
                         // Créer une thématique frontend pour chaque modèle
                         return modeles.map(modeleValue => {
-                            const modeleKey = `${t.libelle}-${modeleValue}`;
+                            // ✅ Normaliser le libellé pour correspondre aux modelOptions
+                            // "Enr" → "EnR", "Urbanisme" → "Urbanisme", etc.
+                            const libelleNormalized = t.libelle === 'Enr' || t.libelle === 'enr' || t.libelle === 'ENR'
+                                ? 'EnR'
+                                : t.libelle;
+
+                            const modeleKey = `${libelleNormalized}-${modeleValue}`;
 
                             // Extraire les fields depuis donnees[modeleValue]
                             const donneesModele = t.donnees?.[modeleValue]?.[0] || {};
