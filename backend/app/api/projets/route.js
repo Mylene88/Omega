@@ -150,12 +150,12 @@ export async function GET() {
         {
           model: User,
           as: 'creator',
-          attributes: ['id_user', 'username']
+          attributes: ['id_user', 'username', 'nom_complet']
         },
         {
           model: User,
           as: 'updater',
-          attributes: ['id_user', 'username']
+          attributes: ['id_user', 'username', 'nom_complet']
         }
       ]
     });
@@ -170,7 +170,9 @@ export async function GET() {
       charte_accueil: p.charte_accueil,
       referent_ddt: p.referent_ddt,
       created_by: p.creator?.username || null,
+      created_by_name: p.creator?.nom_complet || p.creator?.username || null,
       updated_by: p.updater?.username || null,
+      updated_by_name: p.updater?.nom_complet || p.updater?.username || null,
       date_ident_projet: p.date_ident_projet,
       created_at: p.created_at,
       updated_at: p.updated_at,
