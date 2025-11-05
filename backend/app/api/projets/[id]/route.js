@@ -430,10 +430,15 @@ console.log(`✅ ${donnees.length} enregistrement(s) trouvé(s) pour ${modeleVal
 
     // ✅ CAS 2: Champ avec enumTable (select simple)
    else if (field.enumTable) {
-  // ✅ Pour les enums simples, chercher le libellé associé
-  const enumModelInfo = getEnumModelForField(field);
-  if (enumModelInfo && d[enumModelInfo.modelName]) {
-    formattedData[field.name] = d[enumModelInfo.modelName].value || d[enumModelInfo.modelName].libelle || fieldValue;
+  // ✅ Chercher l'association et récupérer le libellé via l'alias
+  const assoc = Object.values(Model.associations || {}).find(a =>
+    a.associationType !== 'BelongsToMany' &&
+    a.target?.tableName === field.enumTable &&
+    a.target?.options?.schema === modeleConfig.schema
+  );
+
+  if (assoc && d[assoc.as]) {
+    formattedData[field.name] = d[assoc.as].value || d[assoc.as].libelle || fieldValue;
   } else {
     formattedData[field.name] = fieldValue;
   }

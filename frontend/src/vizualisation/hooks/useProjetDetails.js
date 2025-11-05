@@ -62,11 +62,13 @@ export function useProjetDetails(selectedProjectId) {
                         })),
 
                         thematiques: (thematiques || []).map((t) => ({
+                            id: t.id,
                             nom: t.libelle,
                             libelle: t.libelle,
                             dateAjout: t.dateAjout,
                             ajoutePar: t.ajoutePar?.nomComplet || t.ajoutePar,
-                            donnees: t.donnees || {}
+                            donnees: t.donnees || {},
+                            fieldsMetadataByModel: t.fieldsMetadataByModel || {}
                         })),
 
                         documents: (documents || []).map((d) => ({
