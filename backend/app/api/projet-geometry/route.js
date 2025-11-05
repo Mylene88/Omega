@@ -187,6 +187,9 @@ export async function GET(request) {
             const geomData = geom.toJSON();
             const projetData = geomData.projet || {};
 
+            const thematiqueCount = projetData.projet_in_thematiques?.length || 0;
+
+
             // ✅ RÉCUPÉRER LE STATUT CORRECTEMENT
             const statutLibelle = projetData.statut_projet_enum?.libelle || 'Aucun statut renseigné';
 
@@ -235,9 +238,6 @@ export async function GET(request) {
                 }
               });
             }
-
-            // ✅ Compter le nombre réel de modèles (pas le nombre de catégories)
-            const thematiqueCount = thematiques.length;
 
             // 🔍 LOG pour vérifier (retirer en production)
             if (thematiques.length > 0) {
