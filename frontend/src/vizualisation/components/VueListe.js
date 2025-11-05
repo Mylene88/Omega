@@ -344,7 +344,8 @@ export default function VueListe({
                                                     month: '2-digit',
                                                     year: 'numeric',
                                                     hour: '2-digit',
-                                                    minute: '2-digit'
+                                                    minute: '2-digit',
+                                                    second: '2-digit'
                                                 })}
                                             </span>
                                             {(p.updated_by_name || p.modifier_nom) && (
