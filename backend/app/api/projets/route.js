@@ -4,6 +4,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/backend/models';  // ✅ Chemin corrigé
 import generateUniqueProjectId from '@/backend/utils/identifiant';  // ✅ Chemin corrigé
+import { logAudit, createSnapshot, extractRequestInfo } from '@/backend/lib/auditHelper';
 
 const {
   Projet,
@@ -214,6 +215,23 @@ export async function POST(request) {
     console.log(`\n4. Mode détecté: ${isUpdate ? '✏️ MISE À JOUR' : '✨ CRÉATION'}`);
     if (isUpdate) {
       console.log('   Projet existant trouvé:', projetExistant.id_projet);
+    }
+
+    // 📸 Capturer l'état actuel pour l'audit (avant modification)
+    let oldProjectData = null;
+    if (isUpdate) {
+      const fullOldProject = await Projet.findByPk(projetExistant.id_projet, {
+        include: [
+          { model: ProjetPorteur, as: 'porteurs' },
+          { model: ProjetSuivi, as: 'suivis' },
+          { model: Document, as: 'documents' },
+          { model: ProjetGeometry, as: 'geometry' },
+          { model: ProjetInThematique, as: 'projet_in_thematiques' }
+        ],
+        transaction
+      });
+      oldProjectData = fullOldProject ? fullOldProject.toJSON() : null;
+      console.log('   📸 État actuel capturé pour audit');
     }
 
     // Sécurisation des données
@@ -562,6 +580,51 @@ export async function POST(request) {
           throw error;
         }
       }
+    }
+
+    // ✅ 11. AUDIT LOG ET SNAPSHOT
+    console.log('\n11. 📝 Enregistrement de l\'audit...');
+    const { userIp, userAgent } = extractRequestInfo(request);
+    const userId = body.created_by || body.updated_by;
+
+    // Récupérer l'état complet du projet après modification pour l'audit
+    const fullNewProject = await Projet.findByPk(nouveauProjet.id_projet, {
+      include: [
+        { model: ProjetPorteur, as: 'porteurs' },
+        { model: ProjetSuivi, as: 'suivis' },
+        { model: Document, as: 'documents' },
+        { model: ProjetGeometry, as: 'geometry' },
+        { model: ProjetInThematique, as: 'projet_in_thematiques' }
+      ],
+      transaction
+    });
+    const newProjectData = fullNewProject ? fullNewProject.toJSON() : null;
+
+    // Enregistrer l'action dans l'audit log
+    await logAudit({
+      tableName: 'projet',
+      recordId: nouveauProjet.id_projet,
+      action: isUpdate ? 'UPDATE' : 'CREATE',
+      oldValues: isUpdate ? oldProjectData : null,
+      newValues: newProjectData,
+      userId,
+      userIp,
+      userAgent,
+      transaction
+    });
+    console.log(`   ✅ Audit log enregistré (${isUpdate ? 'UPDATE' : 'CREATE'})`);
+
+    // Créer un snapshot pour les mises à jour
+    if (isUpdate && newProjectData) {
+      await createSnapshot({
+        idProjet: nouveauProjet.id_projet,
+        projetData: newProjectData,
+        snapshotType: 'AUTO',
+        description: `Snapshot automatique après modification`,
+        userId,
+        transaction
+      });
+      console.log('   ✅ Snapshot créé');
     }
 
     console.log('=================================================================\n');
