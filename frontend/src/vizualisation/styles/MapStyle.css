@@ -8,6 +8,8 @@
     border: none !important;
     box-shadow: none !important;
     padding: 0 !important;
+    max-height: 500px !important; /* Limite la hauteur maximale */
+    overflow: visible !important; /* Permet le défilement du contenu interne */
 }
 
 .custom-card-tooltip .leaflet-tooltip-content {
@@ -37,7 +39,34 @@
     border-right-color: white !important;
 }
 
-/* Scrollbar personnalisée pour la description */
+/* ✅ Scrollbar personnalisée pour le contenu du tooltip */
+.tooltip-scrollable-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.tooltip-scrollable-content::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+    margin: 4px 0;
+}
+
+.tooltip-scrollable-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+    border: 2px solid #f1f5f9;
+}
+
+.tooltip-scrollable-content::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Pour Firefox */
+.tooltip-scrollable-content {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+/* Scrollbar personnalisée pour la description (ancienne règle conservée pour compatibilité) */
 .custom-card-tooltip div::-webkit-scrollbar {
     width: 4px;
 }
@@ -367,6 +396,43 @@
 /* Limiter la largeur maximale du tooltip */
 .custom-card-tooltip {
   max-width: 350px !important;
+}
+
+/* ✅ S'assurer que le tooltip reste toujours dans les limites de la carte */
+.leaflet-tooltip {
+    max-height: 90vh !important; /* Limiter à 90% de la hauteur de la fenêtre */
+    overflow: visible !important;
+}
+
+/* Ajouter une ombre subtile au contenu scrollable pour indiquer qu'il y a plus de contenu */
+.tooltip-scrollable-content {
+    position: relative;
+}
+
+/* Effet d'ombre en haut quand on peut scroller vers le haut */
+.tooltip-scrollable-content::before {
+    content: '';
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 12px;
+    background: linear-gradient(to bottom, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 100%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Effet d'ombre en bas quand on peut scroller vers le bas */
+.tooltip-scrollable-content::after {
+    content: '';
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 12px;
+    background: linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 100%);
+    pointer-events: none;
+    z-index: 1;
 }
 
 /* Styles spécifiques pour les sections COMMUNES et TYPE DE PORTEUR */

@@ -406,8 +406,12 @@ export default function Map({ onSelect }) {
                                 padding: 16px;
                                 min-width: 280px;
                                 max-width: 350px;
+                                max-height: 450px;
+                                overflow-y: auto;
                                 font-family: 'MARIANNE', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                            ">
+                            "
+                            class="tooltip-scrollable-content"
+                            >
                                 <!-- En-tête avec ID -->
                                 <div style="
                                     display: flex;
@@ -538,13 +542,84 @@ export default function Map({ onSelect }) {
 
 
 
-                        // Ajouter le tooltip permanent mais visible seulement au survol
+                        // ✅ Fonction pour calculer dynamiquement la direction du tooltip
+                        // en fonction de la position du marqueur sur la carte
+                        const getTooltipDirection = (latlng) => {
+                            if (!mapRef.current) return { direction: 'top', offset: [0, -10] };
+
+                            const map = mapRef.current;
+                            const point = map.latLngToContainerPoint(latlng);
+                            const mapSize = map.getSize();
+
+                            // Calculer la position relative du marqueur (0 = haut/gauche, 1 = bas/droite)
+                            const relativeY = point.y / mapSize.y;
+                            const relativeX = point.x / mapSize.x;
+
+                            // Si le marqueur est dans le tiers supérieur, afficher le tooltip en bas
+                            if (relativeY < 0.33) {
+                                return { direction: 'bottom', offset: [0, 20] };
+                            }
+                            // Si le marqueur est dans le tiers inférieur, afficher le tooltip en haut
+                            else if (relativeY > 0.67) {
+                                return { direction: 'top', offset: [0, -10] };
+                            }
+                            // Au centre verticalement, vérifier la position horizontale
+                            else {
+                                // Si trop à gauche, afficher à droite
+                                if (relativeX < 0.25) {
+                                    return { direction: 'right', offset: [15, 0] };
+                                }
+                                // Si trop à droite, afficher à gauche
+                                else if (relativeX > 0.75) {
+                                    return { direction: 'left', offset: [-15, 0] };
+                                }
+                                // Sinon, afficher en haut par défaut
+                                else {
+                                    return { direction: 'top', offset: [0, -10] };
+                                }
+                            }
+                        };
+
+                        // Obtenir les coordonnées du feature pour calculer la direction
+                        let latlng;
+                        if (geom.type === 'Point') {
+                            latlng = L.latLng(geom.coordinates[1], geom.coordinates[0]);
+                        } else if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
+                            // Pour les polygones, calculer le centre
+                            const bounds = layer.getBounds();
+                            latlng = bounds.getCenter();
+                        } else if (geom.type === 'LineString' || geom.type === 'MultiLineString') {
+                            // Pour les lignes, prendre le centre de la bbox
+                            const bounds = layer.getBounds();
+                            latlng = bounds.getCenter();
+                        }
+
+                        // Calculer la direction et l'offset optimaux
+                        const tooltipConfig = latlng ? getTooltipDirection(latlng) : { direction: 'top', offset: [0, -10] };
+
+                        // Ajouter le tooltip avec configuration dynamique
                         layer.bindTooltip(tooltipContent, {
                             permanent: false,
-                            direction: 'top',
-                            offset: [0, -10],
+                            direction: tooltipConfig.direction,
+                            offset: tooltipConfig.offset,
                             className: 'custom-card-tooltip',
                             opacity: 1
+                        });
+
+                        // ✅ Recalculer la direction du tooltip lors des déplacements de la carte
+                        map.on('moveend zoomend', () => {
+                            if (latlng) {
+                                const newConfig = getTooltipDirection(latlng);
+                                // Mettre à jour le tooltip avec la nouvelle configuration
+                                layer.unbindTooltip();
+                                layer.bindTooltip(tooltipContent, {
+                                    permanent: false,
+                                    direction: newConfig.direction,
+                                    offset: newConfig.offset,
+                                    className: 'custom-card-tooltip',
+                                    opacity: 1
+                                });
+                            }
                         });
 
                         // Événement de clic pour ouvrir la sidebar
