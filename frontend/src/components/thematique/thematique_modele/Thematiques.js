@@ -32,6 +32,23 @@ export default function Thematiques({ value = [], onChange, title = 'Thematique(
   const [thematiques, setThematiques] = useState(initial);
   const [openStates, setOpenStates] = useState(initial.map(p => p.id));
 
+  // ✅ Synchroniser l'état avec les props value quand elles changent (mode édition)
+  useEffect(() => {
+    if (value && value.length > 0) {
+      console.log('🔄 Synchronisation des thématiques depuis les props:', value);
+
+      // Mapper les propriétés du backend vers le format attendu par le composant
+      const mappedThematiques = value.map(t => ({
+        id: t.id || t.id_thematique || genId(),  // Utiliser id ou id_thematique
+        modeleThematique: t.modeleThematique || t.modele || '',  // Utiliser modeleThematique ou modele
+        fields: t.fields || {}
+      }));
+
+      setThematiques(mappedThematiques);
+      setOpenStates(mappedThematiques.map(p => p.id));
+    }
+  }, [value]);
+
   useEffect(() => {
     fetchModelOptions();
   }, []);
