@@ -124,39 +124,52 @@ export default function FormulairePage() {
                             return [];
                         }
 
-                        // Créer une thématique frontend pour chaque modèle
-                        return modeles.map(modeleValue => {
-                            // ✅ Normaliser le libellé pour correspondre aux modelOptions
-                            // "Enr" → "EnR", "Urbanisme" → "Urbanisme", etc.
-                            const libelleNormalized = t.libelle === 'Enr' || t.libelle === 'enr' || t.libelle === 'ENR'
-                                ? 'EnR'
-                                : t.libelle;
+                        // ✅ Filtrer et créer une thématique frontend UNIQUEMENT pour les modèles qui ont des données
+                        return modeles
+                            .filter(modeleValue => {
+                                // Vérifier si ce modèle a des données saisies
+                                const hasDonnees = t.donnees?.[modeleValue] &&
+                                                   Array.isArray(t.donnees[modeleValue]) &&
+                                                   t.donnees[modeleValue].length > 0;
 
-                            const modeleKey = `${libelleNormalized}-${modeleValue}`;
-
-                            // Extraire les fields depuis donnees[modeleValue]
-                            const donneesModele = t.donnees?.[modeleValue]?.[0] || {};
-                            const fields = {};
-
-                            // Copier tous les champs sauf les métadonnées
-                            Object.keys(donneesModele).forEach(key => {
-                                if (!['id', 'commentaires', 'dateCreation', 'dateMiseAJour'].includes(key)) {
-                                    fields[key] = donneesModele[key];
+                                if (!hasDonnees) {
+                                    console.log(`⏩ Ignorer ${modeleValue} (pas de données)`);
                                 }
+
+                                return hasDonnees;
+                            })
+                            .map(modeleValue => {
+                                // ✅ Normaliser le libellé pour correspondre aux modelOptions
+                                // "Enr" → "EnR", "Urbanisme" → "Urbanisme", etc.
+                                const libelleNormalized = t.libelle === 'Enr' || t.libelle === 'enr' || t.libelle === 'ENR'
+                                    ? 'EnR'
+                                    : t.libelle;
+
+                                const modeleKey = `${libelleNormalized}-${modeleValue}`;
+
+                                // Extraire les fields depuis donnees[modeleValue]
+                                const donneesModele = t.donnees[modeleValue][0];
+                                const fields = {};
+
+                                // Copier tous les champs sauf les métadonnées
+                                Object.keys(donneesModele).forEach(key => {
+                                    if (!['id', 'commentaires', 'dateCreation', 'dateMiseAJour'].includes(key)) {
+                                        fields[key] = donneesModele[key];
+                                    }
+                                });
+
+                                console.log(`📝 Mapping ${modeleKey}:`, { donneesModele, fields });
+
+                                return {
+                                    id_thematique: t.id,
+                                    libelle: t.libelle,
+                                    modele: modeleKey,  // "EnR-eolien", "EnR-methanisation", etc.
+                                    fields: fields,
+                                    commentaires: donneesModele.commentaires || '',
+                                    dateAjout: t.dateAjout,
+                                    ajoutePar: t.ajoutePar
+                                };
                             });
-
-                            console.log(`📝 Mapping ${modeleKey}:`, { donneesModele, fields });
-
-                            return {
-                                id_thematique: t.id,
-                                libelle: t.libelle,
-                                modele: modeleKey,  // "EnR-eolien", "EnR-methanisation", etc.
-                                fields: fields,
-                                commentaires: donneesModele.commentaires || '',
-                                dateAjout: t.dateAjout,
-                                ajoutePar: t.ajoutePar
-                            };
-                        });
                     });
 
                     console.log('✅ Thématiques formatées pour le frontend:', thematiquesFormatees);
