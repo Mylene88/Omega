@@ -38,12 +38,17 @@ export default function Thematiques({ value = [], onChange, title = 'Thematique(
       console.log('🔄 Synchronisation des thématiques depuis les props:', value);
 
       // Mapper les propriétés du backend vers le format attendu par le composant
-      const mappedThematiques = value.map(t => ({
-        id: t.id || t.id_thematique || genId(),  // Utiliser id ou id_thematique
-        modeleThematique: t.modeleThematique || t.modele || '',  // Utiliser modeleThematique ou modele
-        fields: t.fields || {}
-      }));
+      const mappedThematiques = value.map(t => {
+        const mapped = {
+          id: t.id || t.id_thematique || genId(),  // Utiliser id ou id_thematique
+          modeleThematique: t.modeleThematique || t.modele || '',  // Utiliser modeleThematique ou modele
+          fields: t.fields || {}
+        };
+        console.log('✅ Thématique mappée:', { original: t, mapped });
+        return mapped;
+      });
 
+      console.log('📦 Thématiques finales après mapping:', mappedThematiques);
       setThematiques(mappedThematiques);
       setOpenStates(mappedThematiques.map(p => p.id));
     }
@@ -86,6 +91,7 @@ export default function Thematiques({ value = [], onChange, title = 'Thematique(
       if (data.success && data.data?.modelOptions) {
         console.log('✅ Options chargées:', data.data.modelOptions.length);
         console.log('📋 Exemple d\'option:', data.data.modelOptions[0]);
+        console.log('📋 Toutes les valeurs disponibles:', data.data.modelOptions.map(o => o.value));
 
         setModelOptions(data.data.modelOptions);
       } else {
@@ -485,9 +491,22 @@ export default function Thematiques({ value = [], onChange, title = 'Thematique(
       return <p className={styles.noModelSelected}>Veuillez d'abord sélectionner un modèle de thématique</p>;
     }
 
+    console.log('🔍 Recherche du modèle:', thematique.modeleThematique);
+    console.log('📋 Options disponibles:', modelOptions.map(opt => opt.value));
+
     const selectedOption = modelOptions.find(opt => opt.value === thematique.modeleThematique);
+
     if (!selectedOption) {
-      return <p className={styles.modelNotFound}>Configuration de modèle non trouvée</p>;
+      console.error('❌ Aucune option trouvée pour:', thematique.modeleThematique);
+      console.error('📋 ModelOptions complets:', modelOptions);
+      return (
+        <div className={styles.modelNotFound}>
+          <p>Configuration de modèle non trouvée</p>
+          <p style={{ fontSize: '12px', color: '#666' }}>
+            Modèle recherché: {thematique.modeleThematique}
+          </p>
+        </div>
+      );
     }
 
     return (
