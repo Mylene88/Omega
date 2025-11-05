@@ -6,6 +6,7 @@ import VisualisationPage from '../src/vizualisation/pages/VisualisationPage'
 import FormulairePage from '../src/pages/FormulairePage';
 import ListeProjetPage from "./vizualisation/pages/ListeProjetPage";
 import HomePage from './pages/Home/HomePage';
+import AdminPage from './pages/Admin/AdminPage';
 
 import './App.css';
 
@@ -17,6 +18,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/change-password" element={<ChangedPasswordPage />} />
             <Route path="/dashboard" element={<HomePage />} />
+            <Route path="/admin" element={<AdminPage />} />
             <Route path="/projets/create" element={<FormulairePage />} />
             <Route path = "/projets/edit/:id" element={<FormulairePage />} />
             <Route path="/projets/carte" element={<VisualisationPage />} />
