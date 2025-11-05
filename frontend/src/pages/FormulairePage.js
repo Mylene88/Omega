@@ -149,16 +149,20 @@ export default function FormulairePage() {
 
                                 // Extraire les fields depuis donnees[modeleValue]
                                 const donneesModele = t.donnees[modeleValue][0];
+                                console.log(`🔍 Données brutes pour ${modeleKey}:`, donneesModele);
+
                                 const fields = {};
 
                                 // Copier tous les champs sauf les métadonnées
                                 Object.keys(donneesModele).forEach(key => {
                                     if (!['id', 'commentaires', 'dateCreation', 'dateMiseAJour'].includes(key)) {
                                         fields[key] = donneesModele[key];
+                                        console.log(`  ✅ ${key}:`, donneesModele[key], `(type: ${typeof donneesModele[key]})`);
                                     }
                                 });
 
-                                console.log(`📝 Mapping ${modeleKey}:`, { donneesModele, fields });
+                                console.log(`📝 Fields finaux pour ${modeleKey}:`, fields);
+                                console.log(`📝 Commentaires:`, donneesModele.commentaires);
 
                                 return {
                                     id_thematique: t.id,
