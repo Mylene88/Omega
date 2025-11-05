@@ -518,19 +518,13 @@ export async function POST(request) {
           const dataToInsert = {
             id_project: nouveauProjet.id_projet,
             id_thematique: them.id_thematique,
-            ...normalFields
+            ...normalFields,
+            // ✅ Toujours utiliser created_at/created_by car les thématiques sont supprimées puis recréées
+            created_at: new Date(),
+            created_by: body.created_by || body.updated_by || 404
           };
 
-          // ✅ Ajouter les champs de timestamp selon le mode
-          if (isUpdate) {
-            dataToInsert.updated_at = new Date();
-            dataToInsert.updated_by = body.updated_by || body.created_by || 404;
-          } else {
-            dataToInsert.created_at = new Date();
-            dataToInsert.created_by = body.created_by || 404;
-          }
-
-          console.log(`      💾 ${isUpdate ? 'Mise à jour' : 'Insertion'} dans ${schema}.${tableName}:`, JSON.stringify(dataToInsert, null, 2));
+          console.log(`      💾 Insertion dans ${schema}.${tableName}:`, JSON.stringify(dataToInsert, null, 2));
           const createdRecord = await targetModel.create(dataToInsert, { transaction });
           const recordId = createdRecord.dataValues[modeleConfig.primaryKey];
           console.log(`      ✅ Enregistré avec succès (${modeleConfig.primaryKey}: ${recordId})`);
