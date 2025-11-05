@@ -361,10 +361,17 @@ export default function ProjetDetailPanel({
                         <span className="accordion-icon">{expandedSections.thematiques ? '▼' : '▶'}</span>
                         <span className="accordion-title">🎯 Thématiques</span>
                         <span className="accordion-badge">
-                            {selectedProjectDetails.thematiques?.reduce((count, t) => {
-                                if (!t.donnees) return count;
-                                return count + Object.values(t.donnees).filter(d => Array.isArray(d) && d.length > 0).length;
-                            }, 0) || 0}
+                            {(() => {
+                                // Dédupliquer avant de compter
+                                const uniques = selectedProjectDetails.thematiques?.reduce((acc, t) => {
+                                    if (!acc[t.id]) acc[t.id] = t;
+                                    return acc;
+                                }, {});
+                                return Object.values(uniques || {}).reduce((count, t) => {
+                                    if (!t.donnees) return count;
+                                    return count + Object.values(t.donnees).filter(d => Array.isArray(d) && d.length > 0).length;
+                                }, 0);
+                            })()}
                         </span>
                     </button>
 
@@ -372,20 +379,19 @@ export default function ProjetDetailPanel({
                         <div className="accordion-content">
                             {selectedProjectDetails.thematiques?.length > 0 ? (
                                 (() => {
-                                    // 🔍 Debug : voir la structure des thématiques reçues
-                                    console.log('🎯 Thématiques reçues dans ProjetDetailPanel:', selectedProjectDetails.thematiques);
-                                    console.log('🎯 Nombre de thématiques:', selectedProjectDetails.thematiques.length);
-                                    selectedProjectDetails.thematiques.forEach((t, i) => {
-                                        console.log(`🎯 Thématique ${i}:`, {
-                                            libelle: t.libelle,
-                                            modele: t.modele,
-                                            donneesKeys: Object.keys(t.donnees || {}),
-                                            donneesCount: Object.values(t.donnees || {}).filter(d => Array.isArray(d) && d.length > 0).length
-                                        });
-                                    });
+                                    // ✅ Dédupliquer les thématiques par id (le backend peut envoyer des duplicatas)
+                                    const thematiquesUniques = selectedProjectDetails.thematiques.reduce((acc, them) => {
+                                        // Utiliser l'id de la thématique comme clé pour dédupliquer
+                                        if (!acc[them.id]) {
+                                            acc[them.id] = them;
+                                        }
+                                        return acc;
+                                    }, {});
+
+                                    const thematiquesDeduplicates = Object.values(thematiquesUniques);
 
                                     // ✅ Déplier les thématiques : un modèle = une thématique affichée
-                                    const thematiquesDepliees = selectedProjectDetails.thematiques.flatMap((them) => {
+                                    const thematiquesDepliees = thematiquesDeduplicates.flatMap((them) => {
                                         if (!them.donnees || Object.keys(them.donnees).length === 0) {
                                             return [];
                                         }
@@ -401,9 +407,6 @@ export default function ProjetDetailPanel({
                                                 originalThem: them
                                             }));
                                     });
-
-                                    console.log('📦 Thématiques dépliées:', thematiquesDepliees);
-                                    console.log('📦 Nombre de lignes à afficher:', thematiquesDepliees.length);
 
                                     if (thematiquesDepliees.length === 0) {
                                         return (
