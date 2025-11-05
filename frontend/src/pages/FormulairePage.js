@@ -156,8 +156,15 @@ export default function FormulairePage() {
                                 // Copier tous les champs sauf les métadonnées
                                 Object.keys(donneesModele).forEach(key => {
                                     if (!['id', 'dateCreation', 'dateMiseAJour'].includes(key)) {
-                                        fields[key] = donneesModele[key];
-                                        console.log(`  ✅ ${key}:`, donneesModele[key], `(type: ${typeof donneesModele[key]})`);
+                                        let value = donneesModele[key];
+
+                                        // ✅ Si c'est un tableau d'objets { id, value }, extraire les IDs pour le formulaire
+                                        if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null && 'id' in value[0]) {
+                                            value = value.map(item => item.id);
+                                        }
+
+                                        fields[key] = value;
+                                        console.log(`  ✅ ${key}:`, value, `(type: ${typeof value})`);
                                     }
                                 });
 
