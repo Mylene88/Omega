@@ -372,6 +372,18 @@ export default function ProjetDetailPanel({
                         <div className="accordion-content">
                             {selectedProjectDetails.thematiques?.length > 0 ? (
                                 (() => {
+                                    // 🔍 Debug : voir la structure des thématiques reçues
+                                    console.log('🎯 Thématiques reçues dans ProjetDetailPanel:', selectedProjectDetails.thematiques);
+                                    console.log('🎯 Nombre de thématiques:', selectedProjectDetails.thematiques.length);
+                                    selectedProjectDetails.thematiques.forEach((t, i) => {
+                                        console.log(`🎯 Thématique ${i}:`, {
+                                            libelle: t.libelle,
+                                            modele: t.modele,
+                                            donneesKeys: Object.keys(t.donnees || {}),
+                                            donneesCount: Object.values(t.donnees || {}).filter(d => Array.isArray(d) && d.length > 0).length
+                                        });
+                                    });
+
                                     // ✅ Déplier les thématiques : un modèle = une thématique affichée
                                     const thematiquesDepliees = selectedProjectDetails.thematiques.flatMap((them) => {
                                         if (!them.donnees || Object.keys(them.donnees).length === 0) {
@@ -389,6 +401,9 @@ export default function ProjetDetailPanel({
                                                 originalThem: them
                                             }));
                                     });
+
+                                    console.log('📦 Thématiques dépliées:', thematiquesDepliees);
+                                    console.log('📦 Nombre de lignes à afficher:', thematiquesDepliees.length);
 
                                     if (thematiquesDepliees.length === 0) {
                                         return (
