@@ -440,7 +440,11 @@ console.log(`✅ ${donnees.length} enregistrement(s) trouvé(s) pour ${modeleVal
   );
 
   if (assoc && d[assoc.as]) {
-    formattedData[field.name] = d[assoc.as].value || d[assoc.as].libelle || fieldValue;
+    // ✅ Renvoyer un objet {id, value} pour que le frontend puisse extraire l'ID
+    formattedData[field.name] = {
+      id: fieldValue, // L'ID stocké dans la base
+      value: d[assoc.as].value || d[assoc.as].libelle || fieldValue
+    };
   } else {
     formattedData[field.name] = fieldValue;
   }
