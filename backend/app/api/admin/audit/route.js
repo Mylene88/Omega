@@ -2,24 +2,8 @@
 
 import { NextResponse } from 'next/server';
 import { getRecentActivity, getActivityStats, getAuditHistory } from '@/backend/lib/auditHelper';
+import { requireAdmin } from '@/backend/lib/adminAuthHelper';
 import db from '@/backend/models';
-
-/**
- * Middleware pour vérifier que l'utilisateur est admin
- */
-function checkAdminAccess(request) {
-  // TODO: Implémenter une vraie vérification admin avec JWT
-  // Pour l'instant, on va vérifier un header spécial
-  const authHeader = request.headers.get('authorization');
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return { isAdmin: false, userId: null };
-  }
-
-  // Extraire l'ID utilisateur du token (à implémenter avec JWT)
-  // Pour l'instant, on retourne true si le header est présent
-  return { isAdmin: true, userId: null };
-}
 
 /**
  * GET /api/admin/audit
@@ -37,13 +21,11 @@ function checkAdminAccess(request) {
 export async function GET(request) {
   try {
     // Vérifier l'accès admin
-    const { isAdmin, userId } = checkAdminAccess(request);
-    if (!isAdmin) {
-      return NextResponse.json({
-        success: false,
-        message: 'Accès non autorisé. Authentification admin requise.'
-      }, { status: 403 });
+    const adminCheck = await requireAdmin(request);
+    if (!adminCheck.allowed) {
+      return NextResponse.json(adminCheck.response, { status: adminCheck.status });
     }
+    const userId = adminCheck.userId;
 
     // Extraire les paramètres de requête
     const { searchParams } = new URL(request.url);
