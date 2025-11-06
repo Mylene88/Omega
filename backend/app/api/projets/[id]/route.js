@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import { Op } from 'sequelize';
 import { getFormattedThematiqueLabel } from '@/backend/lib/config';
 import db from '@/backend/models';
+import { logAudit, createSnapshot, extractRequestInfo } from '@/backend/lib/auditHelper';
 
 const {
   Projet,
@@ -249,9 +250,23 @@ export async function GET(request, { params }) {
       return null;
     }
 
+// ✅ Dédupliquer les thématiques par id_thematique pour éviter de traiter plusieurs fois la même thématique
+    const thematiquesDedupliquees = [];
+    const seenThematiqueIds = new Set();
+
+    for (const assoc of thematiqueAssociations) {
+      const thematiqueId = assoc.thematique.id_thematique;
+      if (!seenThematiqueIds.has(thematiqueId)) {
+        seenThematiqueIds.add(thematiqueId);
+        thematiquesDedupliquees.push(assoc);
+      }
+    }
+
+    console.log(`📊 Thématiques avant déduplication: ${thematiqueAssociations.length}, après: ${thematiquesDedupliquees.length}`);
+
 // Enrichir les thématiques avec les données des modèles
     const thematiquesAvecDonnees = await Promise.all(
-        thematiqueAssociations.map(async (assoc) => {
+        thematiquesDedupliquees.map(async (assoc) => {
           const modeles = JSON.parse(assoc.thematique.modele);
           const thematiqueLibelle = assoc.thematique.libelle;
           const donneesModeles = {};
@@ -372,13 +387,15 @@ export async function GET(request, { params }) {
                 }
               });
 
-// ✅ RÉCUPÉRER LES DONNÉES AVEC LES RELATIONS
+// ✅ RÉCUPÉRER LES DONNÉES AVEC LES RELATIONS (uniquement le plus récent)
 const donnees = await Model.findAll({
   where: {
     id_project: id,
     id_thematique: assoc.thematique.id_thematique
   },
-  include: includeOptions
+  include: includeOptions,
+  order: [[modeleConfig.primaryKey, 'DESC']], // Récupérer le plus récent
+  limit: 1 // Limiter à 1 enregistrement pour éviter les doublons
 });
 
 console.log(`✅ ${donnees.length} enregistrement(s) trouvé(s) pour ${modeleValue}`);
@@ -405,22 +422,33 @@ console.log(`✅ ${donnees.length} enregistrement(s) trouvé(s) pour ${modeleVal
     if (field.type === 'checkbox-multiple' && field.relationTable) {
   const assocM2M = findBelongsToManyAssociation(Model, field.enumTable, field.enumSchema, field.relationTable);
   const relatedData = assocM2M ? d[assocM2M.as] : null;
-  const labelKey = field.enumTable === 'type_sol_enum' ? 'libelle' : 'value';
+  // ✅ Renvoyer les objets complets avec ID et libellé pour l'affichage
   formattedData[field.name] = Array.isArray(relatedData)
-    ? relatedData.map(item => item[labelKey] ?? item.value ?? item.libelle).join(', ')
-    : '-';
+    ? relatedData.map(item => ({
+        id: item.id,
+        value: item.value || item.libelle || item.id
+      }))
+    : fieldValue;
 }
 
     // ✅ CAS 2: Champ avec enumTable (select simple)
    else if (field.enumTable) {
-  const assocBT = Object.values(Model.associations || {}).find(a =>
+  // ✅ Chercher l'association et récupérer le libellé via l'alias
+  const assoc = Object.values(Model.associations || {}).find(a =>
     a.associationType !== 'BelongsToMany' &&
     a.target?.tableName === field.enumTable &&
     a.target?.options?.schema === modeleConfig.schema
   );
-  const enumData = d[assocBT?.as || field.enumTable];
-  const labelKey = field.enumTable === 'type_sol_enum' ? 'libelle' : 'value';
-  formattedData[field.name] = enumData?.[labelKey] ?? fieldValue ?? '-';
+
+  if (assoc && d[assoc.as]) {
+    // ✅ Renvoyer un objet {id, value} pour que le frontend puisse extraire l'ID
+    formattedData[field.name] = {
+      id: fieldValue, // L'ID stocké dans la base
+      value: d[assoc.as].value || d[assoc.as].libelle || fieldValue
+    };
+  } else {
+    formattedData[field.name] = fieldValue;
+  }
 }
 
     // ✅ CAS 3: Champ normal
@@ -812,18 +840,67 @@ export async function PATCH(request, { params }) {
   //DELETE /api/projets/[id] - Suppression d'un projet
 
 export async function DELETE(request, { params }) {
+  const transaction = await db.sequelize.transaction();
+
   try {
     const { id } = await params;
 
-    const projet = await Projet.findByPk(id);
+    // 1. Récupérer le projet complet avant suppression
+    const projet = await Projet.findByPk(id, {
+      include: [
+        { model: ProjetPorteur, as: 'porteurs' },
+        { model: ProjetSuivi, as: 'suivis' },
+        { model: Document, as: 'documents' },
+        { model: ProjetGeometry, as: 'geometry' },
+        { model: ProjetInThematique, as: 'projet_in_thematiques' }
+      ],
+      transaction
+    });
+
     if (!projet) {
+      await transaction.rollback();
       return NextResponse.json({
         success: false,
         message: 'Projet non trouvé'
       }, { status: 404 });
     }
 
-    await projet.destroy();
+    const projetData = projet.toJSON();
+    const { userIp, userAgent } = extractRequestInfo(request);
+
+    // Extraire l'userId depuis le body si disponible, sinon null
+    const body = await request.json().catch(() => ({}));
+    const userId = body.deleted_by || null;
+
+    // 2. Créer un snapshot AVANT suppression
+    await createSnapshot({
+      idProjet: id,
+      projetData: projetData,
+      snapshotType: 'BEFORE_DELETE',
+      description: `Snapshot automatique avant suppression du projet "${projetData.nom_projet}"`,
+      userId,
+      transaction
+    });
+    console.log('✅ Snapshot BEFORE_DELETE créé');
+
+    // 3. Enregistrer dans l'audit log
+    await logAudit({
+      tableName: 'projet',
+      recordId: id,
+      action: 'DELETE',
+      oldValues: projetData,
+      newValues: null,
+      userId,
+      userIp,
+      userAgent,
+      transaction
+    });
+    console.log('✅ Audit log DELETE enregistré');
+
+    // 4. Supprimer le projet (les relations en cascade seront supprimées automatiquement)
+    await projet.destroy({ transaction });
+
+    await transaction.commit();
 
     return NextResponse.json({
       success: true,
@@ -831,7 +908,8 @@ export async function DELETE(request, { params }) {
     });
 
   } catch (error) {
-    console.error(`Erreur DELETE /api/projets/${params?.id}:`, error);
+    await transaction.rollback();
+    console.error(`❌ Erreur DELETE /api/projets/${params?.id}:`, error);
     return NextResponse.json({
       success: false,
       message: 'Erreur lors de la suppression du projet',

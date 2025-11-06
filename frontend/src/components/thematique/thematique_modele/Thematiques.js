@@ -1,7 +1,7 @@
 // frontend/src/components/thematique/thematique_modele/Thematiques.js
 // FIXED: Use relative URLs to let setupProxy.js handle routing
 
-import { useId, useState, useEffect } from 'react';
+import { useId, useState, useEffect, useRef } from 'react';
 import '../../common/Collapsible/collapsible.css';
 import styles from '../../../styles/ThematiqueSection.module.css';
 
@@ -31,6 +31,33 @@ export default function Thematiques({ value = [], onChange, title = 'Thematique(
 
   const [thematiques, setThematiques] = useState(initial);
   const [openStates, setOpenStates] = useState(initial.map(p => p.id));
+  const isInitialized = useRef(false);
+
+  // ✅ Synchroniser l'état avec les props value QUE lors du premier chargement (mode édition)
+  useEffect(() => {
+    if (value && value.length > 0 && !isInitialized.current) {
+      console.log('🔄 Initialisation des thématiques depuis les props:', value);
+      isInitialized.current = true;
+
+      // Mapper les propriétés du backend vers le format attendu par le composant
+      const mappedThematiques = value.map(t => {
+        const mapped = {
+          // ✅ FIX: Toujours générer un ID unique pour chaque thématique du formulaire
+          // Ne pas utiliser id_thematique car il représente la catégorie, pas l'instance
+          id: genId(),
+          modeleThematique: t.modeleThematique || t.modele || '',  // Utiliser modeleThematique ou modele
+          fields: t.fields || {}
+        };
+        console.log('✅ Thématique mappée:', { original: t, mapped });
+        return mapped;
+      });
+
+      console.log('📦 Thématiques finales après mapping:', mappedThematiques);
+      setThematiques(mappedThematiques);
+      // ✅ Ne pas ouvrir toutes les thématiques par défaut, seulement la première
+      setOpenStates([mappedThematiques[0]?.id].filter(Boolean));
+    }
+  }, [value]);
 
   useEffect(() => {
     fetchModelOptions();
@@ -69,6 +96,7 @@ export default function Thematiques({ value = [], onChange, title = 'Thematique(
       if (data.success && data.data?.modelOptions) {
         console.log('✅ Options chargées:', data.data.modelOptions.length);
         console.log('📋 Exemple d\'option:', data.data.modelOptions[0]);
+        console.log('📋 Toutes les valeurs disponibles:', data.data.modelOptions.map(o => o.value));
 
         setModelOptions(data.data.modelOptions);
       } else {
@@ -468,9 +496,22 @@ export default function Thematiques({ value = [], onChange, title = 'Thematique(
       return <p className={styles.noModelSelected}>Veuillez d'abord sélectionner un modèle de thématique</p>;
     }
 
+    console.log('🔍 Recherche du modèle:', thematique.modeleThematique);
+    console.log('📋 Options disponibles:', modelOptions.map(opt => opt.value));
+
     const selectedOption = modelOptions.find(opt => opt.value === thematique.modeleThematique);
+
     if (!selectedOption) {
-      return <p className={styles.modelNotFound}>Configuration de modèle non trouvée</p>;
+      console.error('❌ Aucune option trouvée pour:', thematique.modeleThematique);
+      console.error('📋 ModelOptions complets:', modelOptions);
+      return (
+        <div className={styles.modelNotFound}>
+          <p>Configuration de modèle non trouvée</p>
+          <p style={{ fontSize: '12px', color: '#666' }}>
+            Modèle recherché: {thematique.modeleThematique}
+          </p>
+        </div>
+      );
     }
 
     return (

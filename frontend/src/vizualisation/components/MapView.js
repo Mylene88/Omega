@@ -406,8 +406,12 @@ export default function Map({ onSelect }) {
                                 padding: 16px;
                                 min-width: 280px;
                                 max-width: 350px;
+                                max-height: 450px;
+                                overflow-y: auto;
                                 font-family: 'MARIANNE', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                            ">
+                            "
+                            class="tooltip-scrollable-content"
+                            >
                                 <!-- En-tête avec ID -->
                                 <div style="
                                     display: flex;
@@ -446,9 +450,20 @@ export default function Map({ onSelect }) {
                                 <!-- Description -->
                                 <div style="margin-bottom: 12px;">
                                     <div style="font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 4px;">DESCRIPTION</div>
-                                    <div style="font-size: 12px; color: ${description !== 'Aucune description' ? '#475569' : '#94a3b8'}; 
-                                        line-height: 1.5; font-style: ${description !== 'Aucune description' ? 'normal' : 'italic'};">
-                                        ${description !== 'Aucune description' && description.length > 150 ? description.substring(0, 150) + '...' : description}
+                                    <div style="
+                                        font-size: 12px;
+                                        color: ${description !== 'Aucune description' ? '#475569' : '#94a3b8'};
+                                        line-height: 1.5;
+                                        font-style: ${description !== 'Aucune description' ? 'normal' : 'italic'};
+                                        display: -webkit-box;
+                                        -webkit-line-clamp: 3;
+                                        -webkit-box-orient: vertical;
+                                        overflow: hidden;
+                                        text-overflow: ellipsis;
+                                        word-wrap: break-word;
+                                        word-break: break-word;
+                                    ">
+                                        ${description}
                                     </div>
                                 </div>
 
@@ -457,18 +472,18 @@ export default function Map({ onSelect }) {
                                     <!-- Communes -->
                                     <div style="display: flex; align-items: flex-start; gap: 8px;">
                                         <span style="font-size: 16px;">📍</span>
-                                        <div style="flex: 1;">
+                                        <div style="flex: 1; min-width: 0;">
                                             <div style="font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 2px;">COMMUNE(S)</div>
-                                            <div style="font-size: 13px; color: #1e293b; font-weight: 500;">${communesText}</div>
+                                            <div style="font-size: 13px; color: #1e293b; font-weight: 500; word-wrap: break-word; word-break: break-word;">${communesText}</div>
                                         </div>
                                     </div>
 
                                     <!-- Type de porteur -->
                                     <div style="display: flex; align-items: flex-start; gap: 8px;">
                                         <span style="font-size: 16px;">👥</span>
-                                        <div style="flex: 1;">
+                                        <div style="flex: 1; min-width: 0;">
                                             <div style="font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 2px;">TYPE DE PORTEUR</div>
-                                            <div style="font-size: 13px; color: #1e293b; font-weight: 500;">${typePorteur}</div>
+                                            <div style="font-size: 13px; color: #1e293b; font-weight: 500; word-wrap: break-word; word-break: break-word;">${typePorteur}</div>
                                         </div>
                                     </div>
 
@@ -538,13 +553,86 @@ export default function Map({ onSelect }) {
 
 
 
-                        // Ajouter le tooltip permanent mais visible seulement au survol
+                        // ✅ Obtenir les coordonnées du feature pour calculer sa position
+                        let featureLatlng;
+                        if (geom.type === 'Point') {
+                            featureLatlng = L.latLng(geom.coordinates[1], geom.coordinates[0]);
+                        } else if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
+                            const bounds = layer.getBounds();
+                            featureLatlng = bounds.getCenter();
+                        } else if (geom.type === 'LineString' || geom.type === 'MultiLineString') {
+                            const bounds = layer.getBounds();
+                            featureLatlng = bounds.getCenter();
+                        }
+
+                        // ✅ Fonction pour déterminer la direction optimale du tooltip
+                        const getOptimalTooltipDirection = () => {
+                            if (!mapRef.current || !featureLatlng) {
+                                return { direction: 'bottom', offset: [0, 20] };
+                            }
+
+                            const map = mapRef.current;
+                            const point = map.latLngToContainerPoint(featureLatlng);
+                            const mapSize = map.getSize();
+
+                            // Position relative verticale (0 = tout en haut, 1 = tout en bas)
+                            const relativeY = point.y / mapSize.y;
+
+                            // 🔝 Projet dans la moitié SUPÉRIEURE de la carte (< 50%) → Tooltip EN BAS
+                            if (relativeY < 0.5) {
+                                return { direction: 'bottom', offset: [0, 20] };
+                            }
+                            // 🔽 Projet dans la moitié INFÉRIEURE de la carte (>= 50%) → Tooltip EN HAUT
+                            else {
+                                return { direction: 'top', offset: [0, -10] };
+                            }
+                        };
+
+                        // Stocker la direction actuelle pour pouvoir la comparer
+                        let currentDirection = null;
+
+                        // Calculer la direction initiale
+                        const tooltipConfig = getOptimalTooltipDirection();
+                        currentDirection = tooltipConfig.direction;
+
+                        // Bind le tooltip avec la direction calculée
                         layer.bindTooltip(tooltipContent, {
                             permanent: false,
-                            direction: 'top',
-                            offset: [0, -10],
+                            direction: tooltipConfig.direction,
+                            offset: tooltipConfig.offset,
                             className: 'custom-card-tooltip',
                             opacity: 1
+                        });
+
+                        // ✅ Recalculer la direction du tooltip lors de l'ouverture
+                        layer.on('tooltipopen', function(e) {
+                            const newConfig = getOptimalTooltipDirection();
+
+                            // Si la direction a changé, rebind le tooltip
+                            if (newConfig.direction !== currentDirection) {
+                                currentDirection = newConfig.direction;
+
+                                layer.unbindTooltip();
+                                layer.bindTooltip(tooltipContent, {
+                                    permanent: false,
+                                    direction: newConfig.direction,
+                                    offset: newConfig.offset,
+                                    className: 'custom-card-tooltip',
+                                    opacity: 1
+                                });
+                                // Ouvrir immédiatement le nouveau tooltip
+                                layer.openTooltip();
+                            }
+                        });
+
+                        // Effet hover visuel
+                        layer.on('mouseover', function () {
+                            if (geom.type !== 'Point') {
+                                this.setStyle({
+                                    weight: 5,
+                                    fillOpacity: 0.6
+                                });
+                            }
                         });
 
                         // Événement de clic pour ouvrir la sidebar
@@ -553,16 +641,6 @@ export default function Map({ onSelect }) {
                             if (projectId) {
                                 setSelectedProjectId(projectId);
                                 if (onSelect) onSelect(projectId);
-                            }
-                        });
-
-                        // Effet hover
-                        layer.on('mouseover', function () {
-                            if (geom.type !== 'Point') {
-                                this.setStyle({
-                                    weight: 5,
-                                    fillOpacity: 0.6
-                                });
                             }
                         });
 

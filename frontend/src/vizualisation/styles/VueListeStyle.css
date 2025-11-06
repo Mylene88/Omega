@@ -1291,9 +1291,44 @@
 
 /* ==================== FOOTER CARTE ==================== */
 .project-card-footer {
-    padding: 12px 24px;
+    padding: 16px 24px;
     background: linear-gradient(180deg, transparent 0%, var(--bg-secondary) 100%);
     border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-top: auto; /* ✅ Pousse le footer en bas de la carte */
+}
+
+.footer-left {
+    flex: 1;
+    min-width: 0;
+}
+
+.last-update-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 12px;
+}
+
+.update-label {
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.update-date {
+    font-weight: 700;
+    color: var(--primary-color);
+    font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.update-author {
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-style: italic;
 }
 
 .card-action-hint {
@@ -1370,11 +1405,28 @@
     }
 
     .project-card-footer {
-        padding: 10px 20px;
+        padding: 12px 20px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .footer-left {
+        text-align: center;
+    }
+
+    .last-update-info {
+        justify-content: center;
+        font-size: 11px;
     }
 
     .card-action-hint {
         font-size: 11px;
+    }
+
+    .badge-edit {
+        width: 100%;
+        justify-content: center;
     }
 }
 

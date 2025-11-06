@@ -130,7 +130,7 @@ export default function ProjetDetailPanel({
                                         selectedProjectDetails.date_ident_projet)
                                             ? new Date(selectedProjectDetails.projet?.dateIdentification ||
                                                     selectedProjectDetails.date_ident_projet).toLocaleDateString('fr-FR')
-                                            : 'N/A'}
+                                            : 'Aucune date renseignée'}
                                     </span>
                                 </div>
 
@@ -360,151 +360,181 @@ export default function ProjetDetailPanel({
                     >
                         <span className="accordion-icon">{expandedSections.thematiques ? '▼' : '▶'}</span>
                         <span className="accordion-title">🎯 Thématiques</span>
-                        <span className="accordion-badge">{selectedProjectDetails.thematiques?.length || 0}</span>
+                        <span className="accordion-badge">
+                            {(() => {
+                                // Dédupliquer avant de compter
+                                const uniques = selectedProjectDetails.thematiques?.reduce((acc, t) => {
+                                    if (!acc[t.id]) acc[t.id] = t;
+                                    return acc;
+                                }, {});
+                                return Object.values(uniques || {}).reduce((count, t) => {
+                                    if (!t.donnees) return count;
+                                    return count + Object.values(t.donnees).filter(d => Array.isArray(d) && d.length > 0).length;
+                                }, 0);
+                            })()}
+                        </span>
                     </button>
 
                     {expandedSections.thematiques && (
                         <div className="accordion-content">
                             {selectedProjectDetails.thematiques?.length > 0 ? (
-                                selectedProjectDetails.thematiques.map((them, idx) => {
-                                    const hasDonnees = them.donnees && Object.keys(them.donnees).length > 0;
+                                (() => {
+                                    // ✅ Dédupliquer les thématiques par id (le backend peut envoyer des duplicatas)
+                                    const thematiquesUniques = selectedProjectDetails.thematiques.reduce((acc, them) => {
+                                        // Utiliser l'id de la thématique comme clé pour dédupliquer
+                                        if (!acc[them.id]) {
+                                            acc[them.id] = them;
+                                        }
+                                        return acc;
+                                    }, {});
 
-                                    return (
-                                        <div key={idx} className={hasDonnees ? "thematique-item-detailed" : "thematique-item-empty"}>
+                                    const thematiquesDeduplicates = Object.values(thematiquesUniques);
+
+                                    // ✅ Déplier les thématiques : un modèle = une thématique affichée
+                                    const thematiquesDepliees = thematiquesDeduplicates.flatMap((them) => {
+                                        if (!them.donnees || Object.keys(them.donnees).length === 0) {
+                                            return [];
+                                        }
+
+                                        return Object.entries(them.donnees)
+                                            .filter(([modeleKey, donneesArray]) => Array.isArray(donneesArray) && donneesArray.length > 0)
+                                            .map(([modeleKey, donneesArray]) => ({
+                                                libelle: them.libelle,
+                                                modeleKey: modeleKey,
+                                                displayName: them.fieldsMetadataByModel?.[modeleKey]?.displayName || modeleKey,
+                                                donnees: donneesArray,
+                                                modeleMetadata: them.fieldsMetadataByModel?.[modeleKey]?.fields || [],
+                                                originalThem: them
+                                            }));
+                                    });
+
+                                    if (thematiquesDepliees.length === 0) {
+                                        return (
+                                            <div className="empty-state">
+                                                <p className="empty-message">Aucune thématique avec données</p>
+                                            </div>
+                                        );
+                                    }
+
+                                    return thematiquesDepliees.map((depliee, idx) => (
+                                        <div key={idx} className="thematique-item-detailed">
                                             <div className="thematique-header-main">
                                                 <h3 className="thematique-nom-principal">
-                                                    {them.libelle || them.nom || 'Thématique'}
+                                                    {depliee.libelle} - {depliee.displayName}
                                                 </h3>
                                             </div>
 
-                                            {hasDonnees && (
-                                                <div className="thematique-donnees">
-                                                    {Object.entries(them.donnees).map(([modeleKey, donneesArray]) => {
-                                                        if (!Array.isArray(donneesArray) || donneesArray.length === 0) {
-                                                            return null;
-                                                        }
+                                            <div className="thematique-donnees">
+                                                {depliee.donnees.map((donnee, dIdx) => (
+                                                    <div key={dIdx} className="donnee-item">
+                                                        {depliee.modeleMetadata && depliee.modeleMetadata.length > 0 ? (
+                                                            depliee.modeleMetadata
+                                                                .filter(field => {
+                                                                    const excludedFields = [
+                                                                        'id',
+                                                                        'idthematique',
+                                                                        'id_thematique',
+                                                                        'idprojet',
+                                                                        'id_project',
+                                                                        'dateCreation',
+                                                                        'dateMiseAJour',
+                                                                        'created_at',
+                                                                        'updated_at',
+                                                                        'updatedby',
+                                                                        'updated_by',
+                                                                        'createdby',
+                                                                        'created_by',
+                                                                        'creePar'
+                                                                    ];
+                                                                    const isIdField = field.name.startsWith('id_');
+                                                                    return !excludedFields.includes(field.name) && !isIdField;
+                                                                })
+                                                                .map((field) => {
+                                                                    const value = donnee[field.name];
 
-                                                        const modeleMetadata = them.fieldsMetadataByModel?.[modeleKey]?.fields || [];
+                                                                    let displayValue;
+                                                                    if (value === null || value === undefined || value === '') {
+                                                                        displayValue = <em style={{ color: '#999' }}>Non renseigné</em>;
+                                                                    } else if (typeof value === 'boolean') {
+                                                                        displayValue = value ? 'Oui' : 'Non';
+                                                                    } else if (Array.isArray(value)) {
+                                                                        // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
+                                                                        displayValue = value.map(item =>
+                                                                            typeof item === 'object' && item !== null
+                                                                                ? (item.value || item.libelle || item.id)
+                                                                                : item
+                                                                        ).join(', ');
+                                                                    } else if (typeof value === 'object' && value !== null) {
+                                                                        displayValue = value.value || value.libelle || JSON.stringify(value);
+                                                                    } else {
+                                                                        displayValue = String(value);
+                                                                    }
 
-                                                        return (
-                                                            <div key={modeleKey} className="modele-section">
-                                                                <h4 className="modele-title">
-                                                                    {them.fieldsMetadataByModel?.[modeleKey]?.displayName ||
-                                                                    getFieldLabel(modeleKey, them)}
-                                                                </h4>
+                                                                    return (
+                                                                        <div key={field.name} className="donnee-field">
+                                                                            <span className="field-label">
+                                                                                {field.label}:
+                                                                            </span>
+                                                                            <span className="field-value">
+                                                                                {displayValue}
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                })
+                                                        ) : (
+                                                            Object.entries(donnee)
+                                                                .filter(([key]) => {
+                                                                    const excludedFields = [
+                                                                        'id', 'idthematique', 'id_thematique', 'idprojet', 'id_project',
+                                                                        'dateCreation', 'dateMiseAJour', 'created_at', 'updated_at',
+                                                                        'updatedby', 'updated_by', 'createdby', 'created_by', 'creePar'
+                                                                    ];
+                                                                    const isIdField = key.startsWith('id_');
+                                                                    return !excludedFields.includes(key) && !isIdField;
+                                                                })
+                                                                .map(([key, value]) => {
+                                                                    if (value === null || value === undefined || value === '') {
+                                                                        return null;
+                                                                    }
 
-                                                                {donneesArray.map((donnee, dIdx) => (
-                                                                    <div key={dIdx} className="donnee-item">
-                                                                        {modeleMetadata && modeleMetadata.length > 0 ? (
-                                                                            modeleMetadata
-                                                                                .filter(field => {
-                                                                                    const excludedFields = [
-                                                                                        'id',
-                                                                                        'idthematique',
-                                                                                        'id_thematique',
-                                                                                        'idprojet',
-                                                                                        'id_project',
-                                                                                        'dateCreation',
-                                                                                        'dateMiseAJour',
-                                                                                        'created_at',
-                                                                                        'updated_at',
-                                                                                        'updatedby',
-                                                                                        'updated_by',
-                                                                                        'createdby',
-                                                                                        'created_by',
-                                                                                        'creePar'
-                                                                                    ];
-                                                                                    const isIdField = field.name.startsWith('id_');
-                                                                                    return !excludedFields.includes(field.name) && !isIdField;
-                                                                                })
-                                                                                .map((field) => {
-                                                                                    const value = donnee[field.name];
+                                                                    let displayValue;
+                                                                    if (typeof value === 'boolean') {
+                                                                        displayValue = value ? 'Oui' : 'Non';
+                                                                    } else if (Array.isArray(value)) {
+                                                                        // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
+                                                                        displayValue = value.map(item =>
+                                                                            typeof item === 'object' && item !== null
+                                                                                ? (item.value || item.libelle || item.id)
+                                                                                : item
+                                                                        ).join(', ');
+                                                                    } else if (typeof value === 'object' && value !== null) {
+                                                                        displayValue = value.value || value.libelle || JSON.stringify(value);
+                                                                    } else {
+                                                                        displayValue = String(value);
+                                                                    }
 
-                                                                                    let displayValue;
-                                                                                    if (value === null || value === undefined || value === '') {
-                                                                                        displayValue = <em style={{ color: '#999' }}>Non renseigné</em>;
-                                                                                    } else if (typeof value === 'boolean') {
-                                                                                        displayValue = value ? 'Oui' : 'Non';
-                                                                                    } else if (Array.isArray(value)) {
-                                                                                        displayValue = value.join(', ');
-                                                                                    } else if (typeof value === 'object' && value !== null) {
-                                                                                        displayValue = value.value || JSON.stringify(value);
-                                                                                    } else {
-                                                                                        displayValue = String(value);
-                                                                                    }
+                                                                    return (
+                                                                        <div key={key} className="donnee-field">
+                                                                            <span className="field-label">
+                                                                                {getFieldLabel(key, depliee.originalThem)}:
+                                                                            </span>
+                                                                            <span className="field-value">
+                                                                                {displayValue}
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                })
+                                                        )}
 
-                                                                                    return (
-                                                                                        <div key={field.name} className="donnee-field">
-                                                                                            <span className="field-label">
-                                                                                                {field.label}:
-                                                                                            </span>
-                                                                                            <span className="field-value">
-                                                                                                {displayValue}
-                                                                                            </span>
-                                                                                        </div>
-                                                                                    );
-                                                                                })
-                                                                        ) : (
-                                                                            Object.entries(donnee)
-                                                                                .filter(([key]) => {
-                                                                                    const excludedFields = [
-                                                                                        'id', 'idthematique', 'id_thematique', 'idprojet', 'id_project',
-                                                                                        'dateCreation', 'dateMiseAJour', 'created_at', 'updated_at',
-                                                                                        'updatedby', 'updated_by', 'createdby', 'created_by', 'creePar'
-                                                                                    ];
-                                                                                    const isIdField = key.startsWith('id_');
-                                                                                    return !excludedFields.includes(key) && !isIdField;
-                                                                                })
-                                                                                .map(([key, value]) => {
-                                                                                    if (value === null || value === undefined || value === '') {
-                                                                                        return null;
-                                                                                    }
-
-                                                                                    let displayValue;
-                                                                                    if (typeof value === 'boolean') {
-                                                                                        displayValue = value ? 'Oui' : 'Non';
-                                                                                    } else if (Array.isArray(value)) {
-                                                                                        displayValue = value.join(', ');
-                                                                                    } else if (typeof value === 'object' && value !== null) {
-                                                                                        displayValue = value.value || JSON.stringify(value);
-                                                                                    } else {
-                                                                                        displayValue = String(value);
-                                                                                    }
-
-                                                                                    return (
-                                                                                        <div key={key} className="donnee-field">
-                                                                                            <span className="field-label">
-                                                                                                {getFieldLabel(key, them)}:
-                                                                                            </span>
-                                                                                            <span className="field-value">
-                                                                                                {displayValue}
-                                                                                            </span>
-                                                                                        </div>
-                                                                                    );
-                                                                                })
-                                                                        )}
-
-                                                                        {donneesArray.length > 1 && dIdx < donneesArray.length - 1 && (
-                                                                            <div className="donnee-separator"></div>
-                                                                        )}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-
-                                            {!hasDonnees && (
-                                                <div className="empty-state-inline">
-                                                    <p className="empty-message-small">
-                                                        Aucune donnée spécifique enregistrée
-                                                    </p>
-                                                </div>
-                                            )}
+                                                        {depliee.donnees.length > 1 && dIdx < depliee.donnees.length - 1 && (
+                                                            <div className="donnee-separator"></div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                    );
-                                })
+                                    ));
+                                })()
                             ) : (
                                 <div className="empty-state">
                                     <p className="empty-message">Aucune thématique associée</p>

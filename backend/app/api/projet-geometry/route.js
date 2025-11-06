@@ -130,6 +130,12 @@ export async function GET(request) {
               as: 'creator',
               attributes: ['id_user', 'username', 'prenom', 'nom'],
               required: false
+            },
+            {
+              model: User,
+              as: 'updater',
+              attributes: ['id_user', 'username', 'prenom', 'nom'],
+              required: false
             }
           ],
           required: false
@@ -292,7 +298,23 @@ export async function GET(request) {
                 // Compteurs
                 nb_porteurs: projetData.porteurs?.length || 0,
                 nb_suivis: projetData.suivis?.length || 0,
-                nb_documents: projetData.documents?.length || 0
+                nb_documents: projetData.documents?.length || 0,
+
+                // ✅ DATES ET UTILISATEURS
+                created_at: projetData.created_at,
+                updated_at: projetData.updated_at,
+                date_creation: projetData.created_at,
+                date_maj: projetData.updated_at,
+                created_by: projetData.creator?.username || null,
+                created_by_name: projetData.creator?.nom_complet ||
+                                 (projetData.creator?.prenom && projetData.creator?.nom
+                                   ? `${projetData.creator.prenom} ${projetData.creator.nom}`
+                                   : projetData.creator?.username) || null,
+                updated_by: projetData.updater?.username || null,
+                updated_by_name: projetData.updater?.nom_complet ||
+                                 (projetData.updater?.prenom && projetData.updater?.nom
+                                   ? `${projetData.updater.prenom} ${projetData.updater.nom}`
+                                   : projetData.updater?.username) || null
               }
             };
           });
