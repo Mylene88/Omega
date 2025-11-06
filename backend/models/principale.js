@@ -272,6 +272,77 @@ module.exports = (sequelize, DataTypes) => {
     onDelete: 'CASCADE'
   });
 
+  // --- Table audit_log : historique de toutes les modifications ---
+  const AuditLog = sequelize.define('audit_log', {
+    id_audit: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    table_name: { type: DataTypes.TEXT, allowNull: false },
+    record_id: { type: DataTypes.TEXT, allowNull: false },
+    action: { type: DataTypes.ENUM('CREATE', 'UPDATE', 'DELETE', 'RESTORE'), allowNull: false },
+    old_values: { type: DataTypes.JSONB },
+    new_values: { type: DataTypes.JSONB },
+    changed_fields: { type: DataTypes.ARRAY(DataTypes.TEXT) },
+    user_id: { type: DataTypes.INTEGER, references: { model: User, key: 'id_user' } },
+    user_ip: { type: DataTypes.TEXT },
+    user_agent: { type: DataTypes.TEXT },
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+  }, {
+    schema,
+    tableName: 'audit_log',
+    createdAt: 'created_at',
+    updatedAt: false,
+    timestamps: true
+  });
+
+  // --- Table projet_snapshot : snapshots complets des projets ---
+  const ProjetSnapshot = sequelize.define('projet_snapshot', {
+    id_snapshot: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    id_projet: { type: DataTypes.STRING, references: { model: Projet, key: 'id_projet' }, onDelete: 'CASCADE' },
+    snapshot_data: { type: DataTypes.JSONB, allowNull: false },
+    snapshot_type: { type: DataTypes.ENUM('AUTO', 'MANUAL', 'BEFORE_DELETE'), defaultValue: 'AUTO' },
+    description: { type: DataTypes.TEXT },
+    created_by: { type: DataTypes.INTEGER, references: { model: User, key: 'id_user' } },
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+  }, {
+    schema,
+    tableName: 'projet_snapshot',
+    createdAt: 'created_at',
+    updatedAt: false,
+    timestamps: true
+  });
+
+  // --- Table admin_access_log : journalisation des accès admin ---
+  const AdminAccessLog = sequelize.define('admin_access_log', {
+    id_access: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    user_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: User, key: 'id_user' }, onDelete: 'CASCADE' },
+    action: { type: DataTypes.STRING(100), allowNull: false },
+    resource: { type: DataTypes.STRING(255) },
+    resource_id: { type: DataTypes.STRING(255) },
+    ip_address: { type: DataTypes.STRING(50) },
+    user_agent: { type: DataTypes.TEXT },
+    success: { type: DataTypes.BOOLEAN, defaultValue: true },
+    error_message: { type: DataTypes.TEXT },
+    duration_ms: { type: DataTypes.INTEGER },
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+  }, {
+    schema,
+    tableName: 'admin_access_log',
+    createdAt: 'created_at',
+    updatedAt: false,
+    timestamps: true
+  });
+
+  // Associations pour les tables d'audit
+  AuditLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+  User.hasMany(AuditLog, { foreignKey: 'user_id' });
+
+  AdminAccessLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+  User.hasMany(AdminAccessLog, { foreignKey: 'user_id' });
+
+  ProjetSnapshot.belongsTo(Projet, { foreignKey: 'id_projet', onDelete: 'CASCADE', as: 'projet' });
+  ProjetSnapshot.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+  Projet.hasMany(ProjetSnapshot, { foreignKey: 'id_projet', as: 'snapshots' });
+  User.hasMany(ProjetSnapshot, { foreignKey: 'created_by' });
+
 
 // Return all models as an object
   return {
@@ -288,6 +359,9 @@ module.exports = (sequelize, DataTypes) => {
     Document,
     ProjetGeometry,
     ProjetGeometryCommune,
+    AuditLog,
+    ProjetSnapshot,
+    AdminAccessLog,
   };
 
 

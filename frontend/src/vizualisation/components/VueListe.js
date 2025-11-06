@@ -296,14 +296,37 @@ export default function VueListe({
                                         </div>
                                     )}
 
-                                    {/* Communes */}
-                                    {communesArray && communesArray.length > 0 && (
-                                        <div className="card-info-item full-width">
-                                            <span className="card-info-icon">📍</span>
-                                            <div className="card-info-content">
-                                                <span className="card-info-label">
-                                                    {communesArray.length > 1 ? 'Communes traversées' : 'Commune'}
-                                                </span>
+                                    {/* Communes - Toujours affiché */}
+                                    <div className="card-info-item full-width">
+                                        <span className="card-info-icon">📍</span>
+                                        <div className="card-info-content">
+                                            <span className="card-info-label">
+                                                {(() => {
+                                                    // Déterminer le label selon le type de géométrie
+                                                    const geomType = p.geom_type || p.geometry_type;
+
+                                                    if (!geomType || !communesArray || communesArray.length === 0) {
+                                                        // Pas de géométrie
+                                                        return 'Commune';
+                                                    }
+
+                                                    const geomTypeLower = geomType.toLowerCase();
+
+                                                    if (geomTypeLower === 'point') {
+                                                        // Point : singulier
+                                                        return 'Commune';
+                                                    } else if (geomTypeLower === 'linestring' || geomTypeLower === 'line' ||
+                                                               geomTypeLower === 'polygon' || geomTypeLower === 'multipolygon' ||
+                                                               geomTypeLower === 'multilinestring') {
+                                                        // Ligne ou Polygone : pluriel
+                                                        return 'Communes traversées';
+                                                    }
+
+                                                    // Par défaut
+                                                    return 'Commune';
+                                                })()}
+                                            </span>
+                                            {communesArray && communesArray.length > 0 ? (
                                                 <div className="communes-inline">
                                                     {communesArray.map((commune, idx) => (
                                                         <React.Fragment key={idx}>
@@ -314,9 +337,13 @@ export default function VueListe({
                                                         </React.Fragment>
                                                     ))}
                                                 </div>
-                                            </div>
+                                            ) : (
+                                                <span className="card-info-value" style={{ color: '#999', fontStyle: 'italic' }}>
+                                                    Aucune géométrie renseignée
+                                                </span>
+                                            )}
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
 
                                 {/* Badges projet signalé / Charte d'accueil */}
@@ -330,6 +357,46 @@ export default function VueListe({
                                         )}
                                     </div>
                                 )}
+                            </div>
+
+                            {/* ✅ FOOTER: Date de modification + Bouton Modifier */}
+                            <div className="project-card-footer">
+                                <div className="footer-left">
+                                    {p.date_maj || p.updated_at ? (
+                                        <div className="last-update-info">
+                                            <span className="update-label">Dernière modification:</span>
+                                            <span className="update-date">
+                                                {new Date(p.date_maj || p.updated_at).toLocaleString('fr-FR', {
+                                                    day: '2-digit',
+                                                    month: '2-digit',
+                                                    year: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit',
+                                                    second: '2-digit'
+                                                })}
+                                            </span>
+                                            {(p.updated_by_name || p.modifier_nom) && (
+                                                <span className="update-author">
+                                                    par {p.updated_by_name || p.modifier_nom}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="last-update-info">
+                                            <span className="update-label">Créé le:</span>
+                                            <span className="update-date">
+                                                {p.date_creation || p.created_at ?
+                                                    new Date(p.date_creation || p.created_at).toLocaleDateString('fr-FR', {
+                                                        day: '2-digit',
+                                                        month: '2-digit',
+                                                        year: 'numeric'
+                                                    })
+                                                    : 'N/A'
+                                                }
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
 
                                 <button
                                     className="badge badge-edit edit-btn"

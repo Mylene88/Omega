@@ -119,30 +119,40 @@ export default function Sidebar({ projectId, onClose }) {
                         referent_tel: p.referent?.telephone
                     })),
 
-                    // Thématiques avec données
-                    // Thématiques avec données - DÉDUPLIQUÉES
-thematiques: (() => {
-  const seen = new Set();
-  return (thematiques || [])
-    .filter(t => {
-      const key = t.libelle;
-      if (seen.has(key)) {
-        console.warn(`🔄 Doublon ignoré: ${key}`);
-        return false;
-      }
-      seen.add(key);
-      return true;
-    })
-    .map((t) => ({
-      pitId: t.pitId,
-      nom: t.libelle,
-      libelle: t.libelle,
-      dateAjout: t.dateAjout,
-      ajoutePar: t.ajoutePar?.nomComplet || t.ajoutePar,
-      donnees: t.donnees || {},
-      fieldsMetadataByModel: t.fieldsMetadataByModel || []
-    }));
-})(),
+                    // ✅ Thématiques : DÉDUPLIQUÉES PAR ID + DÉPLIÉES (une ligne par modèle)
+                    thematiques: (() => {
+                        // Étape 1: Dédupliquer par ID (comme dans ProjetDetailPanel)
+                        const thematiquesUniques = (thematiques || []).reduce((acc, them) => {
+                            if (!acc[them.id]) {
+                                acc[them.id] = them;
+                            }
+                            return acc;
+                        }, {});
+
+                        const thematiquesDeduplicates = Object.values(thematiquesUniques);
+
+                        // Étape 2: Déplier pour avoir une entrée par modèle (flatMap)
+                        const thematiquesDepliees = thematiquesDeduplicates.flatMap((them) => {
+                            if (!them.donnees || Object.keys(them.donnees).length === 0) {
+                                return [];
+                            }
+
+                            return Object.entries(them.donnees)
+                                .filter(([modeleKey, donneesArray]) =>
+                                    Array.isArray(donneesArray) && donneesArray.length > 0
+                                )
+                                .map(([modeleKey, donneesArray]) => ({
+                                    libelle: them.libelle,
+                                    modeleKey: modeleKey,
+                                    displayName: them.fieldsMetadataByModel?.[modeleKey]?.displayName || modeleKey,
+                                    donnees: donneesArray,
+                                    modeleMetadata: them.fieldsMetadataByModel?.[modeleKey]?.fields || [],
+                                    originalThem: them
+                                }));
+                        });
+
+                        return thematiquesDepliees;
+                    })(),
                     // Docs
                     documents: (documents || []).map((d) => ({
                         id: d.id,
@@ -433,64 +443,22 @@ thematiques: (() => {
                             {expandedSections.thematiques && (
                                 <div className="accordion-content">
                                     {info.thematiques?.length > 0 ? (
-                                        info.thematiques.map((them, idx) => {
-                                            // ✅ Vérifier si la thématique a des données
-                                            const hasDonnees = them.donnees && Object.keys(them.donnees).length > 0;
-
-                        return (
-                            <div key={idx} className={hasDonnees ? "thematique-item-detailed" : "thematique-item-empty"}>
-                                {/* En-tête de la thématique */}
+                                        info.thematiques.map((depliee, idx) => (
+                            <div key={idx} className="thematique-item-detailed">
+                                {/* ✅ En-tête : Catégorie - Modèle */}
                                 <div className="thematique-header-main">
                                     <h3 className="thematique-nom-principal">
-                                        {them.libelle || them.nom || 'Thématique'}
+                                        {depliee.libelle} - {depliee.displayName}
                                     </h3>
                                 </div>
 
-                                {/* Métadonnées (date et auteur) */}
-                                {/*{(them.dateAjout || them.ajoutePar) && (
-                                    <div className="thematique-meta">
-                                        {them.dateAjout && (
-                                            <>
-                                                <span className="meta-label">Ajoutée le:</span>
-                                                <span className="meta-value">
-                                                    {new Date(them.dateAjout).toLocaleDateString('fr-FR')}
-                                                </span>
-                                            </>
-                                        )}
-                                        {them.ajoutePar && (
-                                            <>
-                                                <span className="meta-label">par</span>
-                                                <span className="meta-value">
-                                                    {typeof them.ajoutePar === 'object' 
-                                                        ? them.ajoutePar.nomComplet 
-                                                        : them.ajoutePar}
-                                                </span>
-                                            </>
-                                        )}
-                                    </div>
-                                )}*/}
-
-                                {/* ✅ DONNÉES DES MODÈLES */}
-                                {hasDonnees && (
-                                    <div className="thematique-donnees">
-                                        {Object.entries(them.donnees).map(([modeleKey, donneesArray]) => {
-                                            if (!Array.isArray(donneesArray) || donneesArray.length === 0) {
-                                                return null;
-                                            }
-
-                                            const modeleMetadata = them.fieldsMetadataByModel?.[modeleKey]?.fields || [];
-
-                                            return (
-                                                <div key={modeleKey} className="modele-section">
-                                                    <h4 className="modele-title">
-                                                      {them.fieldsMetadataByModel?.[modeleKey]?.displayName || getFieldLabel(modeleKey, them)}
-                                                    </h4>
-
-                                                    {donneesArray.map((donnee, dIdx) => (
-                                                        <div key={dIdx} className="donnee-item">
-                                                            {/* ✅ AFFICHAGE DE TOUS LES CHAMPS DEPUIS METADATA */}
-                                                            {modeleMetadata && modeleMetadata.length > 0 ? (
-                                                                modeleMetadata
+                                {/* ✅ DONNÉES DU MODÈLE */}
+                                <div className="thematique-donnees">
+                                    {depliee.donnees.map((donnee, dIdx) => (
+                                        <div key={dIdx} className="donnee-item">
+                                            {/* ✅ AFFICHAGE DE TOUS LES CHAMPS DEPUIS METADATA */}
+                                            {depliee.modeleMetadata && depliee.modeleMetadata.length > 0 ? (
+                                                depliee.modeleMetadata
                                                                     .filter(field => {
                                                                         // Exclure les champs système
                                                                         const excludedFields = [
@@ -574,7 +542,7 @@ thematiques: (() => {
                                                                         return (
                                                                             <div key={key} className="donnee-field">
                                                                                 <span className="field-label">
-                                                                                    {getFieldLabel(key, them)}:
+                                                                                    {getFieldLabel(key, depliee.originalThem)}:
                                                                                 </span>
                                                                                 <span className="field-value">
                                                                                     {displayValue}
@@ -585,37 +553,22 @@ thematiques: (() => {
                                                             )}
 
                                                             {/* Séparateur entre les enregistrements */}
-                                                            {donneesArray.length > 1 && dIdx < donneesArray.length - 1 && (
+                                                            {depliee.donnees.length > 1 && dIdx < depliee.donnees.length - 1 && (
                                                                 <div className="donnee-separator"></div>
                                                             )}
                                                         </div>
                                                     ))}
-
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-
-                                {/* ✅ MESSAGE SI AUCUNE DONNÉE */}
-                                {!hasDonnees && (
-                                    <div className="empty-state-inline">
-                                        <p className="empty-message-small">
-                                            Aucune donnée spécifique enregistrée
-                                        </p>
-                                    </div>
-                                )}
+                                </div>
                             </div>
-                        );
-                    })
-                ) : (
-                    <div className="empty-state">
-                        <p className="empty-message">Aucune thématique associée</p>
-                    </div>
-                )}
-            </div>
-        )}
-    </div>
+                        ))
+                    ) : (
+                        <div className="empty-state">
+                            <p className="empty-message">Aucune thématique associée</p>
+                        </div>
+                    )}
+                                </div>
+                            )}
+                        </div>
 
 
 

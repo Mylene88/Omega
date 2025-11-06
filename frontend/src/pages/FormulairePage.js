@@ -108,15 +108,85 @@ export default function FormulairePage() {
 
                     // ✅ Transformation des THÉMATIQUES (backend → frontend)
                     console.log('🏷️ Thématiques reçues:', projetComplet.thematiques);
-                    const thematiquesFormatees = (projetComplet.thematiques || []).map(t => ({
-                        id_thematique: t.id_thematique,
-                        libelle: t.libelle,
-                        modele: t.modele,
-                        fields: t.fields || {},
-                        commentaires: t.commentaires || '',
-                        dateAjout: t.dateAjout,
-                        ajoutePar: t.ajoutePar
-                    }));
+
+                    const thematiquesFormatees = (projetComplet.thematiques || []).flatMap(t => {
+                        // Le backend envoie modele comme un tableau JSON : "[\"eolien\", \"methanisation\"]"
+                        let modeles = [];
+                        try {
+                            modeles = typeof t.modele === 'string' ? JSON.parse(t.modele) : t.modele;
+                        } catch (e) {
+                            console.error('❌ Erreur parsing modele:', t.modele, e);
+                            modeles = [];
+                        }
+
+                        // Si modeles est vide ou n'est pas un tableau, retourner un tableau vide
+                        if (!Array.isArray(modeles) || modeles.length === 0) {
+                            return [];
+                        }
+
+                        // ✅ Filtrer et créer une thématique frontend UNIQUEMENT pour les modèles qui ont des données
+                        return modeles
+                            .filter(modeleValue => {
+                                // Vérifier si ce modèle a des données saisies
+                                const hasDonnees = t.donnees?.[modeleValue] &&
+                                                   Array.isArray(t.donnees[modeleValue]) &&
+                                                   t.donnees[modeleValue].length > 0;
+
+                                if (!hasDonnees) {
+                                    console.log(`⏩ Ignorer ${modeleValue} (pas de données)`);
+                                }
+
+                                return hasDonnees;
+                            })
+                            .map(modeleValue => {
+                                // ✅ Normaliser le libellé pour correspondre aux modelOptions
+                                // "Enr" → "EnR", "Urbanisme" → "Urbanisme", etc.
+                                const libelleNormalized = t.libelle === 'Enr' || t.libelle === 'enr' || t.libelle === 'ENR'
+                                    ? 'EnR'
+                                    : t.libelle;
+
+                                const modeleKey = `${libelleNormalized}-${modeleValue}`;
+
+                                // Extraire les fields depuis donnees[modeleValue]
+                                const donneesModele = t.donnees[modeleValue][0];
+                                console.log(`🔍 Données brutes pour ${modeleKey}:`, donneesModele);
+
+                                const fields = {};
+
+                                // Copier tous les champs sauf les métadonnées
+                                Object.keys(donneesModele).forEach(key => {
+                                    if (!['id', 'dateCreation', 'dateMiseAJour'].includes(key)) {
+                                        let value = donneesModele[key];
+
+                                        // ✅ Si c'est un tableau d'objets { id, value }, extraire les IDs pour le formulaire
+                                        if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null && 'id' in value[0]) {
+                                            value = value.map(item => item.id);
+                                        }
+                                        // ✅ Si c'est un objet simple { id, value }, extraire l'ID
+                                        else if (typeof value === 'object' && value !== null && 'id' in value && 'value' in value) {
+                                            value = value.id;
+                                        }
+
+                                        fields[key] = value;
+                                        console.log(`  ✅ ${key}:`, value, `(type: ${typeof value})`);
+                                    }
+                                });
+
+                                console.log(`📝 Fields finaux pour ${modeleKey}:`, fields);
+                                console.log(`📝 Commentaires:`, donneesModele.commentaires);
+
+                                return {
+                                    id_thematique: t.id,
+                                    libelle: t.libelle,
+                                    modele: modeleKey,  // "EnR-eolien", "EnR-methanisation", etc.
+                                    fields: fields,  // Contient maintenant les commentaires
+                                    dateAjout: t.dateAjout,
+                                    ajoutePar: t.ajoutePar
+                                };
+                            });
+                    });
+
+                    console.log('✅ Thématiques formatées pour le frontend:', thematiquesFormatees);
                     setThematiqueData(thematiquesFormatees);
 
                     // ✅ Transformation des DOCUMENTS (backend → frontend)
@@ -166,8 +236,8 @@ export default function FormulairePage() {
                         const historiqueFormate = projetComplet.suivis.map(suivi => ({
                             id: suivi.id,
                             description: suivi.contenu ?? '',
-                            date: suivi.dateCreation ?? null,     // ISO brut uniquement
-                            auteur: suivi.creePar ?? null         // objet { id, username, nomComplet }
+                            dateTime: suivi.dateCreation ?? null,     // ✅ Utiliser dateTime au lieu de date
+                            author: suivi.creePar?.nomComplet || suivi.creePar?.username || 'Utilisateur inconnu'  // ✅ Prioriser le nom complet
                         }));
 
                         setSuiviData({
@@ -320,7 +390,7 @@ export default function FormulairePage() {
                 nom_projet: projetData.nom_projet || 'Nouveau projet',
                 description: projetData.description || '',
                 statut_projet_id: projetData.statut_projet_id ?? null,
-                date_ident_projet: projetData.date_ident_projet ?? new Date(),
+                date_ident_projet: projetData.date_ident_projet ?? null,
                 created_by: currentUser.id_user,
                 updated_by: currentUser.id_user,
                 service_id: suiviData.service_id ?? null,

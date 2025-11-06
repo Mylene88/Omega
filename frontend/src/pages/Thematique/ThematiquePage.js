@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Thematiques from "../../components/thematique/thematique_modele/Thematiques";
 import "../../styles/globals.css";
 
-export default function ThematiquePage({ thematiqueData = [], onThematiqueChange }) {
+export default function ThematiquePage({ value = [], onThematiqueChange }) {
     const [thematiques, setThematiques] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modelOptions, setModelOptions] = useState([]);
@@ -11,6 +11,12 @@ export default function ThematiquePage({ thematiqueData = [], onThematiqueChange
 
     const thematiquesRef = useRef([]);
     const modelOptionsRef = useRef([]);
+
+    // ✅ Log pour déboguer les données reçues
+    useEffect(() => {
+        console.log('🎯 ThematiquePage - Données reçues via prop value:', value);
+        console.log('🎯 ThematiquePage - Type:', typeof value, 'Longueur:', value?.length);
+    }, [value]);
 
     useEffect(() => {
         const fetchThematiques = async () => {
@@ -134,7 +140,7 @@ export default function ThematiquePage({ thematiqueData = [], onThematiqueChange
             {!loading && !error && (
                 <form>
                     <Thematiques
-                        value={thematiqueData}
+                        value={value}
                         onChange={handleChange}
                     />
                 </form>
