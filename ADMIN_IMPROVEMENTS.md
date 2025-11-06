@@ -333,4 +333,3 @@ Pour toute question ou problème:
 
 **Version**: 2.0
 **Date**: 2025-11-05
-**Auteur**: Claude Assistant
