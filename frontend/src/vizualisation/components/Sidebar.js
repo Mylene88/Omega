@@ -238,7 +238,7 @@ export default function Sidebar({ projectId, onClose }) {
                                         <div className="info-item">
                                             <span className="info-label">Statut du projet</span>
                                             <span className="info-badge info-badge-status">
-                                                {info.statut || 'N/A'}
+                                                {info.statut || 'Aucun statut renseigné'}
                                             </span>
                                         </div>
 
