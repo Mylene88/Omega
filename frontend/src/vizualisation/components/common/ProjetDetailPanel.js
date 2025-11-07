@@ -123,16 +123,16 @@ export default function ProjetDetailPanel({
                                     </span>
                                 </div>
 
-                                <div className="info-item">
-                                    <span className="info-label">Date de prise de connaissance par la DDT</span>
-                                    <span className="info-value">
-                                        {(selectedProjectDetails.projet?.dateIdentification ||
-                                        selectedProjectDetails.date_ident_projet)
-                                            ? new Date(selectedProjectDetails.projet?.dateIdentification ||
-                                                    selectedProjectDetails.date_ident_projet).toLocaleDateString('fr-FR')
-                                            : 'Aucune date renseignée'}
-                                    </span>
-                                </div>
+                                {(selectedProjectDetails.projet?.dateIdentification ||
+                                selectedProjectDetails.date_ident_projet) && (
+                                    <div className="info-item">
+                                        <span className="info-label">Date de prise de connaissance par la DDT</span>
+                                        <span className="info-value">
+                                            {new Date(selectedProjectDetails.projet?.dateIdentification ||
+                                                selectedProjectDetails.date_ident_projet).toLocaleDateString('fr-FR')}
+                                        </span>
+                                    </div>
+                                )}
 
                                 {(selectedProjectDetails.projet?.description || selectedProjectDetails.description) && (
                                     <div className="info-item full-width">
