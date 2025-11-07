@@ -244,14 +244,14 @@ export default function Sidebar({ projectId, onClose }) {
 
 
 
-                                        {info.date_ident_projet && (
-                                            <div className="info-item">
-                                                <span className="info-label">Date de prise de connaissance par la DDT</span>
-                                                <span className="info-value">
-                                                    {new Date(info.date_ident_projet).toLocaleDateString('fr-FR')}
-                                                </span>
-                                            </div>
-                                        )}
+                                        <div className="info-item">
+                                            <span className="info-label">Date de prise de connaissance par la DDT</span>
+                                            <span className="info-value">
+                                                {info.date_ident_projet
+                                                    ? new Date(info.date_ident_projet).toLocaleDateString('fr-FR')
+                                                    : 'Aucune date renseignée'}
+                                            </span>
+                                        </div>
 
 
                                         {info.description && (
