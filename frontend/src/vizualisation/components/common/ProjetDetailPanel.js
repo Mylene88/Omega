@@ -134,14 +134,14 @@ export default function ProjetDetailPanel({
                                     </span>
                                 </div>
 
-                                {(selectedProjectDetails.projet?.description || selectedProjectDetails.description) && (
-                                    <div className="info-item full-width">
-                                        <span className="info-label">Description</span>
-                                        <p className="info-description">
-                                            {selectedProjectDetails.projet?.description || selectedProjectDetails.description}
-                                        </p>
-                                    </div>
-                                )}
+                                <div className="info-item full-width">
+                                    <span className="info-label">Description</span>
+                                    <p className="info-description">
+                                        {selectedProjectDetails.projet?.description ||
+                                         selectedProjectDetails.description ||
+                                         'Aucune description ajoutée'}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     )}

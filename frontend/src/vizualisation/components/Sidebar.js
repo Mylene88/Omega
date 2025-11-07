@@ -254,12 +254,12 @@ export default function Sidebar({ projectId, onClose }) {
                                         </div>
 
 
-                                        {info.description && (
-                                            <div className="info-item full-width">
-                                                <span className="info-label">Description</span>
-                                                <p className="info-description">{info.description}</p>
-                                            </div>
-                                        )}
+                                        <div className="info-item full-width">
+                                            <span className="info-label">Description</span>
+                                            <p className="info-description">
+                                                {info.description || 'Aucune description ajoutée'}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             )}
