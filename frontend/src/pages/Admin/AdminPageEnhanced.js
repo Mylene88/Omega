@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import './AdminPage.css';
 import ConfirmationModal from '../../components/admin/ConfirmationModal';
 import Toast, { useToast } from '../../components/admin/Toast';
+import DeletionRequestsTab from '../../components/admin/DeletionRequestsTab';
 
 const API_BASE_URL = 'http://localhost:3000/api';
 
@@ -541,6 +542,12 @@ const AdminPageEnhanced = () => {
         >
           🔑 Accès admin
         </button>
+        <button
+          className={`tab-btn ${activeTab === 'deletion-requests' ? 'active' : ''}`}
+          onClick={() => setActiveTab('deletion-requests')}
+        >
+          🗑️ Demandes de suppression
+        </button>
       </div>
 
       {/* Content */}
@@ -554,6 +561,14 @@ const AdminPageEnhanced = () => {
         )}
 
         {activeTab === 'stats' && renderStatsTab()}
+        {activeTab === 'deletion-requests' && (
+          <DeletionRequestsTab
+            apiCall={apiCall}
+            success={success}
+            error={errorToast}
+            warning={warning}
+          />
+        )}
         {/* Les autres onglets seront ajoutés dans la partie 2 */}
       </div>
     </div>
