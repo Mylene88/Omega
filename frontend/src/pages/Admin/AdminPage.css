@@ -1,29 +1,29 @@
 /* frontend/src/pages/Admin/AdminPage.css */
-/* Design professionnel pour interface d'administration */
+/* Design doux et confortable pour les yeux */
 
 :root {
-  --primary: #1e3a5f;
-  --primary-light: #2c5f8d;
-  --primary-dark: #152a45;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --success: #059669;
-  --success-hover: #047857;
-  --warning: #d97706;
-  --warning-hover: #b45309;
-  --danger: #dc2626;
-  --danger-hover: #b91c1c;
-  --bg-primary: #f8fafc;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #e2e8f0;
-  --text-primary: #1e293b;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --border-color: #cbd5e1;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --primary: #6b7280;
+  --primary-light: #9ca3af;
+  --primary-dark: #4b5563;
+  --accent: #94a3b8;
+  --accent-hover: #64748b;
+  --success: #86b89d;
+  --success-hover: #6fa287;
+  --warning: #d4a574;
+  --warning-hover: #c49564;
+  --danger: #c89090;
+  --danger-hover: #b87d7d;
+  --bg-primary: #fafaf9;
+  --bg-secondary: #f5f5f4;
+  --bg-tertiary: #e7e5e4;
+  --text-primary: #57534e;
+  --text-secondary: #78716c;
+  --text-muted: #a8a29e;
+  --border-color: #d6d3d1;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
 }
 
 .admin-page {
