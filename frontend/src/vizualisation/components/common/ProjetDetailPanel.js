@@ -123,6 +123,15 @@ export default function ProjetDetailPanel({
                                     </span>
                                 </div>
 
+                                <div className="info-item full-width">
+                                    <span className="info-label">Description</span>
+                                    <p className="info-description">
+                                        {selectedProjectDetails.projet?.description ||
+                                         selectedProjectDetails.description ||
+                                         'Aucune description ajoutée'}
+                                    </p>
+                                </div>
+
                                 <div className="info-item">
                                     <span className="info-label">Date de prise de connaissance par la DDT</span>
                                     <span className="info-value">
@@ -132,15 +141,6 @@ export default function ProjetDetailPanel({
                                                 selectedProjectDetails.date_ident_projet).toLocaleDateString('fr-FR')
                                             : 'Aucune date renseignée'}
                                     </span>
-                                </div>
-
-                                <div className="info-item full-width">
-                                    <span className="info-label">Description</span>
-                                    <p className="info-description">
-                                        {selectedProjectDetails.projet?.description ||
-                                         selectedProjectDetails.description ||
-                                         'Aucune description ajoutée'}
-                                    </p>
                                 </div>
                             </div>
                         </div>
