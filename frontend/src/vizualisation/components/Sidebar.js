@@ -242,7 +242,12 @@ export default function Sidebar({ projectId, onClose }) {
                                             </span>
                                         </div>
 
-
+                                        <div className="info-item full-width">
+                                            <span className="info-label">Description</span>
+                                            <p className="info-description">
+                                                {info.description || 'Aucune description ajoutée'}
+                                            </p>
+                                        </div>
 
                                         <div className="info-item">
                                             <span className="info-label">Date de prise de connaissance par la DDT</span>
@@ -251,14 +256,6 @@ export default function Sidebar({ projectId, onClose }) {
                                                     ? new Date(info.date_ident_projet).toLocaleDateString('fr-FR')
                                                     : 'Aucune date renseignée'}
                                             </span>
-                                        </div>
-
-
-                                        <div className="info-item full-width">
-                                            <span className="info-label">Description</span>
-                                            <p className="info-description">
-                                                {info.description || 'Aucune description ajoutée'}
-                                            </p>
                                         </div>
                                     </div>
                                 </div>
