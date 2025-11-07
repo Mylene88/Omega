@@ -110,12 +110,7 @@ export default function ProjetDetailPanel({
 
                                 <div className="info-item">
                                     <span className="info-label">Statut du projet</span>
-                                    <span className={`info-badge ${getStatusBadgeClass(
-                                        selectedProjectDetails.statut?.libelle ||
-                                        selectedProjectDetails.projet?.statut?.libelle ||
-                                        selectedProjectDetails.statut ||
-                                        'Aucun statut renseigné'
-                                    )}`}>
+                                    <span className="info-value">
                                         {selectedProjectDetails.statut?.libelle ||
                                         selectedProjectDetails.projet?.statut?.libelle ||
                                         selectedProjectDetails.statut ||
