@@ -37,12 +37,12 @@ export async function GET(request) {
         {
           model: User,
           as: 'requestor',
-          attributes: ['id_user', 'username', 'nom_complet', 'prenom', 'nom']
+          attributes: ['id_user', 'username', 'prenom', 'nom']
         },
         {
           model: User,
           as: 'reviewer',
-          attributes: ['id_user', 'username', 'nom_complet', 'prenom', 'nom'],
+          attributes: ['id_user', 'username', 'prenom', 'nom'],
           required: false
         }
       ],
@@ -59,18 +59,16 @@ export async function GET(request) {
       requested_by: {
         id: req.requestor?.id_user,
         username: req.requestor?.username,
-        nom_complet: req.requestor?.nom_complet ||
-                    (req.requestor?.prenom && req.requestor?.nom ?
+        nom_complet: (req.requestor?.prenom && req.requestor?.nom) ?
                       `${req.requestor.prenom} ${req.requestor.nom}` :
-                      req.requestor?.username)
+                      req.requestor?.username
       },
       reviewed_by: req.reviewer ? {
         id: req.reviewer.id_user,
         username: req.reviewer.username,
-        nom_complet: req.reviewer.nom_complet ||
-                    (req.reviewer.prenom && req.reviewer.nom ?
+        nom_complet: (req.reviewer.prenom && req.reviewer.nom) ?
                       `${req.reviewer.prenom} ${req.reviewer.nom}` :
-                      req.reviewer.username)
+                      req.reviewer.username
       } : null,
       review_comment: req.review_comment,
       reviewed_at: req.reviewed_at,
