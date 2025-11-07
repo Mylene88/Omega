@@ -331,6 +331,25 @@ module.exports = (sequelize, DataTypes) => {
     timestamps: true
   });
 
+  // --- Table projet_deletion_request : demandes de suppression ---
+  const ProjetDeletionRequest = sequelize.define('projet_deletion_request', {
+    id_deletion_request: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    id_projet: { type: DataTypes.STRING, allowNull: false, references: { model: Projet, key: 'id_projet' }, onDelete: 'CASCADE' },
+    requested_by: { type: DataTypes.INTEGER, allowNull: false, references: { model: User, key: 'id_user' } },
+    raison: { type: DataTypes.TEXT, allowNull: false },
+    statut: { type: DataTypes.ENUM('pending', 'approved', 'rejected'), allowNull: false, defaultValue: 'pending' },
+    reviewed_by: { type: DataTypes.INTEGER, allowNull: true, references: { model: User, key: 'id_user' } },
+    review_comment: { type: DataTypes.TEXT, allowNull: true },
+    reviewed_at: { type: DataTypes.DATE, allowNull: true },
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+  }, {
+    schema,
+    tableName: 'projet_deletion_request',
+    createdAt: 'created_at',
+    updatedAt: false,
+    timestamps: true
+  });
+
   // Associations pour les tables d'audit
   AuditLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
   User.hasMany(AuditLog, { foreignKey: 'user_id' });
@@ -342,6 +361,14 @@ module.exports = (sequelize, DataTypes) => {
   ProjetSnapshot.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
   Projet.hasMany(ProjetSnapshot, { foreignKey: 'id_projet', as: 'snapshots' });
   User.hasMany(ProjetSnapshot, { foreignKey: 'created_by' });
+
+  // Associations pour les demandes de suppression
+  ProjetDeletionRequest.belongsTo(Projet, { foreignKey: 'id_projet', as: 'projet' });
+  ProjetDeletionRequest.belongsTo(User, { foreignKey: 'requested_by', as: 'requestor' });
+  ProjetDeletionRequest.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
+  Projet.hasMany(ProjetDeletionRequest, { foreignKey: 'id_projet', as: 'deletion_requests' });
+  User.hasMany(ProjetDeletionRequest, { foreignKey: 'requested_by', as: 'deletion_requests_made' });
+  User.hasMany(ProjetDeletionRequest, { foreignKey: 'reviewed_by', as: 'deletion_requests_reviewed' });
 
 
 // Return all models as an object
@@ -362,6 +389,7 @@ module.exports = (sequelize, DataTypes) => {
     AuditLog,
     ProjetSnapshot,
     AdminAccessLog,
+    ProjetDeletionRequest,
   };
 
 
