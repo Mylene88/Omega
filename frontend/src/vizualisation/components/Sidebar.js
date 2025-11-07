@@ -166,8 +166,8 @@ export default function Sidebar({ projectId, onClose }) {
                         type: g.type,
                         surface: g.surface,
                         longueur: g.longueur,
-                        communesTraversees: g.communesTraversees || [],
-                        codesInsee: g.codesInsee || [],
+                        communes_traversees: g.communes_traversees || [],
+                        codes_insee: g.codes_insee || [],
                         epci: g.epci || [],
                         arrondissements: g.arrondissements || [],
                         deputes: g.deputes || [],
@@ -315,7 +315,7 @@ export default function Sidebar({ projectId, onClose }) {
                                             <span className="info-label">Date de dernière mise-à-jour</span>
                                             <span className="info-value">{formatDateTime(info.updated_at)}</span>
                                         </div>
-              
+
                                     </div>
 
                                     {/* Historique des suivis */}
@@ -474,15 +474,15 @@ export default function Sidebar({ projectId, onClose }) {
                                                                             'created_by',
                                                                             'creePar'
                                                                         ];
-                                                                        
+
                                                                         // Exclure les IDs (primary keys)
                                                                         const isIdField = field.name.startsWith('id_');
-                                                                        
+
                                                                         return !excludedFields.includes(field.name) && !isIdField;
                                                                     })
                                                                     .map((field) => {
                                                                         const value = donnee[field.name];
-                                                                        
+
                                                                         // ✅ Formater la valeur (ou afficher "Non renseigné")
                                                                         let displayValue;
                                                                         if (value === null || value === undefined || value === '') {
@@ -524,7 +524,7 @@ export default function Sidebar({ projectId, onClose }) {
                                                                         if (value === null || value === undefined || value === '') {
                                                                             return null;
                                                                         }
-                                                                        
+
                                                                         let displayValue;
                                                                         if (typeof value === 'boolean') {
                                                                             displayValue = value ? 'Oui' : 'Non';
@@ -663,19 +663,19 @@ export default function Sidebar({ projectId, onClose }) {
                                                         </div>
                                                     )}
 
-                                                    {Array.isArray(g.communesTraversees) && g.communesTraversees.length > 0 && (
+                                                    {Array.isArray(g.communes_traversees) && g.communes_traversees.length > 0 && (
                                                         <div className="geom-section">
                                                             <h5 className="geom-section-title">
                                                                 {g.type === 'Point' ? 'Commune' : 'Communes traversées'}
                                                             </h5>
-                                                            <div className="communes-box">{g.communesTraversees.join(', ')}</div>
+                                                            <div className="communes-box">{g.communes_traversees.join(', ')}</div>
                                                         </div>
                                                     )}
 
-                                                    {Array.isArray(g.codesInsee) && g.codesInsee.length > 0 && (
+                                                    {Array.isArray(g.codes_insee) && g.codes_insee.length > 0 && (
                                                         <div className="geom-section">
                                                             <h5 className="geom-section-title">Codes INSEE</h5>
-                                                            <div className="codes-box">{g.codesInsee.join(', ')}</div>
+                                                            <div className="codes-box">{g.codes_insee.join(', ')}</div>
                                                         </div>
                                                     )}
 
