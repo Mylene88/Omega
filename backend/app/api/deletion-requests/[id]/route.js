@@ -52,15 +52,15 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    if (deletionRequest.statut !== 'pending') {
+    if (deletionRequest.statut !== 'en attente') {
       await transaction.rollback();
       return NextResponse.json(
-        { error: `Cette demande a déjà été ${deletionRequest.statut === 'approved' ? 'approuvée' : 'rejetée'}` },
+        { error: `Cette demande a déjà été ${deletionRequest.statut === 'accepter' ? 'approuvée' : 'refusée'}` },
         { status: 409 }
       );
     }
 
-    const nouveauStatut = action === 'approve' ? 'approved' : 'rejected';
+    const nouveauStatut = action === 'approve' ? 'accepter' : 'refuser';
 
     // Mettre à jour la demande
     await deletionRequest.update({
@@ -138,7 +138,7 @@ export async function DELETE(request, { params }) {
     }
 
     // On peut seulement annuler une demande en attente
-    if (deletionRequest.statut !== 'pending') {
+    if (deletionRequest.statut !== 'en attente') {
       return NextResponse.json(
         { error: 'Vous ne pouvez annuler qu\'une demande en attente' },
         { status: 409 }

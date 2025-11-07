@@ -128,7 +128,7 @@ export async function POST(request) {
     const existingRequest = await ProjetDeletionRequest.findOne({
       where: {
         id_projet,
-        statut: 'pending'
+        statut: 'en attente'
       }
     });
 
@@ -144,7 +144,7 @@ export async function POST(request) {
       id_projet,
       requested_by,
       raison: raison.trim(),
-      statut: 'pending'
+      statut: 'en attente'
     });
 
     console.log('✅ Demande créée:', deletionRequest.id_deletion_request);
