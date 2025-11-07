@@ -2,23 +2,33 @@
 
 /* ==================== VARIABLES CSS ==================== */
 :root {
-    --primary-color: #2563eb;
-    --primary-hover: #1d4ed8;
-    --success-color: #10b981;
-    --warning-color: #f59e0b;
-    --danger-color: #ef4444;
+    --primary: #1e3a5f;
+    --primary-light: #2c5f8d;
+    --primary-dark: #152a45;
+    --primary-color: #1e3a5f;
+    --primary-hover: #152a45;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --success: #059669;
+    --success-color: #059669;
+    --success-hover: #047857;
+    --warning: #d97706;
+    --warning-color: #d97706;
+    --warning-hover: #b45309;
+    --danger: #dc2626;
+    --danger-color: #dc2626;
+    --danger-hover: #b91c1c;
     --text-primary: #1e293b;
-    --text-secondary: #64748b;
-
-
-    --text-muted: #94a3b8;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
     --bg-primary: #ffffff;
     --bg-secondary: #f8fafc;
-    --bg-tertiary: #f1f5f9;
-    --border-color: #e2e8f0;
+    --bg-tertiary: #e2e8f0;
+    --border-color: #cbd5e1;
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
     --radius-sm: 8px;
     --radius-md: 12px;
@@ -30,7 +40,7 @@
     width: 100%;
     height: 100vh;
     overflow-y: auto;
-    background: linear-gradient(135deg, rgba(29, 44, 89, 0.55) 0%, rgb(255, 255, 255) 100%);
+    background: var(--bg-secondary);
     background-attachment: fixed;
     padding: 0;
     box-sizing: border-box;
@@ -144,7 +154,7 @@
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(90deg, var(--primary-color), #8b5cf6);
+    background: var(--primary);
     opacity: 0;
     transition: opacity 0.3s ease;
 }
@@ -161,8 +171,8 @@
 
 .project-card.selected {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-    background: linear-gradient(135deg, #fdfcfb 0%, #e2d1c3 100%);
+    box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.15);
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
 .project-card.selected::before {
@@ -170,9 +180,9 @@
 }
 
 .badge-edit {
-    background: linear-gradient(135deg, #e0e7ff 0, #c7d2fe 100%);
-    color: #4338ca;
-    border: 1px solid #6366f1;
+    background: var(--primary);
+    color: white;
+    border: 1px solid var(--primary-dark);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -181,11 +191,12 @@
     border-radius: 6px;
     padding: 6px 12px;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.2s;
+    box-shadow: var(--shadow-sm);
 }
 .badge-edit:hover {
-    background: linear-gradient(135deg, #6366f1 0, #4338ca 100%);
-    color: #fff;
+    background: var(--primary-dark);
+    box-shadow: var(--shadow);
 }
 
 
@@ -286,47 +297,47 @@
     gap: 6px;
 }
 
-/* Badges de statut avec couleurs foncées */
+/* Badges de statut professionnels */
 .badge-cyan {
-    background: linear-gradient(135deg, #0d6986 0%, #17a2b8 100%);
+    background: #06b6d4;
     color: white;
-    box-shadow: 0 2px 8px rgba(13, 105, 134, 0.3);
+    border: 1px solid #0891b2;
 }
 
 .badge-yellow {
-    background: linear-gradient(135deg, #c29d0b 0%, #f1c40f 100%);
-    color: #1e293b;
-    box-shadow: 0 2px 8px rgba(194, 157, 11, 0.3);
+    background: var(--warning);
+    color: white;
+    border: 1px solid var(--warning-hover);
 }
 
 .badge-green {
-    background: linear-gradient(135deg, #1e7e34 0%, #2ecc71 100%);
+    background: var(--success);
     color: white;
-    box-shadow: 0 2px 8px rgba(30, 126, 52, 0.3);
+    border: 1px solid var(--success-hover);
 }
 
 .badge-blue {
-    background: linear-gradient(135deg, #1c5a85 0%, #3498db 100%);
+    background: var(--primary);
     color: white;
-    box-shadow: 0 2px 8px rgba(28, 90, 133, 0.3);
+    border: 1px solid var(--primary-dark);
 }
 
 .badge-red {
-    background: linear-gradient(135deg, #a82315 0%, #e74c3c 100%);
+    background: var(--danger);
     color: white;
-    box-shadow: 0 2px 8px rgba(168, 35, 21, 0.3);
+    border: 1px solid var(--danger-hover);
 }
 
 .badge-purple {
-    background: linear-gradient(135deg, #5e2d6e 0%, #8e44ad 100%);
+    background: #6366f1;
     color: white;
-    box-shadow: 0 2px 8px rgba(94, 45, 110, 0.3);
+    border: 1px solid #4f46e5;
 }
 
 .badge-gray {
-    background: linear-gradient(135deg, #5a6268 0%, #95a5a6 100%);
+    background: #64748b;
     color: white;
-    box-shadow: 0 2px 8px rgba(90, 98, 104, 0.3);
+    border: 1px solid #475569;
 }
 
 .badge-signale {
@@ -356,8 +367,8 @@
 
 .thematique-badge {
     padding: 6px 12px;
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-    color: #1e40af;
+    background: #dbeafe;
+    color: #1e3a5f;
     border-radius: 6px;
     font-size: 12px;
     font-weight: 600;
@@ -865,8 +876,8 @@
 
 .thematique-header-main {
     padding: 20px 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-bottom: 3px solid #5a67d8;
+    background: var(--primary);
+    border-bottom: 3px solid var(--primary-dark);
     position: relative;
     overflow: hidden;
 }
@@ -944,7 +955,7 @@
     margin: 0 0 16px 0;
     font-size: 14px;
     font-weight: 700;
-    color: #667eea;
+    color: var(--primary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     padding-bottom: 8px;
@@ -978,7 +989,7 @@
     top: 0;
     bottom: 0;
     width: 3px;
-    background: linear-gradient(to bottom, #667eea 0%, #764ba2 100%);
+    background: var(--primary);
     opacity: 0;
     transition: opacity 0.2s ease;
 }
@@ -1318,7 +1329,7 @@
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(90deg, var(--primary-color), #8b5cf6);
+    background: var(--primary);
     opacity: 0;
     transition: opacity 0.3s ease;
 }
@@ -1335,13 +1346,13 @@
 
 .project-card.selected {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.15);
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
 .project-card.selected::before {
     opacity: 1;
-    background: linear-gradient(90deg, #667eea, #764ba2);
+    background: var(--primary);
 }
 
 /* ==================== HEADER CARTE  ==================== */
@@ -1365,7 +1376,7 @@
 .project-id {
     display: inline-block;
     padding: 4px 10px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--primary);
     color: white;
     border-radius: 6px;
     font-size: 11px;
@@ -1373,7 +1384,8 @@
     letter-spacing: 0.05em;
     font-family: 'Monaco', 'Courier New', monospace;
     align-self: flex-start;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--primary-dark);
 }
 
 .project-card-title {
@@ -1553,7 +1565,7 @@
 }
 
 .badge-signale {
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    background: #fef3c7;
     color: #92400e;
     border: 1px solid #fbbf24;
     display: flex;
@@ -1562,7 +1574,7 @@
 }
 
 .badge-charte {
-    background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+    background: #d1fae5;
     color: #065f46;
     border: 1px solid #10b981;
     display: flex;
@@ -1729,10 +1741,10 @@
 }
 
 .pagination-page-button.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--primary);
     color: white;
-    border-color: transparent;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    border-color: var(--primary-dark);
+    box-shadow: var(--shadow-md);
 }
 
 .pagination-ellipsis {
@@ -1798,33 +1810,33 @@
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--primary);
   color: white;
-  border: none;
+  border: 1px solid var(--primary-dark);
   border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: var(--shadow-sm);
   font-family: 'MARIANNE', sans-serif;
   white-space: nowrap;
 }
 
 .download-btn-header:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
-  background: linear-gradient(135deg, #5a67d8 0%, #6b3fa0 100%);
+  box-shadow: var(--shadow);
+  background: var(--primary-dark);
 }
 
 .download-btn-header:active {
   transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-sm);
 }
 
 /* Animation au hover de la carte */
 .project-card:hover .download-btn-header {
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.6);
+  box-shadow: var(--shadow-md);
 }
 
 /* ==================== BOUTON DE SUPPRESSION ==================== */
@@ -1875,8 +1887,8 @@
 }
 
 .download-btn-header.active {
-  background: linear-gradient(135deg, #5a67d8 0%, #6b3fa0 100%);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+  background: var(--primary-dark);
+  box-shadow: var(--shadow);
 }
 
 .download-dropdown-menu {
