@@ -665,7 +665,9 @@ export default function Sidebar({ projectId, onClose }) {
 
                                                     {Array.isArray(g.communesTraversees) && g.communesTraversees.length > 0 && (
                                                         <div className="geom-section">
-                                                            <h5 className="geom-section-title">Communes traversées</h5>
+                                                            <h5 className="geom-section-title">
+                                                                {g.type === 'Point' ? 'Commune' : 'Communes traversées'}
+                                                            </h5>
                                                             <div className="communes-box">{g.communesTraversees.join(', ')}</div>
                                                         </div>
                                                     )}
