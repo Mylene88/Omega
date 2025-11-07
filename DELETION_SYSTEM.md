@@ -296,15 +296,50 @@ Annuler sa propre demande (User)
 
 3. **L'interface est automatiquement disponible sur la Vue Liste**
 
-## TODO: Interface Admin
+## Interface Admin
 
-Pour compléter le système, il faut créer :
+L'interface admin a été créée et est complètement fonctionnelle :
 
-- [ ] Page admin `/admin/deletion-requests`
-- [ ] Liste des demandes avec filtres (pending/approved/rejected)
-- [ ] Boutons Approuver/Rejeter
-- [ ] Modal de confirmation avant suppression
-- [ ] Historique des demandes traitées
+- ✅ Onglet "Demandes de suppression" dans les pages admin
+- ✅ Liste des demandes avec filtres par statut (en attente/accepter/refuser)
+- ✅ Boutons Approuver/Rejeter avec confirmations
+- ✅ Modal de confirmation avant suppression avec détails du projet
+- ✅ Historique complet des demandes traitées
+- ✅ Champ commentaire optionnel pour l'admin lors de la révision
+- ✅ Affichage des informations du demandeur et du reviewer
+- ✅ Statistiques rapides (total, en attente)
+- ✅ Bouton d'actualisation manuelle
+
+### Accès
+
+L'interface est disponible dans les deux versions de la page admin :
+- `/admin` - AdminPage.js (version simple)
+- `/admin/enhanced` - AdminPageEnhanced.js (version améliorée avec auto-refresh)
+
+### Fonctionnalités
+
+**Filtrage**:
+- Tous les statuts
+- En attente uniquement
+- Approuvées uniquement
+- Rejetées uniquement
+
+**Actions (pour demandes en attente)**:
+- Rejeter : Change le statut à "refuser"
+- Approuver et supprimer : Change le statut à "accepter" et supprime le projet
+
+**Modal de confirmation**:
+- Pour les approbations : Affiche un avertissement et les détails du projet
+- Pour les rejets : Confirmation simple
+- Champ commentaire optionnel dans les deux cas
+
+**Affichage des informations**:
+- ID de la demande et du projet
+- Nom du projet et description
+- Demandeur (nom complet ou username)
+- Raison de la demande
+- Date de création
+- Pour les demandes traitées : reviewer, date de révision, commentaire
 
 ## Fichiers créés
 
@@ -313,21 +348,33 @@ backend/
   ├── migrations/
   │   └── 202511070002-create-deletion-requests.js
   ├── models/
-  │   └── projetDeletionRequest.js
+  │   └── principale.js (modifié - ajout ProjetDeletionRequest)
+  ├── scripts/
+  │   └── create-deletion-request-table.sql
   └── app/api/
       └── deletion-requests/
           ├── route.js (GET, POST)
           └── [id]/
               └── route.js (PATCH, DELETE)
 
-frontend/src/vizualisation/
-  ├── components/
-  │   ├── common/
-  │   │   └── DeletionRequestModal.js
-  │   └── VueListe.js (modifié)
-  └── styles/
-      ├── DeletionRequestModal.css
-      └── VueListeStyle.css (modifié)
+frontend/src/
+  ├── vizualisation/
+  │   ├── components/
+  │   │   ├── common/
+  │   │   │   └── DeletionRequestModal.js
+  │   │   └── VueListe.js (modifié)
+  │   └── styles/
+  │       ├── DeletionRequestModal.css
+  │       └── VueListeStyle.css (modifié)
+  ├── components/admin/
+  │   ├── DeletionRequestsTab.js
+  │   └── DeletionRequestsTab.css
+  └── pages/Admin/
+      ├── AdminPage.js (modifié - ajout onglet)
+      └── AdminPageEnhanced.js (modifié - ajout onglet)
+
+documentation/
+  └── DELETION_SYSTEM.md
 ```
 
 ## Notes
