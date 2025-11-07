@@ -337,7 +337,7 @@ module.exports = (sequelize, DataTypes) => {
     id_projet: { type: DataTypes.STRING, allowNull: false, references: { model: Projet, key: 'id_projet' }, onDelete: 'CASCADE' },
     requested_by: { type: DataTypes.INTEGER, allowNull: false, references: { model: User, key: 'id_user' } },
     raison: { type: DataTypes.TEXT, allowNull: false },
-    statut: { type: DataTypes.ENUM('pending', 'approved', 'rejected'), allowNull: false, defaultValue: 'pending' },
+    statut: { type: DataTypes.ENUM('en attente', 'accepter', 'refuser'), allowNull: false, defaultValue: 'en attente' },
     reviewed_by: { type: DataTypes.INTEGER, allowNull: true, references: { model: User, key: 'id_user' } },
     review_comment: { type: DataTypes.TEXT, allowNull: true },
     reviewed_at: { type: DataTypes.DATE, allowNull: true },
