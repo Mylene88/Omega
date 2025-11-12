@@ -297,19 +297,10 @@ module.exports = (sequelize, DataTypes) => {
   const ProjetSnapshot = sequelize.define('projet_snapshot', {
     id_snapshot: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     id_projet: { type: DataTypes.STRING, references: { model: Projet, key: 'id_projet' }, onDelete: 'CASCADE' },
-
-    // NOUVELLES colonnes pour le versioning par section
-    user_id: { type: DataTypes.INTEGER, allowNull: true, references: { model: User, key: 'id_user' }, onDelete: 'CASCADE' },
-    version_number: { type: DataTypes.INTEGER, defaultValue: 1 }, // 1 à 10
+    user_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: User, key: 'id_user' }, onDelete: 'CASCADE' },
+    version_number: { type: DataTypes.INTEGER, allowNull: false }, // 1 à 10
     snapshot_date: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     is_current: { type: DataTypes.BOOLEAN, defaultValue: false }, // Dernière version
-
-    // ANCIENNES colonnes (gardées pour compatibilité avec anciennes données)
-    snapshot_data: { type: DataTypes.JSONB }, // Optionnel maintenant (données migrées vers sections)
-    snapshot_type: { type: DataTypes.ENUM('AUTO', 'MANUAL', 'BEFORE_DELETE') },
-    created_by: { type: DataTypes.INTEGER, references: { model: User, key: 'id_user' } }, // user_id en priorité
-
-    // Communes
     description: { type: DataTypes.TEXT },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
   }, {

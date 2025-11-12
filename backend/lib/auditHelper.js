@@ -66,42 +66,96 @@ async function logAudit({
 }
 
 /**
- * Crée un snapshot complet d'un projet
+ * Crée un snapshot complet d'un projet avec sections
  * @param {Object} params
  * @param {string} params.idProjet - ID du projet
  * @param {Object} params.projetData - Données complètes du projet
- * @param {string} params.snapshotType - Type de snapshot: AUTO, MANUAL, BEFORE_DELETE
  * @param {string} params.description - Description du snapshot
- * @param {number} params.userId - ID de l'utilisateur
+ * @param {number} params.userId - ID de l'utilisateur (requis)
  * @param {Object} params.transaction - Transaction Sequelize (optionnel)
  * @returns {Promise<Object>} Le snapshot créé
  */
 async function createSnapshot({
   idProjet,
   projetData,
-  snapshotType = 'AUTO',
   description = null,
-  userId = null,
+  userId,
   transaction = null
 }) {
   try {
+    if (!userId) {
+      throw new Error('userId est requis pour créer un snapshot');
+    }
+
+    // Obtenir le prochain numéro de version
+    const versionNumber = await db.sequelize.query(
+      'SELECT principale.get_next_version_number(:idProjet, :userId) as version',
+      {
+        replacements: { idProjet, userId },
+        type: db.sequelize.QueryTypes.SELECT,
+        transaction
+      }
+    );
+
+    const nextVersion = versionNumber[0].version;
+
+    // Marquer toutes les versions précédentes comme non-courantes
+    await db.ProjetSnapshot.update(
+      { is_current: false },
+      {
+        where: { id_projet: idProjet, user_id: userId },
+        transaction
+      }
+    );
+
+    // Créer le snapshot
     const snapshotData = {
       id_projet: idProjet,
-      snapshot_data: projetData,
-      snapshot_type: snapshotType,
+      user_id: userId,
+      version_number: nextVersion,
+      snapshot_date: new Date(),
       description,
-      created_by: userId,
+      is_current: true,
       created_at: new Date()
     };
 
     const options = transaction ? { transaction } : {};
     const snapshot = await db.ProjetSnapshot.create(snapshotData, options);
 
-    console.log(`📸 Snapshot créé: ${snapshotType} pour projet#${idProjet} par user#${userId || 'system'}`);
+    // Créer les sections (si projetData fourni)
+    if (projetData) {
+      const sections = [
+        { section_name: 'projet_info', section_data: {
+          nom_projet: projetData.nom_projet,
+          description: projetData.description,
+          statut_projet_id: projetData.statut_projet_id,
+          date_ident_projet: projetData.date_ident_projet,
+          projet_signale: projetData.projet_signale,
+          charte_accueil: projetData.charte_accueil,
+          service_id: projetData.service_id,
+          referent_ddt: projetData.referent_ddt
+        }},
+        { section_name: 'porteurs', section_data: projetData.porteurs || [] },
+        { section_name: 'suivis', section_data: projetData.suivis || [] },
+        { section_name: 'thematiques', section_data: projetData.thematiques || [] },
+        { section_name: 'documents', section_data: projetData.documents || [] },
+        { section_name: 'geometrie', section_data: projetData.geometry || {} }
+      ];
+
+      for (const section of sections) {
+        await db.ProjetSnapshotSection.create({
+          id_snapshot: snapshot.id_snapshot,
+          ...section,
+          created_at: new Date()
+        }, options);
+      }
+    }
+
+    console.log(`📸 Snapshot v${nextVersion} créé pour projet#${idProjet} par user#${userId}`);
     return snapshot;
   } catch (error) {
     console.error('❌ Erreur lors de la création du snapshot:', error);
-    return null;
+    throw error;
   }
 }
 
@@ -152,11 +206,16 @@ async function getProjectSnapshots(idProjet, limit = 50) {
       include: [
         {
           model: db.User,
-          as: 'creator',
+          as: 'user',
           attributes: ['id_user', 'username', 'prenom', 'nom']
+        },
+        {
+          model: db.ProjetSnapshotSection,
+          as: 'sections',
+          required: false
         }
       ],
-      order: [['created_at', 'DESC']],
+      order: [['snapshot_date', 'DESC']],
       limit
     });
 
