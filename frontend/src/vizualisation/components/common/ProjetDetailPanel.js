@@ -110,17 +110,21 @@ export default function ProjetDetailPanel({
 
                                 <div className="info-item">
                                     <span className="info-label">Statut du projet</span>
-                                    <span className={`info-badge ${getStatusBadgeClass(
-                                        selectedProjectDetails.statut?.libelle || 
-                                        selectedProjectDetails.projet?.statut?.libelle ||
-                                        selectedProjectDetails.statut ||
-                                        'N/A'
-                                    )}`}>
+                                    <span className="info-value">
                                         {selectedProjectDetails.statut?.libelle ||
                                         selectedProjectDetails.projet?.statut?.libelle ||
                                         selectedProjectDetails.statut ||
-                                        'N/A'}
+                                        'Aucun statut renseigné'}
                                     </span>
+                                </div>
+
+                                <div className="info-item full-width">
+                                    <span className="info-label">Description</span>
+                                    <p className="info-description">
+                                        {selectedProjectDetails.projet?.description ||
+                                         selectedProjectDetails.description ||
+                                         'Aucune description ajoutée'}
+                                    </p>
                                 </div>
 
                                 <div className="info-item">
@@ -129,19 +133,10 @@ export default function ProjetDetailPanel({
                                         {(selectedProjectDetails.projet?.dateIdentification ||
                                         selectedProjectDetails.date_ident_projet)
                                             ? new Date(selectedProjectDetails.projet?.dateIdentification ||
-                                                    selectedProjectDetails.date_ident_projet).toLocaleDateString('fr-FR')
+                                                selectedProjectDetails.date_ident_projet).toLocaleDateString('fr-FR')
                                             : 'Aucune date renseignée'}
                                     </span>
                                 </div>
-
-                                {(selectedProjectDetails.projet?.description || selectedProjectDetails.description) && (
-                                    <div className="info-item full-width">
-                                        <span className="info-label">Description</span>
-                                        <p className="info-description">
-                                            {selectedProjectDetails.projet?.description || selectedProjectDetails.description}
-                                        </p>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     )}
@@ -640,17 +635,19 @@ export default function ProjetDetailPanel({
                                             </div>
                                         )}
 
-                                        {Array.isArray(g.communesTraversees) && g.communesTraversees.length > 0 && (
+                                        {Array.isArray(g.communes_traversees) && g.communes_traversees.length > 0 && (
                                             <div className="geom-section">
-                                                <h5 className="geom-section-title">Communes traversées</h5>
-                                                <div className="communes-box">{g.communesTraversees.join(', ')}</div>
+                                                <h5 className="geom-section-title">
+                                                    {g.type === 'Point' ? 'Commune' : 'Communes traversées'}
+                                                </h5>
+                                                <div className="communes-box">{g.communes_traversees.join(', ')}</div>
                                             </div>
                                         )}
 
-                                        {Array.isArray(g.codesInsee) && g.codesInsee.length > 0 && (
+                                        {Array.isArray(g.codes_insee) && g.codes_insee.length > 0 && (
                                             <div className="geom-section">
                                                 <h5 className="geom-section-title">Codes INSEE</h5>
-                                                <div className="codes-box">{g.codesInsee.join(', ')}</div>
+                                                <div className="codes-box">{g.codes_insee.join(', ')}</div>
                                             </div>
                                         )}
 
