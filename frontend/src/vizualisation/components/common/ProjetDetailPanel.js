@@ -454,23 +454,26 @@ export default function ProjetDetailPanel({
                                                                     } else if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
-                                                                        // 🔍 DEBUG: Log pour voir la structure des tableaux
-                                                                        console.log(`[DEBUG] Field: ${field.name}, Array value:`, value);
+                                                                        // ✅ DEBUG: afficher ce qui arrive
+                                                                        console.log(`[${field.name}] Value reçue:`, value);
 
-                                                                        // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
+                                                                        // ✅ Gérer les tableaux d'IDs ou d'objets
                                                                         const processedValues = value
                                                                             .map(item => {
                                                                                 if (item === null || item === undefined || item === '') return null;
-                                                                                if (typeof item === 'object') {
-                                                                                    const extracted = item.value || item.libelle || item.id || null;
-                                                                                    console.log(`[DEBUG] Object item:`, item, '-> extracted:', extracted);
-                                                                                    return extracted;
+
+                                                                                // Si c'est un objet, extraire la valeur
+                                                                                if (typeof item === 'object' && item !== null) {
+                                                                                    return item.value || item.libelle || item.label || String(item.id || '');
                                                                                 }
+
+                                                                                // Sinon retourner l'item tel quel (ID ou string)
                                                                                 return item;
                                                                             })
                                                                             .filter(item => item !== null && item !== undefined && item !== '');
 
-                                                                        console.log(`[DEBUG] Processed values:`, processedValues);
+                                                                        console.log(`[${field.name}] Processed values:`, processedValues);
+
                                                                         displayValue = processedValues.length > 0
                                                                             ? processedValues.join(', ')
                                                                             : <em style={{ color: '#999' }}>Non renseigné</em>;
@@ -512,23 +515,26 @@ export default function ProjetDetailPanel({
                                                                     if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
-                                                                        // 🔍 DEBUG: Log pour voir la structure des tableaux (section sans métadonnées)
-                                                                        console.log(`[DEBUG-NO-META] Field: ${key}, Array value:`, value);
+                                                                        // ✅ DEBUG: afficher ce qui arrive (section sans métadonnées)
+                                                                        console.log(`[NO-META: ${key}] Value reçue:`, value);
 
-                                                                        // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
+                                                                        // ✅ Gérer les tableaux d'IDs ou d'objets (sans métadonnées)
                                                                         const processedValues = value
                                                                             .map(item => {
                                                                                 if (item === null || item === undefined || item === '') return null;
-                                                                                if (typeof item === 'object') {
-                                                                                    const extracted = item.value || item.libelle || item.id || null;
-                                                                                    console.log(`[DEBUG-NO-META] Object item:`, item, '-> extracted:', extracted);
-                                                                                    return extracted;
+
+                                                                                // Si c'est un objet, extraire la valeur
+                                                                                if (typeof item === 'object' && item !== null) {
+                                                                                    return item.value || item.libelle || item.label || String(item.id || '');
                                                                                 }
+
+                                                                                // Sinon retourner l'item tel quel (ID ou string)
                                                                                 return item;
                                                                             })
                                                                             .filter(item => item !== null && item !== undefined && item !== '');
 
-                                                                        console.log(`[DEBUG-NO-META] Processed values:`, processedValues);
+                                                                        console.log(`[NO-META: ${key}] Processed values:`, processedValues);
+
                                                                         if (processedValues.length === 0) {
                                                                             return null;
                                                                         }
