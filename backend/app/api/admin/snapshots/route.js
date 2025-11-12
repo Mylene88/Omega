@@ -45,7 +45,7 @@ export async function GET(request) {
         include: [
           {
             model: db.User,
-            as: 'creator',
+            as: 'user',
             attributes: ['id_user', 'username', 'prenom', 'nom']
           },
           {
@@ -67,10 +67,10 @@ export async function GET(request) {
       snapshotType: snapshot.snapshot_type,
       description: snapshot.description,
       snapshotData: snapshot.snapshot_data, // Données complètes du projet
-      creator: snapshot.creator ? {
-        id: snapshot.creator.id_user,
-        username: snapshot.creator.username,
-        nomComplet: `${snapshot.creator.prenom || ''} ${snapshot.creator.nom || ''}`.trim()
+      creator: snapshot.user ? {
+        id: snapshot.user.id_user,
+        username: snapshot.user.username,
+        nomComplet: `${snapshot.user.prenom || ''} ${snapshot.user.nom || ''}`.trim()
       } : null,
       createdAt: snapshot.created_at
     }));
