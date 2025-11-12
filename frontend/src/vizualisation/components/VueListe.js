@@ -336,18 +336,19 @@ export default function VueListe({
                                         </div>
                                     )}
 
-                                    {/* Thématiques */}
-                                    {nombreThematiques > 0 && (
-                                        <div className="card-info-item">
-                                            <span className="card-info-icon">🎯</span>
-                                            <div className="card-info-content">
-                                                <span className="card-info-label">Thématiques</span>
-                                                <span className="card-info-value">
-                                                    {nombreThematiques} thématique{nombreThematiques > 1 ? 's' : ''}
-                                                </span>
-                                            </div>
+                                    {/* Thématiques - Toujours affiché */}
+                                    <div className="card-info-item">
+                                        <span className="card-info-icon">🎯</span>
+                                        <div className="card-info-content">
+                                            <span className="card-info-label">Thématiques</span>
+                                            <span className="card-info-value">
+                                                {nombreThematiques > 0
+                                                    ? `${nombreThematiques} thématique${nombreThematiques > 1 ? 's' : ''}`
+                                                    : <em style={{ color: '#999' }}>Aucune thématique pour ce projet</em>
+                                                }
+                                            </span>
                                         </div>
-                                    )}
+                                    </div>
 
                                     {/* Communes - Toujours affiché */}
                                     <div className="card-info-item full-width">
