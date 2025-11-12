@@ -85,22 +85,65 @@ async function createSnapshot({
   transaction = null
 }) {
   try {
+    // Obtenir le prochain numéro de version
+    let versionNumber = 1;
+    if (userId) {
+      try {
+        const result = await db.sequelize.query(
+          'SELECT principale.get_next_version_number($1, $2) as version',
+          {
+            replacements: [idProjet, userId],
+            type: db.sequelize.QueryTypes.SELECT,
+            transaction
+          }
+        );
+        versionNumber = result[0]?.version || 1;
+      } catch (error) {
+        console.log('⚠️  Impossible de récupérer le numéro de version, utilisation de 1:', error.message);
+        versionNumber = 1;
+      }
+    }
+
+    // Marquer les anciens snapshots comme non courants
+    if (userId) {
+      try {
+        await db.ProjetSnapshot.update(
+          { is_current: false },
+          {
+            where: {
+              id_projet: idProjet,
+              user_id: userId,
+              is_current: true
+            },
+            transaction
+          }
+        );
+      } catch (error) {
+        console.log('⚠️  Impossible de mettre à jour les anciens snapshots:', error.message);
+      }
+    }
+
     const snapshotData = {
       id_projet: idProjet,
       snapshot_data: projetData,
       snapshot_type: snapshotType,
       description,
       created_by: userId,
-      created_at: new Date()
+      created_at: new Date(),
+      user_id: userId,
+      version_number: versionNumber,
+      snapshot_date: new Date(),
+      is_current: true
     };
 
     const options = transaction ? { transaction } : {};
     const snapshot = await db.ProjetSnapshot.create(snapshotData, options);
 
-    console.log(`📸 Snapshot créé: ${snapshotType} pour projet#${idProjet} par user#${userId || 'system'}`);
+    console.log(`📸 Snapshot créé: ${snapshotType} pour projet#${idProjet} par user#${userId || 'system'} (version ${versionNumber})`);
     return snapshot;
   } catch (error) {
-    console.error('❌ Erreur lors de la création du snapshot:', error);
+    console.error('❌ Erreur lors de la création du snapshot:', error.message);
+    // Ne pas faire échouer la transaction principale si le snapshot échoue
     return null;
   }
 }
