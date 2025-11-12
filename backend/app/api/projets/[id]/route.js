@@ -440,7 +440,9 @@ console.log(`✅ ${donnees.length} enregistrement(s) trouvé(s) pour ${modeleVal
     a.target?.options?.schema === modeleConfig.schema
   );
 
-  if (assoc && d[assoc.as]) {
+  // ✅ Vérification améliorée : ne pas considérer null/undefined comme "pas d'association"
+  // Permet de gérer les valeurs 0 et false qui sont valides
+  if (assoc && d[assoc.as] !== null && d[assoc.as] !== undefined) {
     // ✅ Renvoyer un objet {id, value} pour que le frontend puisse extraire l'ID
     formattedData[field.name] = {
       id: fieldValue, // L'ID stocké dans la base
