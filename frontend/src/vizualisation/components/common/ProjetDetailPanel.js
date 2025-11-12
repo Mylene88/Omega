@@ -454,17 +454,23 @@ export default function ProjetDetailPanel({
                                                                     } else if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
+                                                                        // 🔍 DEBUG: Log pour voir la structure des tableaux
+                                                                        console.log(`[DEBUG] Field: ${field.name}, Array value:`, value);
+
                                                                         // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
                                                                         const processedValues = value
                                                                             .map(item => {
                                                                                 if (item === null || item === undefined || item === '') return null;
                                                                                 if (typeof item === 'object') {
-                                                                                    return item.value || item.libelle || item.id || null;
+                                                                                    const extracted = item.value || item.libelle || item.id || null;
+                                                                                    console.log(`[DEBUG] Object item:`, item, '-> extracted:', extracted);
+                                                                                    return extracted;
                                                                                 }
                                                                                 return item;
                                                                             })
                                                                             .filter(item => item !== null && item !== undefined && item !== '');
 
+                                                                        console.log(`[DEBUG] Processed values:`, processedValues);
                                                                         displayValue = processedValues.length > 0
                                                                             ? processedValues.join(', ')
                                                                             : <em style={{ color: '#999' }}>Non renseigné</em>;
@@ -506,17 +512,23 @@ export default function ProjetDetailPanel({
                                                                     if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
+                                                                        // 🔍 DEBUG: Log pour voir la structure des tableaux (section sans métadonnées)
+                                                                        console.log(`[DEBUG-NO-META] Field: ${key}, Array value:`, value);
+
                                                                         // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
                                                                         const processedValues = value
                                                                             .map(item => {
                                                                                 if (item === null || item === undefined || item === '') return null;
                                                                                 if (typeof item === 'object') {
-                                                                                    return item.value || item.libelle || item.id || null;
+                                                                                    const extracted = item.value || item.libelle || item.id || null;
+                                                                                    console.log(`[DEBUG-NO-META] Object item:`, item, '-> extracted:', extracted);
+                                                                                    return extracted;
                                                                                 }
                                                                                 return item;
                                                                             })
                                                                             .filter(item => item !== null && item !== undefined && item !== '');
 
+                                                                        console.log(`[DEBUG-NO-META] Processed values:`, processedValues);
                                                                         if (processedValues.length === 0) {
                                                                             return null;
                                                                         }
