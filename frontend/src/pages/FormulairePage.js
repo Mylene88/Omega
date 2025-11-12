@@ -410,9 +410,9 @@ export default function FormulairePage() {
                     area_m2: geometryData.area_m2,
                     length_m: geometryData.length_m,
 
-                    communes_traversees: typeof geometryData.communes_list === 'string'
-                        ? geometryData.communes_list.split(',').map(c => c.trim())
-                        : (Array.isArray(geometryData.communes_list) ? geometryData.communes_list : []),
+                    communes_traversees: typeof geometryData.communes_traversees === 'string'
+                        ? geometryData.communes_traversees.split(',').map(c => c.trim())
+                        : (Array.isArray(geometryData.communes_traversees) ? geometryData.communes_traversees : []),
 
                     codes_insee: Array.isArray(geometryData.codes_insee) ? geometryData.codes_insee : [],
                     epci: Array.isArray(geometryData.epci) ? geometryData.epci : [],
