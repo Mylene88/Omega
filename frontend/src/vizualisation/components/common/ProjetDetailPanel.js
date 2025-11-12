@@ -406,7 +406,7 @@ export default function ProjetDetailPanel({
                                     if (thematiquesDepliees.length === 0) {
                                         return (
                                             <div className="empty-state">
-                                                <p className="empty-message">Aucune thématique avec données</p>
+                                                <p className="empty-message">Aucune thématique pour ce projet</p>
                                             </div>
                                         );
                                     }
@@ -532,7 +532,7 @@ export default function ProjetDetailPanel({
                                 })()
                             ) : (
                                 <div className="empty-state">
-                                    <p className="empty-message">Aucune thématique associée</p>
+                                    <p className="empty-message">Aucune thématique pour ce projet</p>
                                 </div>
                             )}
                         </div>
