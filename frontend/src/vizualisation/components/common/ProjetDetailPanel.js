@@ -454,16 +454,20 @@ export default function ProjetDetailPanel({
                                                                     } else if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
-                                                                        // ✅ Gérer les tableaux vides
-                                                                        if (value.length === 0) {
-                                                                            displayValue = <em style={{ color: '#999' }}>Non renseigné</em>;
-                                                                        } else {
-                                                                            displayValue = value.map(item =>
-                                                                                typeof item === 'object' && item !== null
-                                                                                    ? (item.value || item.libelle || item.id)
-                                                                                    : item
-                                                                            ).join(', ');
-                                                                        }
+                                                                        // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
+                                                                        const processedValues = value
+                                                                            .map(item => {
+                                                                                if (item === null || item === undefined || item === '') return null;
+                                                                                if (typeof item === 'object') {
+                                                                                    return item.value || item.libelle || item.id || null;
+                                                                                }
+                                                                                return item;
+                                                                            })
+                                                                            .filter(item => item !== null && item !== undefined && item !== '');
+
+                                                                        displayValue = processedValues.length > 0
+                                                                            ? processedValues.join(', ')
+                                                                            : <em style={{ color: '#999' }}>Non renseigné</em>;
                                                                     } else if (typeof value === 'object' && value !== null) {
                                                                         displayValue = value.value || value.libelle || JSON.stringify(value);
                                                                     } else {
@@ -502,15 +506,21 @@ export default function ProjetDetailPanel({
                                                                     if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
-                                                                        // ✅ Gérer les tableaux vides
-                                                                        if (value.length === 0) {
+                                                                        // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
+                                                                        const processedValues = value
+                                                                            .map(item => {
+                                                                                if (item === null || item === undefined || item === '') return null;
+                                                                                if (typeof item === 'object') {
+                                                                                    return item.value || item.libelle || item.id || null;
+                                                                                }
+                                                                                return item;
+                                                                            })
+                                                                            .filter(item => item !== null && item !== undefined && item !== '');
+
+                                                                        if (processedValues.length === 0) {
                                                                             return null;
                                                                         }
-                                                                        displayValue = value.map(item =>
-                                                                            typeof item === 'object' && item !== null
-                                                                                ? (item.value || item.libelle || item.id)
-                                                                                : item
-                                                                        ).join(', ');
+                                                                        displayValue = processedValues.join(', ');
                                                                     } else if (typeof value === 'object' && value !== null) {
                                                                         displayValue = value.value || value.libelle || JSON.stringify(value);
                                                                     } else {
