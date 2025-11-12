@@ -448,17 +448,22 @@ export default function ProjetDetailPanel({
                                                                     const value = donnee[field.name];
 
                                                                     let displayValue;
-                                                                    if (value === null || value === undefined || value === '') {
+                                                                    // ✅ Vérification améliorée : ne pas considérer 0 ou false comme "non renseigné"
+                                                                    if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
                                                                         displayValue = <em style={{ color: '#999' }}>Non renseigné</em>;
                                                                     } else if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
-                                                                        // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
-                                                                        displayValue = value.map(item =>
-                                                                            typeof item === 'object' && item !== null
-                                                                                ? (item.value || item.libelle || item.id)
-                                                                                : item
-                                                                        ).join(', ');
+                                                                        // ✅ Gérer les tableaux vides
+                                                                        if (value.length === 0) {
+                                                                            displayValue = <em style={{ color: '#999' }}>Non renseigné</em>;
+                                                                        } else {
+                                                                            displayValue = value.map(item =>
+                                                                                typeof item === 'object' && item !== null
+                                                                                    ? (item.value || item.libelle || item.id)
+                                                                                    : item
+                                                                            ).join(', ');
+                                                                        }
                                                                     } else if (typeof value === 'object' && value !== null) {
                                                                         displayValue = value.value || value.libelle || JSON.stringify(value);
                                                                     } else {
@@ -488,7 +493,8 @@ export default function ProjetDetailPanel({
                                                                     return !excludedFields.includes(key) && !isIdField;
                                                                 })
                                                                 .map(([key, value]) => {
-                                                                    if (value === null || value === undefined || value === '') {
+                                                                    // ✅ Vérification améliorée : ne pas considérer 0 ou false comme "non renseigné"
+                                                                    if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
                                                                         return null;
                                                                     }
 
@@ -496,7 +502,10 @@ export default function ProjetDetailPanel({
                                                                     if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
-                                                                        // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
+                                                                        // ✅ Gérer les tableaux vides
+                                                                        if (value.length === 0) {
+                                                                            return null;
+                                                                        }
                                                                         displayValue = value.map(item =>
                                                                             typeof item === 'object' && item !== null
                                                                                 ? (item.value || item.libelle || item.id)
