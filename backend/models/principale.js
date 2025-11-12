@@ -301,7 +301,11 @@ module.exports = (sequelize, DataTypes) => {
     snapshot_type: { type: DataTypes.ENUM('AUTO', 'MANUAL', 'BEFORE_DELETE'), defaultValue: 'AUTO' },
     description: { type: DataTypes.TEXT },
     created_by: { type: DataTypes.INTEGER, references: { model: User, key: 'id_user' } },
-    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+    user_id: { type: DataTypes.INTEGER, references: { model: User, key: 'id_user' }, onDelete: 'SET NULL' },
+    version_number: { type: DataTypes.INTEGER, defaultValue: 1 },
+    snapshot_date: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+    is_current: { type: DataTypes.BOOLEAN, defaultValue: true }
   }, {
     schema,
     tableName: 'projet_snapshot',
