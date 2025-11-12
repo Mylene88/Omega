@@ -3,6 +3,7 @@ import React, {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router-dom';
 import { getStatusBadgeClass } from '../utils/statutColors';
 import Pagination from './common/Pagination';
+import DeletionRequestModal from './common/DeletionRequestModal';
 import '../styles/VueListeStyle.css';
 
 export default function VueListe({
@@ -17,6 +18,8 @@ export default function VueListe({
     const [openDropdownId, setOpenDropdownId] = useState(null);
     const [selectedFormat, setSelectedFormat] = useState('pdf');
     const [downloading, setDownloading] = useState(false);
+    const [deletionModalOpen, setDeletionModalOpen] = useState(false);
+    const [projectToDelete, setProjectToDelete] = useState(null);
     const navigate = useNavigate()
 
 
@@ -89,7 +92,48 @@ export default function VueListe({
         }
     };
 
+    const handleDeleteClick = (e, project) => {
+        e.stopPropagation();
+        setProjectToDelete(project);
+        setDeletionModalOpen(true);
+    };
 
+    const handleDeletionSubmit = async (raison) => {
+        try {
+            // Récupérer l'utilisateur actuel (à adapter selon votre système d'authentification)
+            const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+            if (!currentUser.id_user) {
+                throw new Error('Utilisateur non connecté');
+            }
+
+            const response = await fetch('http://localhost:3000/api/deletion-requests', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    id_projet: projectToDelete.id_projet,
+                    requested_by: currentUser.id_user,
+                    raison: raison
+                })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Erreur lors de la soumission');
+            }
+
+            alert(`✅ Demande de suppression envoyée avec succès !\n\nVotre demande sera examinée par un administrateur.`);
+            setDeletionModalOpen(false);
+            setProjectToDelete(null);
+
+        } catch (error) {
+            console.error('❌ Erreur soumission demande:', error);
+            throw error;
+        }
+    };
 
     if (loading) {
         return (
@@ -232,6 +276,15 @@ export default function VueListe({
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Bouton de suppression */}
+                                    <button
+                                        className="delete-btn-header"
+                                        onClick={(e) => handleDeleteClick(e, p)}
+                                        title="Demander la suppression du projet"
+                                    >
+                                        🗑️
+                                    </button>
                                 </div>
                             </div>
 
@@ -422,6 +475,18 @@ export default function VueListe({
                     totalItems={projects.length}
                     itemsPerPage={itemsPerPage}
                     onPageChange={onPageChange}
+                />
+            )}
+
+            {/* Modal de demande de suppression */}
+            {deletionModalOpen && projectToDelete && (
+                <DeletionRequestModal
+                    projet={projectToDelete}
+                    onClose={() => {
+                        setDeletionModalOpen(false);
+                        setProjectToDelete(null);
+                    }}
+                    onSubmit={handleDeletionSubmit}
                 />
             )}
         </>

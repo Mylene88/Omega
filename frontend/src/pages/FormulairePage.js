@@ -1,6 +1,6 @@
 //frontend/src/pages/FormulairePage.js
 import React, { useState, useEffect } from 'react';
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import InfosProjetSection from '../components/projet/InfosProjet/IP';
 import PorteurContact from './Porteur-Contact/PorteurContact';
 import SuiviDdtSection from '../components/suivi_ddt/Suivi_ddt/SuiviDdt';
@@ -12,6 +12,7 @@ import '../styles/globals.css';
 import Search from "../components/common/Search/Search";
 
 export default function FormulairePage() {
+    const navigate = useNavigate();
     const { id } = useParams();
     const [thematiqueData, setThematiqueData] = useState([]);
     const [documentsData, setDocumentsData] = useState([]);
@@ -29,6 +30,7 @@ export default function FormulairePage() {
     const [isGeneratingId, setIsGeneratingId] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
     const [suiviData, setSuiviData] = useState({
         historique: [],
@@ -205,7 +207,7 @@ export default function FormulairePage() {
                     if (projetComplet.geometries && projetComplet.geometries.length > 0) {
                         const geom = projetComplet.geometries[0];
                         console.log('🗺️ Première géométrie reçue:', geom);
-                        
+
                         setGeometryData({
                             id_geom: geom.id,
                             geom_type: geom.type,
@@ -219,7 +221,7 @@ export default function FormulairePage() {
                             deputes: geom.deputes || [],
                             maires: geom.maires || []
                         });
-                        
+
                         console.log('✅ GeometryData défini avec coordonnées:', {
                             type: geom.type,
                             hasGeom: !!geom.geom,
@@ -263,6 +265,9 @@ export default function FormulairePage() {
                     setStatutData(projetComplet.statut || {});
                     setServiceDdtData(projetComplet.serviceDdt || {});
                     setIsGeneratingId(false);
+
+                    // Réinitialiser l'état des modifications après le chargement
+                    setHasUnsavedChanges(false);
                 })
                 .catch(error => {
                     console.error('❌ Erreur lors de la récupération du projet:', error);
@@ -284,6 +289,23 @@ export default function FormulairePage() {
             setCurrentUser(user);
         }
     }, []);
+
+    // Protection contre la perte de données non sauvegardées
+    useEffect(() => {
+        const handleBeforeUnload = (e) => {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = ''; // Chrome nécessite de définir returnValue
+                return ''; // Pour les navigateurs plus anciens
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [hasUnsavedChanges]);
 
 
     const suiviFormData = {
@@ -441,6 +463,14 @@ export default function FormulairePage() {
 
             alert(`✅ Projet et toutes ses données enregistrés avec succès ! (ID: ${result.data.id_projet})`);
 
+            // Réinitialiser l'état des modifications non sauvegardées
+            setHasUnsavedChanges(false);
+
+            navigate('/projets/liste', {
+                state: { refresh: true }
+            });
+
+
         } catch (error) {
             console.error("❌ Erreur critique lors de la sauvegarde:", error);
             alert(`Une erreur est survenue: ${error.message}`);
@@ -452,10 +482,12 @@ export default function FormulairePage() {
     const handleDocumentChange = (documents) => {
         console.log('📄 Documents reçus:', documents);
         setDocumentsData(documents);
+        setHasUnsavedChanges(true);
     };
 
     const handleGeometryUpdate = (newGeometryData) => {
         setGeometryData(newGeometryData);
+        setHasUnsavedChanges(true);
         if (newGeometryData) {
             setProjetData(prev => ({
                 ...prev,
@@ -467,11 +499,24 @@ export default function FormulairePage() {
 
     const handleProjectDataUpdate = (newData) => {
         setProjetData(prev => ({ ...prev, ...newData }));
+        setHasUnsavedChanges(true);
     };
 
     const handleThematiqueChange = (newThematiques) => {
         console.log("📥 FormulairePage - Thématiques reçues:", newThematiques);
         setThematiqueData(newThematiques);
+        setHasUnsavedChanges(true);
+    };
+
+    // Wrappers pour suivis et porteurs pour détecter les changements
+    const handlePorteursChange = (newPorteurs) => {
+        setPorteursData(newPorteurs);
+        setHasUnsavedChanges(true);
+    };
+
+    const handleSuiviChange = (newSuivi) => {
+        setSuiviData(newSuivi);
+        setHasUnsavedChanges(true);
     };
 
     return (
@@ -501,11 +546,11 @@ export default function FormulairePage() {
                     <>
                         <PorteurContact
                             value={porteursData}
-                            onChange={setPorteursData}
+                            onChange={handlePorteursChange}
                         />
                         <SuiviDdtSection
                             value={suiviFormData}
-                            onChange={setSuiviData}
+                            onChange={handleSuiviChange}
                         />
                         <ThematiqueModele
                             value={thematiqueData}
