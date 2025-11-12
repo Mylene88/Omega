@@ -207,7 +207,14 @@ const Carte = forwardRef(({
             });
 
             drawnItemsRef.current.addLayer(layer);
-            mapInstanceRef.current.fitBounds(layer.getBounds(), { padding: [20, 20] });
+
+            // ✅ Pour les points, utiliser setView au lieu de fitBounds
+            if (geometry.geom_type === 'Point') {
+                const coords = geometry.geom.coordinates;
+                mapInstanceRef.current.setView([coords[1], coords[0]], 15);
+            } else {
+                mapInstanceRef.current.fitBounds(layer.getBounds(), { padding: [20, 20] });
+            }
 
             setSelectedLayer(layer);
         } catch (error) {
