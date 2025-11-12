@@ -52,14 +52,22 @@ export async function POST(request) {
       }, { status: 404 });
     }
 
+    console.log(`📸 Snapshot trouvé #${snapshotId} pour projet ${snapshot.id_projet}`);
+    console.log(`   Nombre de sections: ${snapshot.sections?.length || 0}`);
+    if (snapshot.sections && snapshot.sections.length > 0) {
+      console.log(`   Sections disponibles:`, snapshot.sections.map(s => s.section_name));
+    }
+
     const idProjet = snapshot.id_projet;
 
     // Reconstituer les données depuis les sections
     const snapshotData = {};
     if (snapshot.sections && snapshot.sections.length > 0) {
       snapshot.sections.forEach(section => {
+        console.log(`   📋 Traitement section: ${section.section_name}`);
         if (section.section_name === 'projet_info') {
           Object.assign(snapshotData, section.section_data);
+          console.log(`      ✅ Données projet_info chargées:`, Object.keys(section.section_data));
         } else if (section.section_name === 'porteurs') {
           snapshotData.porteurs = section.section_data;
         } else if (section.section_name === 'suivis') {
@@ -72,14 +80,26 @@ export async function POST(request) {
           snapshotData.geometry = section.section_data;
         }
       });
+    } else {
+      console.warn(`⚠️  Aucune section trouvée pour le snapshot #${snapshotId}`);
+      console.log(`   Type de snapshot: ${typeof snapshot.sections}`);
+      console.log(`   Snapshot complet:`, JSON.stringify(snapshot, null, 2));
     }
+
+    console.log(`📊 Données reconstituées:`, {
+      nom_projet: snapshotData.nom_projet,
+      hasPorteurs: !!snapshotData.porteurs,
+      hasSuivis: !!snapshotData.suivis,
+      hasGeometry: !!snapshotData.geometry
+    });
 
     // Vérifier que nous avons au moins les infos de base du projet
     if (!snapshotData.nom_projet) {
       await transaction.rollback();
+      console.error(`❌ Snapshot invalide - nom_projet manquant`);
       return NextResponse.json({
         success: false,
-        message: 'Snapshot invalide : données du projet manquantes'
+        message: `Snapshot invalide : ce snapshot n'a pas de sections ou les données projet_info sont manquantes. Il s'agit peut-être d'un ancien snapshot créé avant la mise à jour du système. Nombre de sections: ${snapshot.sections?.length || 0}`
       }, { status: 400 });
     }
 
