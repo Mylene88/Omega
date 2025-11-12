@@ -8,7 +8,7 @@
 -- ============================================================
 CREATE TABLE IF NOT EXISTS principale.projet_snapshot (
     id_snapshot SERIAL PRIMARY KEY,
-    id_projet VARCHAR(20) NOT NULL REFERENCES principale.projet(id) ON DELETE CASCADE,
+    id_projet VARCHAR(255) NOT NULL REFERENCES principale.projet(id_projet) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES principale.user(id_user) ON DELETE CASCADE,
     version_number INTEGER NOT NULL,
     snapshot_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
