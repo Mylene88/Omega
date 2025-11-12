@@ -615,11 +615,10 @@ export async function POST(request) {
     console.log(`   ✅ Audit log enregistré (${isUpdate ? 'UPDATE' : 'CREATE'})`);
 
     // Créer un snapshot pour les mises à jour
-    if (isUpdate && newProjectData) {
+    if (isUpdate && newProjectData && userId) {
       await createSnapshot({
         idProjet: nouveauProjet.id_projet,
         projetData: newProjectData,
-        snapshotType: 'AUTO',
         description: `Snapshot automatique après modification`,
         userId,
         transaction
@@ -632,6 +631,8 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       data: {
+        id_projet: nouveauProjet.id_projet,
+        nom_projet: nouveauProjet.nom_projet,
         projet: nouveauProjet,
         liaisonIds: extra?.liaisonIds || []
       }

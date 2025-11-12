@@ -36,8 +36,13 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Récupérer le snapshot
-    const snapshot = await db.ProjetSnapshot.findByPk(snapshotId);
+    // Récupérer le snapshot avec ses sections
+    const snapshot = await db.ProjetSnapshot.findByPk(snapshotId, {
+      include: [{
+        model: db.ProjetSnapshotSection,
+        as: 'sections'
+      }]
+    });
 
     if (!snapshot) {
       await transaction.rollback();
@@ -48,7 +53,35 @@ export async function POST(request) {
     }
 
     const idProjet = snapshot.id_projet;
-    const snapshotData = snapshot.snapshot_data;
+
+    // Reconstituer les données depuis les sections
+    const snapshotData = {};
+    if (snapshot.sections && snapshot.sections.length > 0) {
+      snapshot.sections.forEach(section => {
+        if (section.section_name === 'projet_info') {
+          Object.assign(snapshotData, section.section_data);
+        } else if (section.section_name === 'porteurs') {
+          snapshotData.porteurs = section.section_data;
+        } else if (section.section_name === 'suivis') {
+          snapshotData.suivis = section.section_data;
+        } else if (section.section_name === 'thematiques') {
+          snapshotData.thematiques = section.section_data;
+        } else if (section.section_name === 'documents') {
+          snapshotData.documents = section.section_data;
+        } else if (section.section_name === 'geometrie') {
+          snapshotData.geometry = section.section_data;
+        }
+      });
+    }
+
+    // Vérifier que nous avons au moins les infos de base du projet
+    if (!snapshotData.nom_projet) {
+      await transaction.rollback();
+      return NextResponse.json({
+        success: false,
+        message: 'Snapshot invalide : données du projet manquantes'
+      }, { status: 400 });
+    }
 
     // Vérifier que le projet existe
     const projetExistant = await db.Projet.findByPk(idProjet);
@@ -77,7 +110,6 @@ export async function POST(request) {
       await createSnapshot({
         idProjet,
         projetData: currentProjet.toJSON(),
-        snapshotType: 'AUTO',
         description: `Backup automatique avant restauration du snapshot #${snapshotId}`,
         userId,
         transaction
@@ -138,8 +170,9 @@ export async function POST(request) {
 
     // 5. Restaurer les thématiques
     await db.ProjetInThematique.destroy({ where: { id_projet: idProjet }, transaction });
-    if (snapshotData.projet_in_thematiques && snapshotData.projet_in_thematiques.length > 0) {
-      const thematiqueData = snapshotData.projet_in_thematiques.map(t => ({
+    const thematiquesSources = snapshotData.thematiques || snapshotData.projet_in_thematiques || [];
+    if (thematiquesSources.length > 0) {
+      const thematiqueData = thematiquesSources.map(t => ({
         id_projet: idProjet,
         id_thematique: t.id_thematique,
         ajoute_par: t.ajoute_par,
