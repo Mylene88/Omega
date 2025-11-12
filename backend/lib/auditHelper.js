@@ -122,10 +122,12 @@ async function createSnapshot({
     if (existingSnapshot) {
       console.log(`🔄 Rotation de version détectée - Suppression du snapshot v${nextVersion} existant`);
       // Supprimer d'abord les sections associées
-      await db.ProjetSnapshotSection.destroy({
-        where: { id_snapshot: existingSnapshot.id_snapshot },
-        transaction
-      });
+      if (db.ProjetSnapshotSection) {
+        await db.ProjetSnapshotSection.destroy({
+          where: { id_snapshot: existingSnapshot.id_snapshot },
+          transaction
+        });
+      }
       // Puis supprimer le snapshot
       await existingSnapshot.destroy({ transaction });
     }
@@ -145,38 +147,42 @@ async function createSnapshot({
     const snapshot = await db.ProjetSnapshot.create(snapshotData, options);
 
     // Créer les sections (si projetData fourni)
-    if (projetData) {
-      const sections = [
-        { section_name: 'projet_info', section_data: {
-          nom_projet: projetData.nom_projet,
-          description: projetData.description,
-          statut_projet_id: projetData.statut_projet_id,
-          date_ident_projet: projetData.date_ident_projet,
-          projet_signale: projetData.projet_signale,
-          charte_accueil: projetData.charte_accueil,
-          service_id: projetData.service_id,
-          referent_ddt: projetData.referent_ddt
-        }},
-        { section_name: 'porteurs', section_data: projetData.porteurs || [] },
-        { section_name: 'suivis', section_data: projetData.suivis || [] },
-        { section_name: 'thematiques', section_data: projetData.thematiques || [] },
-        { section_name: 'documents', section_data: projetData.documents || [] },
-        { section_name: 'geometrie', section_data: projetData.geometry || {} }
-      ];
+    if (projetData && db.ProjetSnapshotSection) {
+      try {
+        const sections = [
+          { section_name: 'projet_info', section_data: {
+            nom_projet: projetData.nom_projet,
+            description: projetData.description,
+            statut_projet_id: projetData.statut_projet_id,
+            date_ident_projet: projetData.date_ident_projet,
+            projet_signale: projetData.projet_signale,
+            charte_accueil: projetData.charte_accueil,
+            service_id: projetData.service_id,
+            referent_ddt: projetData.referent_ddt
+          }},
+          { section_name: 'porteurs', section_data: projetData.porteurs || [] },
+          { section_name: 'suivis', section_data: projetData.suivis || [] },
+          { section_name: 'thematiques', section_data: projetData.thematiques || [] },
+          { section_name: 'documents', section_data: projetData.documents || [] },
+          { section_name: 'geometrie', section_data: projetData.geometry || {} }
+        ];
 
-      for (const section of sections) {
-        await db.ProjetSnapshotSection.create({
-          id_snapshot: snapshot.id_snapshot,
-          ...section,
-          created_at: new Date()
-        }, options);
+        for (const section of sections) {
+          await db.ProjetSnapshotSection.create({
+            id_snapshot: snapshot.id_snapshot,
+            ...section,
+            created_at: new Date()
+          }, options);
+        }
+      } catch (error) {
+        console.log('⚠️  Impossible de créer les sections du snapshot:', error.message);
       }
     }
 
     console.log(`📸 Snapshot v${nextVersion} créé pour projet#${idProjet} par user#${userId}`);
     return snapshot;
   } catch (error) {
-    console.error('❌ Erreur lors de la création du snapshot:', error);
+    console.error('❌ Erreur lors de la création du snapshot:', error.message);
     throw error;
   }
 }
