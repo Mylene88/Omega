@@ -108,6 +108,28 @@ async function createSnapshot({
       }
     );
 
+    // ✅ Si on réutilise un numéro de version (rotation), supprimer l'ancien snapshot
+    // Cela arrive quand on dépasse 10 versions et qu'on revient à 1
+    const existingSnapshot = await db.ProjetSnapshot.findOne({
+      where: {
+        id_projet: idProjet,
+        user_id: userId,
+        version_number: nextVersion
+      },
+      transaction
+    });
+
+    if (existingSnapshot) {
+      console.log(`🔄 Rotation de version détectée - Suppression du snapshot v${nextVersion} existant`);
+      // Supprimer d'abord les sections associées
+      await db.ProjetSnapshotSection.destroy({
+        where: { id_snapshot: existingSnapshot.id_snapshot },
+        transaction
+      });
+      // Puis supprimer le snapshot
+      await existingSnapshot.destroy({ transaction });
+    }
+
     // Créer le snapshot
     const snapshotData = {
       id_projet: idProjet,
