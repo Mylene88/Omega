@@ -162,7 +162,7 @@ async function createSnapshot({
           }},
           { section_name: 'porteurs', section_data: projetData.porteurs || [] },
           { section_name: 'suivis', section_data: projetData.suivis || [] },
-          { section_name: 'thematiques', section_data: projetData.thematiques || [] },
+          { section_name: 'thematiques', section_data: projetData.projet_in_thematiques || [] },
           { section_name: 'documents', section_data: projetData.documents || [] },
           { section_name: 'geometrie', section_data: projetData.geometry || {} }
         ];
