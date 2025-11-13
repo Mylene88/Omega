@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AdminPage.css';
 import DeletionRequestsTab from '../../components/admin/DeletionRequestsTab';
+import SectionVersionsTab from '../../components/admin/SectionVersionsTab';
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -244,6 +245,12 @@ const AdminPage = () => {
         >
           🗑️ Demandes de suppression
         </button>
+        <button
+          className={`tab ${activeTab === 'section-versions' ? 'active' : ''}`}
+          onClick={() => setActiveTab('section-versions')}
+        >
+          🔄 Versions de Sections
+        </button>
       </div>
 
       {/* Content */}
@@ -423,6 +430,28 @@ const AdminPage = () => {
             success={(message, title) => alert(`✅ ${title}\n${message}`)}
             error={(message, title) => alert(`❌ ${title}\n${message}`)}
             warning={(message, title) => alert(`⚠️ ${title}\n${message}`)}
+          />
+        )}
+
+        {/* Tab: Versions de Sections */}
+        {activeTab === 'section-versions' && (
+          <SectionVersionsTab
+            apiCall={async (endpoint, options = {}) => {
+              const token = localStorage.getItem('token');
+              const response = await fetch(`http://localhost:3000/api${endpoint}`, {
+                ...options,
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                  ...options.headers
+                }
+              });
+              if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `Erreur HTTP ${response.status}`);
+              }
+              return response.json();
+            }}
           />
         )}
       </div>
