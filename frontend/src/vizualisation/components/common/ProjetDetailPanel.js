@@ -458,14 +458,27 @@ export default function ProjetDetailPanel({
                                                                     } else if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
-                                                                        // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
-                                                                        displayValue = value.map(item =>
-                                                                            typeof item === 'object' && item !== null
-                                                                                ? (item.value || item.libelle || item.id)
-                                                                                : item
-                                                                        ).join(', ');
+                                                                        // ✅ Gérer les tableaux d'objets (champs à choix multiples) avec badges
+                                                                        if (value.length === 0) {
+                                                                            displayValue = <em style={{ color: '#999' }}>Non renseigné</em>;
+                                                                        } else {
+                                                                            displayValue = (
+                                                                                <div className="field-badges">
+                                                                                    {value.map((item, idx) => {
+                                                                                        const text = typeof item === 'object' && item !== null
+                                                                                            ? (item.label || item.value || item.nom || item.name || JSON.stringify(item))
+                                                                                            : String(item);
+                                                                                        return (
+                                                                                            <span key={idx} className="field-badge">
+                                                                                                {text}
+                                                                                            </span>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            );
+                                                                        }
                                                                     } else if (typeof value === 'object' && value !== null) {
-                                                                        displayValue = value.value || value.libelle || JSON.stringify(value);
+                                                                        displayValue = value.label || value.value || value.nom || value.name || JSON.stringify(value);
                                                                     } else {
                                                                         displayValue = String(value);
                                                                     }
@@ -501,14 +514,26 @@ export default function ProjetDetailPanel({
                                                                     if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
-                                                                        // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
-                                                                        displayValue = value.map(item =>
-                                                                            typeof item === 'object' && item !== null
-                                                                                ? (item.value || item.libelle || item.id)
-                                                                                : item
-                                                                        ).join(', ');
+                                                                        // ✅ Gérer les tableaux d'objets (champs à choix multiples) avec badges
+                                                                        if (value.length === 0) {
+                                                                            return null;
+                                                                        }
+                                                                        displayValue = (
+                                                                            <div className="field-badges">
+                                                                                {value.map((item, idx) => {
+                                                                                    const text = typeof item === 'object' && item !== null
+                                                                                        ? (item.label || item.value || item.nom || item.name || JSON.stringify(item))
+                                                                                        : String(item);
+                                                                                    return (
+                                                                                        <span key={idx} className="field-badge">
+                                                                                            {text}
+                                                                                        </span>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        );
                                                                     } else if (typeof value === 'object' && value !== null) {
-                                                                        displayValue = value.value || value.libelle || JSON.stringify(value);
+                                                                        displayValue = value.label || value.value || value.nom || value.name || JSON.stringify(value);
                                                                     } else {
                                                                         displayValue = String(value);
                                                                     }
