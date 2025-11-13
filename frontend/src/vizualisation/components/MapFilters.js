@@ -15,13 +15,15 @@ export default function MapFilters({
     searchArrondissement: '',
     serviceIds: [],
     thematiqueIds: [],  // ✅ Contiendra des strings comme "Risques-Bruit"
+    statutIds: [],      // ✅ Contiendra les IDs des statuts sélectionnés
     projetSignale: false,
     charteAccueil: false
   });
   const [services, setServices] = useState([]);
   const [thematiques, setThematiques] = useState([]);
+  const [statuts, setStatuts] = useState([]);
 
-  useEffect(() => { loadServices(); loadThematiques(); }, []);
+  useEffect(() => { loadServices(); loadThematiques(); loadStatuts(); }, []);
   useEffect(() => { onFilterChange(filters); }, [filters, onFilterChange]);
 
   const loadServices = async () => {
@@ -74,6 +76,19 @@ export default function MapFilters({
     }
   };
 
+  const loadStatuts = async () => {
+    try {
+      const res = await fetch('http://localhost:3000/api/statut');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      setStatuts(Array.isArray(data) ? data : []);
+      console.log('✅ Statuts chargés:', data.length);
+    } catch (e) {
+      console.error('❌ Erreur chargement statuts:', e);
+      setStatuts([]);
+    }
+  };
+
   const toggleService = (id) => {
     console.log('🔧 Toggle service:', id);
     setFilters(prev => ({
@@ -91,6 +106,16 @@ export default function MapFilters({
       thematiqueIds: prev.thematiqueIds.includes(value)
           ? prev.thematiqueIds.filter(x => x !== value)
           : [...prev.thematiqueIds, value]
+    }));
+  };
+
+  const toggleStatut = (id) => {
+    console.log('🔧 Toggle statut:', id);
+    setFilters(prev => ({
+      ...prev,
+      statutIds: prev.statutIds.includes(id)
+          ? prev.statutIds.filter(x => x !== id)
+          : [...prev.statutIds, id]
     }));
   };
 
@@ -123,6 +148,7 @@ export default function MapFilters({
       searchArrondissement: '',
       serviceIds: [],
       thematiqueIds: [],
+      statutIds: [],
       projetSignale: false,
       charteAccueil: false
     });
@@ -133,6 +159,7 @@ export default function MapFilters({
     if (filters.searchText || filters.searchCodeInsee || filters.searchEpci || filters.searchArrondissement) count++;
     count += filters.serviceIds.length;
     count += filters.thematiqueIds.length;
+    count += filters.statutIds.length;
     if (filters.projetSignale) count++;
     if (filters.charteAccueil) count++;
     return count;
@@ -223,9 +250,38 @@ export default function MapFilters({
             </div>
           </div>
 
-          {/* Statuts */}
+          {/* Statut du projet */}
           <div className={styles.group}>
-            <label className={styles.label}>⚙️ Statuts</label>
+            <label className={styles.label}>
+              📊 Statut du projet {filters.statutIds.length > 0 && `(${filters.statutIds.length})`}
+            </label>
+            <div className={styles.scrollableBox}>
+              {statuts.length === 0 ? (
+                  <span style={{ color: '#999', fontSize: '13px', padding: '8px' }}>
+                Chargement...
+              </span>
+              ) : (
+                  statuts.map(statut => (
+                      <button
+                          key={statut.id_statut}
+                          className={`${styles.filterButton} ${
+                              filters.statutIds.includes(statut.id_statut)
+                                  ? styles.filterButtonActive
+                                  : ''
+                          }`}
+                          onClick={() => toggleStatut(statut.id_statut)}
+                          title={statut.libelle}
+                      >
+                        {statut.libelle}
+                      </button>
+                  ))
+              )}
+            </div>
+          </div>
+
+          {/* Options additionnelles */}
+          <div className={styles.group}>
+            <label className={styles.label}>⚙️ Options</label>
             <div className={styles['filter-statuts-inline']}>
               <label className={styles.checkboxLabel}>
                 <input
