@@ -11,6 +11,49 @@ export default function ProjetDetailPanel({
                                               onClose
                                           }) {
 
+    // ✅ LOGS DE DÉBOGAGE - Afficher toutes les données reçues
+    React.useEffect(() => {
+        if (selectedProjectDetails) {
+            console.log('🎯 ========== PROJET DETAIL PANEL - DONNÉES REÇUES ==========');
+            console.log('📦 selectedProjectDetails complet:', selectedProjectDetails);
+            console.log('🏷️ Thématiques:', selectedProjectDetails.thematiques);
+
+            if (selectedProjectDetails.thematiques && selectedProjectDetails.thematiques.length > 0) {
+                selectedProjectDetails.thematiques.forEach((them, idx) => {
+                    console.log(`\n📋 Thématique #${idx + 1}:`, them.libelle);
+                    console.log('  - ID:', them.id);
+                    console.log('  - Modèle:', them.modele);
+                    console.log('  - Données (donnees):', them.donnees);
+
+                    if (them.donnees) {
+                        Object.entries(them.donnees).forEach(([modeleKey, donneesArray]) => {
+                            console.log(`\n  🔍 Modèle: ${modeleKey}`);
+                            console.log('    - Nombre d\'enregistrements:', donneesArray?.length);
+                            if (donneesArray && donneesArray.length > 0) {
+                                donneesArray.forEach((donnee, dIdx) => {
+                                    console.log(`\n    📝 Enregistrement #${dIdx + 1}:`, donnee);
+                                    console.log('      - Clés disponibles:', Object.keys(donnee));
+
+                                    // Afficher spécifiquement les champs qui ressemblent à des tableaux
+                                    Object.entries(donnee).forEach(([key, value]) => {
+                                        if (Array.isArray(value)) {
+                                            console.log(`      ✅ [${key}] est un tableau:`, value);
+                                            console.log(`         - Type du premier élément:`, typeof value[0]);
+                                            if (value.length > 0 && typeof value[0] === 'object') {
+                                                console.log(`         - Structure du premier élément:`, value[0]);
+                                            }
+                                        }
+                                    });
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+            console.log('========== FIN DES LOGS PROJET DETAIL PANEL ==========\n');
+        }
+    }, [selectedProjectDetails]);
+
     const formatFieldLabel = (fieldName) => {
         return fieldName
             .split('_')
@@ -464,11 +507,27 @@ export default function ProjetDetailPanel({
 
                                                                                 // Si c'est un objet, extraire la valeur
                                                                                 if (typeof item === 'object' && item !== null) {
-                                                                                    return item.value || item.libelle || item.label || String(item.id || '');
+                                                                                    // Essayer d'extraire la valeur de différentes propriétés
+                                                                                    const extractedValue = item.value || item.libelle || item.label;
+                                                                                    if (extractedValue !== null && extractedValue !== undefined && extractedValue !== '') {
+                                                                                        return String(extractedValue);
+                                                                                    }
+                                                                                    // Si pas de valeur trouvée, essayer l'ID (en s'assurant qu'il n'est pas undefined)
+                                                                                    if (item.id !== null && item.id !== undefined && item.id !== '') {
+                                                                                        return String(item.id);
+                                                                                    }
+                                                                                    // Dernier recours : chercher toute propriété qui pourrait contenir la valeur
+                                                                                    const keys = Object.keys(item);
+                                                                                    for (const key of keys) {
+                                                                                        if (key !== 'id' && item[key] !== null && item[key] !== undefined && item[key] !== '') {
+                                                                                            return String(item[key]);
+                                                                                        }
+                                                                                    }
+                                                                                    return null;
                                                                                 }
 
-                                                                                // Sinon retourner l'item tel quel (ID ou string)
-                                                                                return item;
+                                                                                // Sinon retourner l'item tel quel (ID ou string) si non vide
+                                                                                return (item !== null && item !== undefined && item !== '') ? String(item) : null;
                                                                             })
                                                                             .filter(item => item !== null && item !== undefined && item !== '');
 
@@ -525,11 +584,27 @@ export default function ProjetDetailPanel({
 
                                                                                 // Si c'est un objet, extraire la valeur
                                                                                 if (typeof item === 'object' && item !== null) {
-                                                                                    return item.value || item.libelle || item.label || String(item.id || '');
+                                                                                    // Essayer d'extraire la valeur de différentes propriétés
+                                                                                    const extractedValue = item.value || item.libelle || item.label;
+                                                                                    if (extractedValue !== null && extractedValue !== undefined && extractedValue !== '') {
+                                                                                        return String(extractedValue);
+                                                                                    }
+                                                                                    // Si pas de valeur trouvée, essayer l'ID (en s'assurant qu'il n'est pas undefined)
+                                                                                    if (item.id !== null && item.id !== undefined && item.id !== '') {
+                                                                                        return String(item.id);
+                                                                                    }
+                                                                                    // Dernier recours : chercher toute propriété qui pourrait contenir la valeur
+                                                                                    const keys = Object.keys(item);
+                                                                                    for (const key of keys) {
+                                                                                        if (key !== 'id' && item[key] !== null && item[key] !== undefined && item[key] !== '') {
+                                                                                            return String(item[key]);
+                                                                                        }
+                                                                                    }
+                                                                                    return null;
                                                                                 }
 
-                                                                                // Sinon retourner l'item tel quel (ID ou string)
-                                                                                return item;
+                                                                                // Sinon retourner l'item tel quel (ID ou string) si non vide
+                                                                                return (item !== null && item !== undefined && item !== '') ? String(item) : null;
                                                                             })
                                                                             .filter(item => item !== null && item !== undefined && item !== '');
 
