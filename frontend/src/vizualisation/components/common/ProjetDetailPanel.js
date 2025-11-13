@@ -11,49 +11,6 @@ export default function ProjetDetailPanel({
                                               onClose
                                           }) {
 
-    // ✅ LOGS DE DÉBOGAGE - Afficher toutes les données reçues
-    React.useEffect(() => {
-        if (selectedProjectDetails) {
-            console.log('🎯 ========== PROJET DETAIL PANEL - DONNÉES REÇUES ==========');
-            console.log('📦 selectedProjectDetails complet:', selectedProjectDetails);
-            console.log('🏷️ Thématiques:', selectedProjectDetails.thematiques);
-
-            if (selectedProjectDetails.thematiques && selectedProjectDetails.thematiques.length > 0) {
-                selectedProjectDetails.thematiques.forEach((them, idx) => {
-                    console.log(`\n📋 Thématique #${idx + 1}:`, them.libelle);
-                    console.log('  - ID:', them.id);
-                    console.log('  - Modèle:', them.modele);
-                    console.log('  - Données (donnees):', them.donnees);
-
-                    if (them.donnees) {
-                        Object.entries(them.donnees).forEach(([modeleKey, donneesArray]) => {
-                            console.log(`\n  🔍 Modèle: ${modeleKey}`);
-                            console.log('    - Nombre d\'enregistrements:', donneesArray?.length);
-                            if (donneesArray && donneesArray.length > 0) {
-                                donneesArray.forEach((donnee, dIdx) => {
-                                    console.log(`\n    📝 Enregistrement #${dIdx + 1}:`, donnee);
-                                    console.log('      - Clés disponibles:', Object.keys(donnee));
-
-                                    // Afficher spécifiquement les champs qui ressemblent à des tableaux
-                                    Object.entries(donnee).forEach(([key, value]) => {
-                                        if (Array.isArray(value)) {
-                                            console.log(`      ✅ [${key}] est un tableau:`, value);
-                                            console.log(`         - Type du premier élément:`, typeof value[0]);
-                                            if (value.length > 0 && typeof value[0] === 'object') {
-                                                console.log(`         - Structure du premier élément:`, value[0]);
-                                            }
-                                        }
-                                    });
-                                });
-                            }
-                        });
-                    }
-                });
-            }
-            console.log('========== FIN DES LOGS PROJET DETAIL PANEL ==========\n');
-        }
-    }, [selectedProjectDetails]);
-
     const formatFieldLabel = (fieldName) => {
         return fieldName
             .split('_')
@@ -153,21 +110,17 @@ export default function ProjetDetailPanel({
 
                                 <div className="info-item">
                                     <span className="info-label">Statut du projet</span>
-                                    <span className="info-value">
+                                    <span className={`info-badge ${getStatusBadgeClass(
+                                        selectedProjectDetails.statut?.libelle || 
+                                        selectedProjectDetails.projet?.statut?.libelle ||
+                                        selectedProjectDetails.statut ||
+                                        'N/A'
+                                    )}`}>
                                         {selectedProjectDetails.statut?.libelle ||
                                         selectedProjectDetails.projet?.statut?.libelle ||
                                         selectedProjectDetails.statut ||
-                                        'Aucun statut renseigné'}
+                                        'N/A'}
                                     </span>
-                                </div>
-
-                                <div className="info-item full-width">
-                                    <span className="info-label">Description</span>
-                                    <p className="info-description">
-                                        {selectedProjectDetails.projet?.description ||
-                                         selectedProjectDetails.description ||
-                                         'Aucune description ajoutée'}
-                                    </p>
                                 </div>
 
                                 <div className="info-item">
@@ -176,10 +129,19 @@ export default function ProjetDetailPanel({
                                         {(selectedProjectDetails.projet?.dateIdentification ||
                                         selectedProjectDetails.date_ident_projet)
                                             ? new Date(selectedProjectDetails.projet?.dateIdentification ||
-                                                selectedProjectDetails.date_ident_projet).toLocaleDateString('fr-FR')
+                                                    selectedProjectDetails.date_ident_projet).toLocaleDateString('fr-FR')
                                             : 'Aucune date renseignée'}
                                     </span>
                                 </div>
+
+                                {(selectedProjectDetails.projet?.description || selectedProjectDetails.description) && (
+                                    <div className="info-item full-width">
+                                        <span className="info-label">Description</span>
+                                        <p className="info-description">
+                                            {selectedProjectDetails.projet?.description || selectedProjectDetails.description}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -449,7 +411,7 @@ export default function ProjetDetailPanel({
                                     if (thematiquesDepliees.length === 0) {
                                         return (
                                             <div className="empty-state">
-                                                <p className="empty-message">Aucune thématique pour ce projet</p>
+                                                <p className="empty-message">Aucune thématique avec données</p>
                                             </div>
                                         );
                                     }
@@ -491,53 +453,32 @@ export default function ProjetDetailPanel({
                                                                     const value = donnee[field.name];
 
                                                                     let displayValue;
-                                                                    // ✅ Vérification améliorée : ne pas considérer 0 ou false comme "non renseigné"
-                                                                    if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
+                                                                    if (value === null || value === undefined || value === '') {
                                                                         displayValue = <em style={{ color: '#999' }}>Non renseigné</em>;
                                                                     } else if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
-                                                                        // ✅ DEBUG: afficher ce qui arrive
-                                                                        console.log(`[${field.name}] Value reçue:`, value);
-
-                                                                        // ✅ Gérer les tableaux d'IDs ou d'objets
-                                                                        const processedValues = value
-                                                                            .map(item => {
-                                                                                if (item === null || item === undefined || item === '') return null;
-
-                                                                                // Si c'est un objet, extraire la valeur
-                                                                                if (typeof item === 'object' && item !== null) {
-                                                                                    // Essayer d'extraire la valeur de différentes propriétés
-                                                                                    const extractedValue = item.value || item.libelle || item.label;
-                                                                                    if (extractedValue !== null && extractedValue !== undefined && extractedValue !== '') {
-                                                                                        return String(extractedValue);
-                                                                                    }
-                                                                                    // Si pas de valeur trouvée, essayer l'ID (en s'assurant qu'il n'est pas undefined)
-                                                                                    if (item.id !== null && item.id !== undefined && item.id !== '') {
-                                                                                        return String(item.id);
-                                                                                    }
-                                                                                    // Dernier recours : chercher toute propriété qui pourrait contenir la valeur
-                                                                                    const keys = Object.keys(item);
-                                                                                    for (const key of keys) {
-                                                                                        if (key !== 'id' && item[key] !== null && item[key] !== undefined && item[key] !== '') {
-                                                                                            return String(item[key]);
-                                                                                        }
-                                                                                    }
-                                                                                    return null;
-                                                                                }
-
-                                                                                // Sinon retourner l'item tel quel (ID ou string) si non vide
-                                                                                return (item !== null && item !== undefined && item !== '') ? String(item) : null;
-                                                                            })
-                                                                            .filter(item => item !== null && item !== undefined && item !== '');
-
-                                                                        console.log(`[${field.name}] Processed values:`, processedValues);
-
-                                                                        displayValue = processedValues.length > 0
-                                                                            ? processedValues.join(', ')
-                                                                            : <em style={{ color: '#999' }}>Non renseigné</em>;
+                                                                        // ✅ Gérer les tableaux d'objets (champs à choix multiples) avec badges
+                                                                        if (value.length === 0) {
+                                                                            displayValue = <em style={{ color: '#999' }}>Non renseigné</em>;
+                                                                        } else {
+                                                                            displayValue = (
+                                                                                <div className="field-badges">
+                                                                                    {value.map((item, idx) => {
+                                                                                        const text = typeof item === 'object' && item !== null
+                                                                                            ? (item.label || item.value || item.nom || item.name || JSON.stringify(item))
+                                                                                            : String(item);
+                                                                                        return (
+                                                                                            <span key={idx} className="field-badge">
+                                                                                                {text}
+                                                                                            </span>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            );
+                                                                        }
                                                                     } else if (typeof value === 'object' && value !== null) {
-                                                                        displayValue = value.value || value.libelle || JSON.stringify(value);
+                                                                        displayValue = value.label || value.value || value.nom || value.name || JSON.stringify(value);
                                                                     } else {
                                                                         displayValue = String(value);
                                                                     }
@@ -565,8 +506,7 @@ export default function ProjetDetailPanel({
                                                                     return !excludedFields.includes(key) && !isIdField;
                                                                 })
                                                                 .map(([key, value]) => {
-                                                                    // ✅ Vérification améliorée : ne pas considérer 0 ou false comme "non renseigné"
-                                                                    if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
+                                                                    if (value === null || value === undefined || value === '') {
                                                                         return null;
                                                                     }
 
@@ -574,48 +514,26 @@ export default function ProjetDetailPanel({
                                                                     if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
-                                                                        // ✅ DEBUG: afficher ce qui arrive (section sans métadonnées)
-                                                                        console.log(`[NO-META: ${key}] Value reçue:`, value);
-
-                                                                        // ✅ Gérer les tableaux d'IDs ou d'objets (sans métadonnées)
-                                                                        const processedValues = value
-                                                                            .map(item => {
-                                                                                if (item === null || item === undefined || item === '') return null;
-
-                                                                                // Si c'est un objet, extraire la valeur
-                                                                                if (typeof item === 'object' && item !== null) {
-                                                                                    // Essayer d'extraire la valeur de différentes propriétés
-                                                                                    const extractedValue = item.value || item.libelle || item.label;
-                                                                                    if (extractedValue !== null && extractedValue !== undefined && extractedValue !== '') {
-                                                                                        return String(extractedValue);
-                                                                                    }
-                                                                                    // Si pas de valeur trouvée, essayer l'ID (en s'assurant qu'il n'est pas undefined)
-                                                                                    if (item.id !== null && item.id !== undefined && item.id !== '') {
-                                                                                        return String(item.id);
-                                                                                    }
-                                                                                    // Dernier recours : chercher toute propriété qui pourrait contenir la valeur
-                                                                                    const keys = Object.keys(item);
-                                                                                    for (const key of keys) {
-                                                                                        if (key !== 'id' && item[key] !== null && item[key] !== undefined && item[key] !== '') {
-                                                                                            return String(item[key]);
-                                                                                        }
-                                                                                    }
-                                                                                    return null;
-                                                                                }
-
-                                                                                // Sinon retourner l'item tel quel (ID ou string) si non vide
-                                                                                return (item !== null && item !== undefined && item !== '') ? String(item) : null;
-                                                                            })
-                                                                            .filter(item => item !== null && item !== undefined && item !== '');
-
-                                                                        console.log(`[NO-META: ${key}] Processed values:`, processedValues);
-
-                                                                        if (processedValues.length === 0) {
+                                                                        // ✅ Gérer les tableaux d'objets (champs à choix multiples) avec badges
+                                                                        if (value.length === 0) {
                                                                             return null;
                                                                         }
-                                                                        displayValue = processedValues.join(', ');
+                                                                        displayValue = (
+                                                                            <div className="field-badges">
+                                                                                {value.map((item, idx) => {
+                                                                                    const text = typeof item === 'object' && item !== null
+                                                                                        ? (item.label || item.value || item.nom || item.name || JSON.stringify(item))
+                                                                                        : String(item);
+                                                                                    return (
+                                                                                        <span key={idx} className="field-badge">
+                                                                                            {text}
+                                                                                        </span>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        );
                                                                     } else if (typeof value === 'object' && value !== null) {
-                                                                        displayValue = value.value || value.libelle || JSON.stringify(value);
+                                                                        displayValue = value.label || value.value || value.nom || value.name || JSON.stringify(value);
                                                                     } else {
                                                                         displayValue = String(value);
                                                                     }
@@ -644,7 +562,7 @@ export default function ProjetDetailPanel({
                                 })()
                             ) : (
                                 <div className="empty-state">
-                                    <p className="empty-message">Aucune thématique pour ce projet</p>
+                                    <p className="empty-message">Aucune thématique associée</p>
                                 </div>
                             )}
                         </div>
@@ -747,19 +665,17 @@ export default function ProjetDetailPanel({
                                             </div>
                                         )}
 
-                                        {Array.isArray(g.communes_traversees) && g.communes_traversees.length > 0 && (
+                                        {Array.isArray(g.communesTraversees) && g.communesTraversees.length > 0 && (
                                             <div className="geom-section">
-                                                <h5 className="geom-section-title">
-                                                    {g.type === 'Point' ? 'Commune' : 'Communes traversées'}
-                                                </h5>
-                                                <div className="communes-box">{g.communes_traversees.join(', ')}</div>
+                                                <h5 className="geom-section-title">Communes traversées</h5>
+                                                <div className="communes-box">{g.communesTraversees.join(', ')}</div>
                                             </div>
                                         )}
 
-                                        {Array.isArray(g.codes_insee) && g.codes_insee.length > 0 && (
+                                        {Array.isArray(g.codesInsee) && g.codesInsee.length > 0 && (
                                             <div className="geom-section">
                                                 <h5 className="geom-section-title">Codes INSEE</h5>
-                                                <div className="codes-box">{g.codes_insee.join(', ')}</div>
+                                                <div className="codes-box">{g.codesInsee.join(', ')}</div>
                                             </div>
                                         )}
 
