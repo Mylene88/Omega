@@ -237,7 +237,7 @@ export default function Sidebar({ projectId, onClose }) {
 
                                         <div className="info-item">
                                             <span className="info-label">Statut du projet</span>
-                                            <span className="info-badge info-badge-status">
+                                            <span className="info-value">
                                                 {info.statut || 'N/A'}
                                             </span>
                                         </div>
@@ -282,14 +282,14 @@ export default function Sidebar({ projectId, onClose }) {
                                     <div className="info-grid" style={{ marginBottom: '24px' }}>
                                         <div className="info-item">
                                             <span className="info-label">Projet signalé</span>
-                                            <span className={`info-badge ${info.projet_signale ? 'badge-yes' : 'badge-no'}`}>
+                                            <span className="info-value">
                                                 {info.projet_signale ? 'Oui' : 'Non'}
                                             </span>
                                         </div>
 
                                         <div className="info-item">
                                             <span className="info-label">Charte d'Accueil</span>
-                                            <span className={`info-badge ${info.charte_accueil ? 'badge-yes' : 'badge-no'}`}>
+                                            <span className="info-value">
                                                 {info.charte_accueil ? 'Oui' : 'Non'}
                                             </span>
                                         </div>
