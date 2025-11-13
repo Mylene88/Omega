@@ -250,8 +250,8 @@ export default function Map({ onSelect }) {
             try {
                 const geoJsonLayer = L.geoJSON(featureCollection, {
                     style: (feature) => {
-                        const statut = feature.properties?.libelle_statut || 
-                            feature.properties?.statut_projet || 
+                        const statut = feature.properties?.libelle_statut ||
+                            feature.properties?.statut_projet ||
                             feature.properties?.statut || 'Non défini';
                         const style = getStatusStyle(statut);
                         return {
@@ -263,8 +263,8 @@ export default function Map({ onSelect }) {
                         };
                     },
                     pointToLayer: (feature, latlng) => {
-                        const statut = feature.properties?.libelle_statut || 
-                             feature.properties?.statut_projet || 
+                        const statut = feature.properties?.libelle_statut ||
+                             feature.properties?.statut_projet ||
                             feature.properties?.statut || 'Non défini';
                         const style = getStatusStyle(statut);
                         return L.circleMarker(latlng, {
@@ -364,8 +364,8 @@ export default function Map({ onSelect }) {
                             else if (Array.isArray(props.thematiques)) {
                                 nombreThematiques = props.thematiques.length;
                             }
-                            
-                            
+
+
 
                             console.log(`🎯 Projet ${idProjet}: ${nombreThematiques} thématique(s)`);
 
@@ -498,12 +498,12 @@ export default function Map({ onSelect }) {
                                                 display: inline-block;
                                                 padding: 4px 10px;
                                                 background: ${getStatusStyle(statut).fillColor};
-                                                color: ${getStatusStyle(statut).color};
+                                                color: white;
                                                 border-radius: 6px;
                                                 font-size: 12px;
                                                 font-weight: 600;
                                                 border: 1px solid ${getStatusStyle(statut).color};
-                                            ">${statut}</div>
+                                            ">${getStatusStyle(statut).libelle}</div>
                                         </div>
                                     </div>
 
@@ -663,7 +663,7 @@ export default function Map({ onSelect }) {
             }
     }, [onSelect]);
 
-   
+
 
     // Appliquer les filtres
     useEffect(() => {
