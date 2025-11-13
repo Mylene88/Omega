@@ -354,7 +354,7 @@ const AdminPage = () => {
                     <span className="audit-table">{log.tableName}</span>
                     <span className="audit-record">#{log.recordId}</span>
                     <span className="audit-date">
-                      {new Date(log.createdAt).toLocaleString('fr-FR')}
+                      {new Date(log.createdAt).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}
                     </span>
                   </div>
                   <div className="audit-details">
@@ -390,7 +390,7 @@ const AdminPage = () => {
                     </div>
                     <div className="snapshot-meta">
                       <span>Créé par: {snapshot.creator ? snapshot.creator.nomComplet : 'Système'}</span>
-                      <span>Le: {new Date(snapshot.createdAt).toLocaleString('fr-FR')}</span>
+                      <span>Le: {new Date(snapshot.createdAt).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}</span>
                     </div>
                   </div>
                   <div className="snapshot-actions">
