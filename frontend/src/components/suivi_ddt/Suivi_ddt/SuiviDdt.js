@@ -278,44 +278,39 @@ export default function SuiviDdtSection({value = {}, onChange ,
                 {isEditing ? (
                   // Mode édition
                   <>
-                    <textarea
-                      value={editingText}
-                      onChange={(e) => setEditingText(e.target.value)}
-                      rows={3}
-                      style={{
-                        width: '100%',
-                        padding: '8px',
-                        border: '2px solid #2F80ED',
-                        borderRadius: '4px',
-                        marginBottom: '8px',
-                        fontSize: '14px',
-                        fontFamily: 'inherit',
-                        resize: 'vertical'
-                      }}
-                      disabled={isSubmitting}
-                      autoFocus
-                    />
-                    <div className={styles.itemHeader}>
-                      <span>{timeStr}</span>
-                      <span style={{ marginLeft: '8px' }}>{dateStr}</span>
-                      <strong style={{ marginLeft: '8px' }}>{h.author}</strong>
-                      <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
+                    <div className={styles.itemHeader} style={{ marginBottom: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, flexWrap: 'wrap' }}>
+                        <span style={{
+                          backgroundColor: '#10b981',
+                          color: 'white',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px'
+                        }}>
+                          ✏️ Édition
+                        </span>
+                        <span style={{ color: '#64748b', fontSize: '13px' }}>{dateStr}</span>
+                        <strong style={{ color: '#1e293b' }}>👤 {h.author}</strong>
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px' }}>
                         <button
                           type="button"
                           title="Valider la modification"
                           onClick={() => saveEdit(h.id)}
                           disabled={isSubmitting}
                           style={{
-                            background: 'none',
+                            background: '#10b981',
                             border: 'none',
                             cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                            fontSize: '1.5rem',
-                            color: '#10b981',
-                            padding: '0.25rem',
-                            transition: 'transform 0.2s'
+                            fontSize: '1.2rem',
+                            color: 'white',
+                            padding: '4px 12px',
+                            borderRadius: '6px',
+                            transition: 'all 0.2s',
+                            fontWeight: 'bold'
                           }}
                         >
-                          ✓
+                          ✓ Valider
                         </button>
                         <button
                           type="button"
@@ -323,43 +318,72 @@ export default function SuiviDdtSection({value = {}, onChange ,
                           onClick={cancelEdit}
                           disabled={isSubmitting}
                           style={{
-                            background: 'none',
+                            background: '#dc3545',
                             border: 'none',
                             cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                            fontSize: '1.5rem',
-                            color: '#dc3545',
-                            padding: '0.25rem',
-                            transition: 'transform 0.2s'
+                            fontSize: '1.2rem',
+                            color: 'white',
+                            padding: '4px 12px',
+                            borderRadius: '6px',
+                            transition: 'all 0.2s',
+                            fontWeight: 'bold'
                           }}
                         >
-                          ✕
+                          ✕ Annuler
                         </button>
                       </div>
                     </div>
+                    <textarea
+                      value={editingText}
+                      onChange={(e) => setEditingText(e.target.value)}
+                      rows={4}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '2px solid #10b981',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        resize: 'vertical',
+                        lineHeight: '1.6',
+                        backgroundColor: '#f0fdf4'
+                      }}
+                      disabled={isSubmitting}
+                      autoFocus
+                    />
                   </>
                 ) : (
                   // Mode lecture
                   <>
-                    <div className={styles.itemBody} style={{ marginBottom: '8px' }}>
-                      {h.description}
-                    </div>
-                    <div className={styles.itemHeader}>
-                      <span>{timeStr}</span>
-                      <span style={{ marginLeft: '8px' }}>{dateStr}</span>
-                      {h.modifiedAt && (
-                        <span style={{ 
-                          marginLeft: '8px', 
-                          fontSize: '0.85em', 
-                          color: '#6c757d',
-                          fontStyle: 'italic'
+                    <div className={styles.itemHeader} style={{ marginBottom: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, flexWrap: 'wrap' }}>
+                        <span style={{
+                          backgroundColor: '#3b82f6',
+                          color: 'white',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px'
                         }}>
-                          (modifié à {new Date(h.modifiedAt).toLocaleTimeString('fr-FR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })})
+                          {timeStr}
                         </span>
-                      )}
-                      <strong style={{ marginLeft: '8px' }}>{h.author}</strong>
+                        <span style={{ color: '#64748b', fontSize: '13px' }}>{dateStr}</span>
+                        {h.modifiedAt && (
+                          <span style={{
+                            fontSize: '11px',
+                            color: '#94a3b8',
+                            fontStyle: 'italic',
+                            backgroundColor: '#f1f5f9',
+                            padding: '2px 6px',
+                            borderRadius: '3px'
+                          }}>
+                            modifié à {new Date(h.modifiedAt).toLocaleTimeString('fr-FR', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        )}
+                        <strong style={{ color: '#1e293b' }}>👤 {h.author}</strong>
+                      </div>
                       <div style={{ display: 'flex', gap: '4px' }}>
                         <button
                           type="button"
@@ -378,6 +402,9 @@ export default function SuiviDdtSection({value = {}, onChange ,
                           🗑
                         </button>
                       </div>
+                    </div>
+                    <div className={styles.itemBody}>
+                      {h.description}
                     </div>
                   </>
                 )}
