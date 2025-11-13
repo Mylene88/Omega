@@ -286,21 +286,6 @@ export default function Map({ onSelect }) {
                         const description = props.description || 'Aucune description'
                         const statut = props.libelle_statut || props.statut_projet || props.statut || 'Aucun statut';
                         const serviceDDT = props.service || props.service_ddt || 'Aucun service';
-                        
-                        // Communes
-                        let communesText = 'Non renseignée';
-                        if (props.communes_traversees && Array.isArray(props.communes_traversees)) {
-                            const communes = props.communes_traversees;
-                            if (communes.length === 1) {
-                                communesText = communes[0];
-                            } else if (communes.length <= 3) {
-                                communesText = communes.join(', ');
-                            } else {
-                                communesText = `${communes.slice(0, 3).join(', ')} +${communes.length - 3} autres`;
-                            }
-                        } else if (props.commune) {
-                            communesText = props.commune;
-                        }
 
                         // Type de porteur
                         let typePorteur = 'Aucun type de porteur renseigné';
@@ -473,8 +458,27 @@ export default function Map({ onSelect }) {
                                     <div style="display: flex; align-items: flex-start; gap: 8px;">
                                         <span style="font-size: 16px;">📍</span>
                                         <div style="flex: 1; min-width: 0;">
-                                            <div style="font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 2px;">COMMUNE(S)</div>
-                                            <div style="font-size: 13px; color: #1e293b; font-weight: 500; word-wrap: break-word; word-break: break-word;">${communesText}</div>
+                                            <div style="font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 4px;">COMMUNE(S)</div>
+                                            ${
+                                                props.communes_traversees && Array.isArray(props.communes_traversees) && props.communes_traversees.length > 0
+                                                    ? `<div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                                        ${props.communes_traversees.map(commune => `
+                                                            <span style="
+                                                                display: inline-flex;
+                                                                align-items: center;
+                                                                padding: 4px 10px;
+                                                                background: #eff6ff;
+                                                                color: #1e40af;
+                                                                border-radius: 6px;
+                                                                font-size: 12px;
+                                                                font-weight: 600;
+                                                                border: 1px solid #bfdbfe;
+                                                                white-space: nowrap;
+                                                            ">${commune}</span>
+                                                        `).join('')}
+                                                    </div>`
+                                                    : `<div style="font-size: 13px; color: #94a3b8; font-style: italic;">Non renseignée</div>`
+                                            }
                                         </div>
                                     </div>
 
