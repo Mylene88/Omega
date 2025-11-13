@@ -365,7 +365,8 @@ module.exports = (sequelize, DataTypes) => {
   // --- Table projet_deletion_request : demandes de suppression ---
   const ProjetDeletionRequest = sequelize.define('projet_deletion_request', {
     id_deletion_request: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    id_projet: { type: DataTypes.STRING, allowNull: false, references: { model: Projet, key: 'id_projet' }, onDelete: 'CASCADE' },
+    id_projet: { type: DataTypes.STRING, allowNull: true, references: { model: Projet, key: 'id_projet' }, onDelete: 'SET NULL' },
+    projet_nom_cache: { type: DataTypes.STRING, allowNull: true },
     requested_by: { type: DataTypes.INTEGER, allowNull: false, references: { model: User, key: 'id_user' } },
     raison: { type: DataTypes.TEXT, allowNull: false },
     statut: { type: DataTypes.ENUM('en attente', 'accepter', 'refuser'), allowNull: false, defaultValue: 'en attente' },
