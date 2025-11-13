@@ -17,18 +17,26 @@ import db from '@/backend/models';
  */
 export async function POST(request) {
   try {
+    console.log('\n=== 🔄 RESTAURATION VERSION DE SECTION ===');
+
     // Vérifier les droits admin
     const adminCheck = await requireAdmin(request);
     if (!adminCheck.allowed) {
+      console.log('❌ Droits admin requis');
       return NextResponse.json(adminCheck.response, { status: adminCheck.status });
     }
     const adminUserId = adminCheck.userId;
+    console.log(`Admin User ID: ${adminUserId}`);
 
     const body = await request.json();
     const { idVersion, reason } = body;
 
+    console.log(`Version ID: ${idVersion}`);
+    console.log(`Raison: ${reason || 'Aucune'}`);
+
     // Validation
     if (!idVersion) {
+      console.log('❌ ID version manquant');
       return NextResponse.json({
         success: false,
         message: 'idVersion est requis'
@@ -36,6 +44,7 @@ export async function POST(request) {
     }
 
     // Récupérer la version à restaurer
+    console.log('🔍 Recherche de la version...');
     const version = await db.SectionVersion.findByPk(idVersion, {
       include: [
         {
@@ -46,6 +55,7 @@ export async function POST(request) {
     });
 
     if (!version) {
+      console.log('❌ Version non trouvée');
       return NextResponse.json({
         success: false,
         message: 'Version non trouvée'
@@ -53,14 +63,22 @@ export async function POST(request) {
     }
 
     const { id_projet, section_name, section_data } = version;
+    console.log(`✅ Version trouvée:`);
+    console.log(`   Projet: ${version.projet?.nom_projet} (ID: ${id_projet})`);
+    console.log(`   Section: ${section_name}`);
+    console.log(`   Version: ${version.version_number}`);
+    console.log(`   Date: ${version.snapshot_date}`);
 
     // Démarrer une transaction pour garantir la cohérence
+    console.log('\n🔒 Démarrage de la transaction...');
     const transaction = await db.sequelize.transaction();
 
     try {
+      console.log(`\n🔄 Restauration de la section "${section_name}"...`);
       // Restaurer la section selon son type
       switch (section_name) {
         case 'projet_info':
+          console.log('   📝 Restauration des informations du projet...');
           // Restaurer les informations du projet
           await db.Projet.update(
             {
@@ -80,9 +98,11 @@ export async function POST(request) {
               transaction
             }
           );
+          console.log('   ✅ Informations du projet restaurées');
           break;
 
         case 'porteurs':
+          console.log('   📝 Restauration des porteurs...');
           // Supprimer les porteurs actuels
           await db.ProjetPorteur.destroy({
             where: { id_projet },
@@ -97,10 +117,14 @@ export async function POST(request) {
                 created_by: adminUserId
               }, { transaction });
             }
+            console.log(`   ✅ ${section_data.porteurs.length} porteur(s) restauré(s)`);
+          } else {
+            console.log('   ℹ️  Aucun porteur à restaurer');
           }
           break;
 
         case 'suivis':
+          console.log('   📝 Restauration des suivis...');
           // Supprimer les suivis actuels
           await db.ProjetSuivi.destroy({
             where: { id_projet },
@@ -115,10 +139,14 @@ export async function POST(request) {
                 created_by: adminUserId
               }, { transaction });
             }
+            console.log(`   ✅ ${section_data.suivis.length} suivi(s) restauré(s)`);
+          } else {
+            console.log('   ℹ️  Aucun suivi à restaurer');
           }
           break;
 
         case 'thematiques':
+          console.log('   📝 Restauration des thématiques...');
           // Supprimer les thématiques actuelles
           await db.ProjetInThematique.destroy({
             where: { id_projet },
@@ -133,10 +161,14 @@ export async function POST(request) {
                 ajoute_par: adminUserId
               }, { transaction });
             }
+            console.log(`   ✅ ${section_data.thematiques.length} thématique(s) restaurée(s)`);
+          } else {
+            console.log('   ℹ️  Aucune thématique à restaurer');
           }
           break;
 
         case 'documents':
+          console.log('   📝 Restauration des documents...');
           // Supprimer les documents actuels
           await db.Document.destroy({
             where: { id_projet },
@@ -151,10 +183,14 @@ export async function POST(request) {
                 created_by: adminUserId
               }, { transaction });
             }
+            console.log(`   ✅ ${section_data.documents.length} document(s) restauré(s)`);
+          } else {
+            console.log('   ℹ️  Aucun document à restaurer');
           }
           break;
 
         case 'geometrie':
+          console.log('   📝 Restauration de la géométrie...');
           // Supprimer la géométrie actuelle
           await db.ProjetGeometry.destroy({
             where: { id_projet },
@@ -167,10 +203,14 @@ export async function POST(request) {
               id_projet,
               created_by: adminUserId
             }, { transaction });
+            console.log('   ✅ Géométrie restaurée');
+          } else {
+            console.log('   ℹ️  Aucune géométrie à restaurer');
           }
           break;
 
         default:
+          console.log(`   ❌ Section inconnue: ${section_name}`);
           throw new Error(`Section inconnue: ${section_name}`);
       }
 
@@ -202,9 +242,14 @@ export async function POST(request) {
         }
       );
 
+      console.log('\n💾 Enregistrement de l\'audit log...');
       await transaction.commit();
 
-      console.log(`✅ Section ${section_name} du projet ${id_projet} restaurée depuis la version ${idVersion} par admin ${adminUserId}`);
+      console.log('\n✅ RESTAURATION VERSION TERMINÉE AVEC SUCCÈS');
+      console.log(`   Section: ${section_name}`);
+      console.log(`   Projet: ${id_projet}`);
+      console.log(`   Version: ${idVersion}`);
+      console.log('=== FIN RESTAURATION VERSION ===\n');
 
       return NextResponse.json({
         success: true,
@@ -220,11 +265,13 @@ export async function POST(request) {
 
     } catch (error) {
       await transaction.rollback();
+      console.error('\n❌ Erreur lors de la restauration de la section:', error);
       throw error;
     }
 
   } catch (error) {
-    console.error('❌ Erreur POST /api/section-versions/restore:', error);
+    console.error('\n❌ Erreur POST /api/section-versions/restore:', error);
+    console.error('Stack:', error.stack);
     return NextResponse.json({
       success: false,
       message: 'Erreur lors de la restauration de la section',
