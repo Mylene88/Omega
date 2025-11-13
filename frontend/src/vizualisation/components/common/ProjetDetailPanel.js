@@ -665,21 +665,21 @@ export default function ProjetDetailPanel({
                                             </div>
                                         )}
 
-                                        {Array.isArray(g.codesInsee) && g.codesInsee.length > 0 && (
+                                        {Array.isArray(g.codes_insee) && g.codes_insee.length > 0 && (
                                             <div className="geom-section">
                                                 <h5 className="geom-section-title">Code INSEE</h5>
-                                                <div className="codes-box">{g.codesInsee.join(', ')}</div>
+                                                <div className="codes-box">{g.codes_insee.join(', ')}</div>
                                             </div>
                                         )}
 
-                                        {Array.isArray(g.communesTraversees) && g.communesTraversees.length > 0 && (
+                                        {Array.isArray(g.communes_traversees) && g.communes_traversees.length > 0 && (
                                             <div className="geom-section">
                                                 <h5 className="geom-section-title">
                                                     {g.type && (g.type.toLowerCase().includes('point'))
                                                         ? 'Commune'
                                                         : 'Commune traversée'}
                                                 </h5>
-                                                <div className="communes-box">{g.communesTraversees.join(', ')}</div>
+                                                <div className="communes-box">{g.communes_traversees.join(', ')}</div>
                                             </div>
                                         )}
 
