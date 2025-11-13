@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import '../../pages/Admin/AdminPageEnhanced.css';
+import '../../pages/Admin/AdminPage.css';
 
 export default function SectionVersionsTab({ apiCall }) {
   const [versions, setVersions] = useState([]);
@@ -108,6 +108,7 @@ export default function SectionVersionsTab({ apiCall }) {
 
   // Déclencher le nettoyage
   const handleCleanup = async () => {
+    // eslint-disable-next-line no-restricted-globals
     if (!confirm('Voulez-vous lancer le nettoyage automatique ? (Supprime les versions de +15 jours et garde max 10 versions par section/utilisateur)')) {
       return;
     }
