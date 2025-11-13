@@ -406,6 +406,42 @@ module.exports = (sequelize, DataTypes) => {
   User.hasMany(ProjetDeletionRequest, { foreignKey: 'requested_by', as: 'deletion_requests_made' });
   User.hasMany(ProjetDeletionRequest, { foreignKey: 'reviewed_by', as: 'deletion_requests_reviewed' });
 
+  // --- Table section_version : versioning granulaire par section ---
+  const SectionVersion = sequelize.define('section_version', {
+    id_version: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    id_projet: { type: DataTypes.STRING, allowNull: false, references: { model: Projet, key: 'id_projet' }, onDelete: 'CASCADE' },
+    user_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: User, key: 'id_user' }, onDelete: 'CASCADE' },
+    section_name: {
+      type: DataTypes.ENUM('projet_info', 'porteurs', 'suivis', 'thematiques', 'documents', 'geometrie'),
+      allowNull: false
+    },
+    version_number: { type: DataTypes.INTEGER, allowNull: false }, // 1 à 10
+    section_data: { type: DataTypes.JSONB, allowNull: false },
+    snapshot_date: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    is_current: { type: DataTypes.BOOLEAN, defaultValue: false },
+    description: { type: DataTypes.TEXT },
+    metadata: { type: DataTypes.JSONB },
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+  }, {
+    schema,
+    tableName: 'section_version',
+    createdAt: 'created_at',
+    updatedAt: false,
+    timestamps: true,
+    indexes: [
+      { fields: ['id_projet', 'section_name', 'user_id'] },
+      { fields: ['user_id', 'section_name'] },
+      { fields: ['snapshot_date'] },
+      { fields: ['id_projet', 'user_id', 'section_name', 'version_number'], unique: true }
+    ]
+  });
+
+  // Associations pour les versions de sections
+  SectionVersion.belongsTo(Projet, { foreignKey: 'id_projet', as: 'projet' });
+  SectionVersion.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+  Projet.hasMany(SectionVersion, { foreignKey: 'id_projet', as: 'section_versions' });
+  User.hasMany(SectionVersion, { foreignKey: 'user_id', as: 'section_versions' });
+
 
 // Return all models as an object
   return {
@@ -427,5 +463,6 @@ module.exports = (sequelize, DataTypes) => {
     ProjetSnapshotSection,
     AdminAccessLog,
     ProjetDeletionRequest,
+    SectionVersion,
   };
 };
