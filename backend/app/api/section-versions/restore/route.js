@@ -1,0 +1,247 @@
+// backend/app/api/section-versions/restore/route.js
+/**
+ * API pour restaurer une version spécifique d'une section
+ */
+
+import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/backend/lib/adminAuthHelper';
+import db from '@/backend/models';
+
+/**
+ * POST /api/section-versions/restore
+ * Restaurer une version spécifique d'une section
+ *
+ * Body:
+ * - idVersion: ID de la version à restaurer
+ * - reason: raison de la restauration (optionnel)
+ */
+export async function POST(request) {
+  try {
+    // Vérifier les droits admin
+    const adminCheck = await requireAdmin(request);
+    if (!adminCheck.allowed) {
+      return NextResponse.json(adminCheck.response, { status: adminCheck.status });
+    }
+    const adminUserId = adminCheck.userId;
+
+    const body = await request.json();
+    const { idVersion, reason } = body;
+
+    // Validation
+    if (!idVersion) {
+      return NextResponse.json({
+        success: false,
+        message: 'idVersion est requis'
+      }, { status: 400 });
+    }
+
+    // Récupérer la version à restaurer
+    const version = await db.SectionVersion.findByPk(idVersion, {
+      include: [
+        {
+          model: db.Projet,
+          as: 'projet'
+        }
+      ]
+    });
+
+    if (!version) {
+      return NextResponse.json({
+        success: false,
+        message: 'Version non trouvée'
+      }, { status: 404 });
+    }
+
+    const { id_projet, section_name, section_data } = version;
+
+    // Démarrer une transaction pour garantir la cohérence
+    const transaction = await db.sequelize.transaction();
+
+    try {
+      // Restaurer la section selon son type
+      switch (section_name) {
+        case 'projet_info':
+          // Restaurer les informations du projet
+          await db.Projet.update(
+            {
+              nom_projet: section_data.nom_projet,
+              description: section_data.description,
+              statut_id: section_data.statut_id,
+              date_ident_projet: section_data.date_ident_projet,
+              projet_signale: section_data.projet_signale,
+              charte_accueil: section_data.charte_accueil,
+              id_service_ddt: section_data.id_service_ddt,
+              referent_ddt: section_data.referent_ddt,
+              updated_by: adminUserId,
+              updated_at: new Date()
+            },
+            {
+              where: { id_projet },
+              transaction
+            }
+          );
+          break;
+
+        case 'porteurs':
+          // Supprimer les porteurs actuels
+          await db.ProjetPorteur.destroy({
+            where: { id_projet },
+            transaction
+          });
+          // Recréer les porteurs depuis la version
+          if (Array.isArray(section_data.porteurs)) {
+            for (const porteur of section_data.porteurs) {
+              await db.ProjetPorteur.create({
+                ...porteur,
+                id_projet,
+                created_by: adminUserId
+              }, { transaction });
+            }
+          }
+          break;
+
+        case 'suivis':
+          // Supprimer les suivis actuels
+          await db.ProjetSuivi.destroy({
+            where: { id_projet },
+            transaction
+          });
+          // Recréer les suivis depuis la version
+          if (Array.isArray(section_data.suivis)) {
+            for (const suivi of section_data.suivis) {
+              await db.ProjetSuivi.create({
+                ...suivi,
+                id_projet,
+                created_by: adminUserId
+              }, { transaction });
+            }
+          }
+          break;
+
+        case 'thematiques':
+          // Supprimer les thématiques actuelles
+          await db.ProjetInThematique.destroy({
+            where: { id_projet },
+            transaction
+          });
+          // Recréer les thématiques depuis la version
+          if (Array.isArray(section_data.thematiques)) {
+            for (const them of section_data.thematiques) {
+              await db.ProjetInThematique.create({
+                ...them,
+                id_projet,
+                ajoute_par: adminUserId
+              }, { transaction });
+            }
+          }
+          break;
+
+        case 'documents':
+          // Supprimer les documents actuels
+          await db.Document.destroy({
+            where: { id_projet },
+            transaction
+          });
+          // Recréer les documents depuis la version
+          if (Array.isArray(section_data.documents)) {
+            for (const doc of section_data.documents) {
+              await db.Document.create({
+                ...doc,
+                id_projet,
+                created_by: adminUserId
+              }, { transaction });
+            }
+          }
+          break;
+
+        case 'geometrie':
+          // Supprimer la géométrie actuelle
+          await db.ProjetGeometry.destroy({
+            where: { id_projet },
+            transaction
+          });
+          // Recréer la géométrie depuis la version
+          if (section_data.geometry) {
+            await db.ProjetGeometry.create({
+              ...section_data.geometry,
+              id_projet,
+              created_by: adminUserId
+            }, { transaction });
+          }
+          break;
+
+        default:
+          throw new Error(`Section inconnue: ${section_name}`);
+      }
+
+      // Enregistrer dans l'audit log
+      await db.AuditLog.create({
+        table_name: 'section_version',
+        record_id: String(idVersion),
+        action: 'RESTORE',
+        old_values: null,
+        new_values: {
+          section_name,
+          id_projet,
+          restored_by: adminUserId,
+          reason: reason || 'Restauration par admin'
+        },
+        changed_fields: [section_name],
+        user_id: adminUserId
+      }, { transaction });
+
+      // Mettre à jour le projet
+      await db.Projet.update(
+        {
+          updated_by: adminUserId,
+          updated_at: new Date()
+        },
+        {
+          where: { id_projet },
+          transaction
+        }
+      );
+
+      await transaction.commit();
+
+      console.log(`✅ Section ${section_name} du projet ${id_projet} restaurée depuis la version ${idVersion} par admin ${adminUserId}`);
+
+      return NextResponse.json({
+        success: true,
+        message: `Section ${section_name} restaurée avec succès`,
+        data: {
+          id_version: idVersion,
+          id_projet,
+          section_name,
+          restored_at: new Date(),
+          restored_by: adminUserId
+        }
+      });
+
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('❌ Erreur POST /api/section-versions/restore:', error);
+    return NextResponse.json({
+      success: false,
+      message: 'Erreur lors de la restauration de la section',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
+  }
+}
+
+/**
+ * OPTIONS pour CORS
+ */
+export async function OPTIONS() {
+  return NextResponse.json({}, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
