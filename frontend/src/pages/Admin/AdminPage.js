@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import './AdminPage.css';
 import DeletionRequestsTab from '../../components/admin/DeletionRequestsTab';
 import SectionVersionsTab from '../../components/admin/SectionVersionsTab';
+import { formatDateTimeFr } from '../../utils/dateFormatter';
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -354,7 +355,7 @@ const AdminPage = () => {
                     <span className="audit-table">{log.tableName}</span>
                     <span className="audit-record">#{log.recordId}</span>
                     <span className="audit-date">
-                      {new Date(log.createdAt).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}
+                      {formatDateTimeFr(log.createdAt)}
                     </span>
                   </div>
                   <div className="audit-details">
@@ -390,7 +391,7 @@ const AdminPage = () => {
                     </div>
                     <div className="snapshot-meta">
                       <span>Créé par: {snapshot.creator ? snapshot.creator.nomComplet : 'Système'}</span>
-                      <span>Le: {new Date(snapshot.createdAt).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}</span>
+                      <span>Le: {formatDateTimeFr(snapshot.createdAt)}</span>
                     </div>
                   </div>
                   <div className="snapshot-actions">

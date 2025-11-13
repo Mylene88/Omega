@@ -15,6 +15,7 @@ import './AdminPage.css';
 import ConfirmationModal from '../../components/admin/ConfirmationModal';
 import Toast, { useToast } from '../../components/admin/Toast';
 import DeletionRequestsTab from '../../components/admin/DeletionRequestsTab';
+import { formatDateTimeFr } from '../../utils/dateFormatter';
 
 const API_BASE_URL = 'http://localhost:3000/api';
 
@@ -296,19 +297,8 @@ const AdminPageEnhanced = () => {
     };
   }, [autoRefresh, refreshInterval, activeTab, fetchStats, fetchAuditLogs, fetchSnapshots, fetchAccessLogs]);
 
-  // Formater la date
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Europe/Paris'
-    }).format(date);
-  };
+  // Formater la date (utilise la fonction utilitaire avec gestion timezone correcte)
+  const formatDate = formatDateTimeFr;
 
   // Formater la durée relative
   const formatRelativeTime = (dateString) => {
