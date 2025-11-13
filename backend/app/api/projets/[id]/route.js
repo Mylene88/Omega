@@ -703,14 +703,44 @@ export async function PUT(request, { params }) {
     console.log(`🔄 Mise à jour du projet ${id}`);
     console.log('Body reçu:', JSON.stringify(body, null, 2));
 
-    // 1. Vérifier que le projet existe
-    const projet = await Projet.findByPk(id);
+    // 1. Vérifier que le projet existe et récupérer l'état actuel pour snapshot
+    const projet = await Projet.findByPk(id, {
+      include: [
+        { model: ProjetPorteur, as: 'porteurs' },
+        { model: ProjetSuivi, as: 'suivis' },
+        { model: Document, as: 'documents' },
+        { model: ProjetGeometry, as: 'geometry' },
+        { model: ProjetInThematique, as: 'projet_in_thematiques' }
+      ],
+      transaction
+    });
+
     if (!projet) {
       await transaction.rollback();
       return NextResponse.json({
         success: false,
         message: 'Projet non trouvé'
       }, { status: 404 });
+    }
+
+    // 1.5. Sauvegarder l'état AVANT modification et créer un snapshot
+    const userId = body.updated_by || body.created_by;
+    const projetAvant = projet.toJSON(); // Sauvegarder l'état avant modification
+
+    if (userId) {
+      try {
+        await createSnapshot({
+          idProjet: id,
+          projetData: projetAvant,
+          description: `Snapshot automatique avant modification`,
+          userId,
+          transaction
+        });
+        console.log('📸 Snapshot créé avant modification');
+      } catch (snapshotError) {
+        console.error('⚠️  Erreur création snapshot (non bloquant):', snapshotError.message);
+        // Ne pas bloquer la mise à jour si le snapshot échoue
+      }
     }
 
     // 2. Mettre à jour les champs de base du projet
@@ -822,6 +852,34 @@ export async function PUT(request, { params }) {
         await ProjetInThematique.bulkCreate(thematiqueRecords, { transaction });
         console.log(`✅ ${thematiqueRecords.length} thématiques associées`);
       }
+    }
+
+    // 8. Enregistrer l'audit log pour tracer la modification
+    const { userIp, userAgent } = extractRequestInfo(request);
+    const projetApres = await Projet.findByPk(id, {
+      include: [
+        { model: ProjetPorteur, as: 'porteurs' },
+        { model: ProjetSuivi, as: 'suivis' },
+        { model: Document, as: 'documents' },
+        { model: ProjetGeometry, as: 'geometry' },
+        { model: ProjetInThematique, as: 'projet_in_thematiques' }
+      ],
+      transaction
+    });
+
+    if (userId && projetApres) {
+      await logAudit({
+        tableName: 'projet',
+        recordId: id,
+        action: 'UPDATE',
+        oldValues: projetAvant,
+        newValues: projetApres.toJSON(),
+        userId,
+        userIp,
+        userAgent,
+        transaction
+      });
+      console.log('✅ Audit log enregistré');
     }
 
     await transaction.commit();
