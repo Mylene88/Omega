@@ -113,7 +113,7 @@ export const filterProject = (feature, filters) => {
   
   // 4. Filtre par statut du projet
   if (filters.statutIds && filters.statutIds.length > 0) {
-    const projetStatutId = props.statut_id || props.statutId || props.id_statut;
+    const projetStatutId = props.statut_projet_id || props.statut_id || props.statutId || props.id_statut;
 
     if (!projetStatutId || !filters.statutIds.includes(projetStatutId)) {
       return false;
@@ -237,7 +237,7 @@ export const filterProjectsArray = (projects, filters, debug = false) => {
     
     // 4. Filtre par statut du projet
     if (filters.statutIds && filters.statutIds.length > 0) {
-      const projetStatutId = project.statut_id || project.statutId || project.id_statut;
+      const projetStatutId = project.statut_projet_id || project.statut_id || project.statutId || project.id_statut;
 
       if (!projetStatutId || !filters.statutIds.includes(projetStatutId)) {
         return false;
