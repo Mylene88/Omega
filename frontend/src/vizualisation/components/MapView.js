@@ -461,22 +461,41 @@ export default function Map({ onSelect }) {
                                             <div style="font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 4px;">COMMUNE(S)</div>
                                             ${
                                                 props.communes_traversees && Array.isArray(props.communes_traversees) && props.communes_traversees.length > 0
-                                                    ? `<div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                                                        ${props.communes_traversees.map(commune => `
-                                                            <span style="
-                                                                display: inline-flex;
-                                                                align-items: center;
-                                                                padding: 4px 10px;
-                                                                background: #eff6ff;
-                                                                color: #1e40af;
-                                                                border-radius: 6px;
-                                                                font-size: 12px;
-                                                                font-weight: 600;
-                                                                border: 1px solid #bfdbfe;
-                                                                white-space: nowrap;
-                                                            ">${commune}</span>
-                                                        `).join('')}
-                                                    </div>`
+                                                    ? (() => {
+                                                        const communes = props.communes_traversees;
+                                                        const communesToShow = communes.slice(0, 3);
+                                                        const remaining = communes.length - 3;
+
+                                                        return `<div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                                                            ${communesToShow.map(commune => `
+                                                                <span style="
+                                                                    display: inline-flex;
+                                                                    align-items: center;
+                                                                    padding: 4px 10px;
+                                                                    background: #eff6ff;
+                                                                    color: #1e40af;
+                                                                    border-radius: 6px;
+                                                                    font-size: 12px;
+                                                                    font-weight: 600;
+                                                                    border: 1px solid #bfdbfe;
+                                                                    white-space: nowrap;
+                                                                ">${commune}</span>
+                                                            `).join('')}
+                                                            ${remaining > 0 ? `
+                                                                <span style="
+                                                                    display: inline-flex;
+                                                                    align-items: center;
+                                                                    padding: 4px 10px;
+                                                                    background: #f1f5f9;
+                                                                    color: #475569;
+                                                                    border-radius: 6px;
+                                                                    font-size: 12px;
+                                                                    font-weight: 700;
+                                                                    border: 1px solid #cbd5e1;
+                                                                ">+${remaining}</span>
+                                                            ` : ''}
+                                                        </div>`;
+                                                    })()
                                                     : `<div style="font-size: 13px; color: #94a3b8; font-style: italic;">Non renseignée</div>`
                                             }
                                         </div>
