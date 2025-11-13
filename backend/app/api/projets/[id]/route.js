@@ -413,23 +413,35 @@ console.log(`✅ ${donnees.length} enregistrement(s) trouvé(s) pour ${modeleVal
     for (const field of modeleConfig.fields || []) {
       const fieldValue = d[field.name];
 
-      // Ignorer les champs vides
-      if (fieldValue === null || fieldValue === undefined) {
-        continue;
-      }
-
     // ✅ CAS 1: Champ Many-to-Many (checkbox-multiple)
+    // IMPORTANT: Ne pas skipper même si fieldValue est null, car les données sont dans la table de jonction
     if (field.type === 'checkbox-multiple' && field.relationTable) {
   const assocM2M = findBelongsToManyAssociation(Model, field.enumTable, field.enumSchema, field.relationTable);
   const relatedData = assocM2M ? d[assocM2M.as] : null;
+
+  console.log(`🔍 Champ M2M [${field.name}]:`, {
+    assocFound: !!assocM2M,
+    assocAs: assocM2M?.as,
+    relatedData: relatedData,
+    isArray: Array.isArray(relatedData),
+    length: relatedData?.length
+  });
+
   // ✅ Renvoyer les objets complets avec ID et libellé pour l'affichage
-  formattedData[field.name] = Array.isArray(relatedData)
-    ? relatedData.map(item => ({
-        id: item.id,
-        value: item.value || item.libelle || item.id
-      }))
-    : fieldValue;
+  if (Array.isArray(relatedData) && relatedData.length > 0) {
+    formattedData[field.name] = relatedData.map(item => ({
+      id: item.id,
+      value: item.value || item.libelle || item.id
+    }));
+  }
+  // ✅ Ne pas ajouter le champ s'il est vide (pour ne pas polluer avec des tableaux vides)
+  continue; // Passer au champ suivant
 }
+
+      // Ignorer les champs vides (sauf pour checkbox-multiple traité ci-dessus)
+      if (fieldValue === null || fieldValue === undefined) {
+        continue;
+      }
 
     // ✅ CAS 2: Champ avec enumTable (select simple)
    else if (field.enumTable) {
