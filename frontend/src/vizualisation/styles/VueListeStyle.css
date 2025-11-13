@@ -1581,6 +1581,15 @@
     gap: 6px;
 }
 
+.badge-suppression {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #991b1b;
+    border: 1px solid #ef4444;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 /* ==================== RESPONSIVE CARDS ==================== */
 @media (max-width: 1400px) {
     .card-info-grid {

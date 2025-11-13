@@ -110,6 +110,7 @@ export async function GET(request, { params }) {
         'date_ident_projet',
         'projet_signale',
         'charte_accueil',
+        'demande_suppression',
         'referent_ddt',
         'statut_projet_id',
         'service_id',
@@ -553,6 +554,7 @@ console.log(`✅ ${donnees.length} enregistrement(s) trouvé(s) pour ${modeleVal
         dateIdentification: projetComplet.date_ident_projet,
         projetSignale: projetComplet.projet_signale,
         charteAccueil: projetComplet.charte_accueil,
+        demandeSuppression: projetComplet.demande_suppression,
         referentDdt: projetComplet.referent_ddt,
         dateCreation: projetComplet.created_at,
         dateMiseAJour: projetComplet.updated_at
@@ -719,6 +721,7 @@ export async function PUT(request, { params }) {
       date_ident_projet: body.date_ident_projet ?? projet.date_ident_projet,
       projet_signale: body.projet_signale ?? projet.projet_signale,
       charte_accueil: body.charte_accueil ?? projet.charte_accueil,
+      demande_suppression: body.demande_suppression ?? projet.demande_suppression,
       service_id: body.service_id ?? projet.service_id,
       referent_ddt: body.referent_ddt ?? projet.referent_ddt,
       updated_by: body.updated_by ?? projet.updated_by,

@@ -66,6 +66,7 @@ module.exports = (sequelize, DataTypes) => {
     date_ident_projet: { type: DataTypes.DATE, allowNull: true },
     projet_signale: { type: DataTypes.BOOLEAN, defaultValue: false },
     charte_accueil: { type: DataTypes.BOOLEAN, defaultValue: false },
+    demande_suppression: { type: DataTypes.BOOLEAN, defaultValue: false },
     service_id: { type: DataTypes.INTEGER, references: { model: DdtServiceEnum, key: 'id_service' } },
     referent_ddt: { type: DataTypes.TEXT },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
