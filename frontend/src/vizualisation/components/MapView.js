@@ -287,18 +287,6 @@ export default function Map({ onSelect }) {
                         const statut = props.libelle_statut || props.statut_projet || props.statut || 'Aucun statut';
                         const serviceDDT = props.service || props.service_ddt || 'Aucun service';
 
-                        // Type de porteur
-                        let typePorteur = 'Aucun type de porteur renseigné';
-                        if (props.porteurs && Array.isArray(props.porteurs) && props.porteurs.length > 0) {
-                            const types = props.porteurs
-                                .map(p => p.type_porteur)
-                                .filter(t => t)
-                                .join(', ');
-                            typePorteur = types || 'Aucun type';
-                        } else if (props.type_porteur) {
-                            typePorteur = props.type_porteur;
-                        }
-
                         // Superficie ou longueur
                         let dimensionText = '';
                         if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
@@ -498,15 +486,6 @@ export default function Map({ onSelect }) {
                                                     })()
                                                     : `<div style="font-size: 13px; color: #94a3b8; font-style: italic;">Non renseignée</div>`
                                             }
-                                        </div>
-                                    </div>
-
-                                    <!-- Type de porteur -->
-                                    <div style="display: flex; align-items: flex-start; gap: 8px;">
-                                        <span style="font-size: 16px;">👥</span>
-                                        <div style="flex: 1; min-width: 0;">
-                                            <div style="font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 2px;">TYPE DE PORTEUR</div>
-                                            <div style="font-size: 13px; color: #1e293b; font-weight: 500; word-wrap: break-word; word-break: break-word;">${typePorteur}</div>
                                         </div>
                                     </div>
 
