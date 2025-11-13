@@ -166,6 +166,7 @@ export async function GET() {
       nom_projet: p.nom_projet,
       description: p.description,
       statut: p.statut_projet_enum?.libelle,
+      statut_projet_id: p.statut_projet_id,  // ✅ Ajouter l'ID du statut pour le filtrage
       service: p.ddt_service_enum?.libelle_service,
       projet_signale: p.projet_signale,
       charte_accueil: p.charte_accueil,
