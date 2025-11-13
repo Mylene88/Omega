@@ -81,7 +81,7 @@ export async function GET(request) {
     const formattedRequests = requests.map(req => ({
       id: req.id_deletion_request,
       id_projet: req.id_projet,
-      projet_nom: req.projet?.nom_projet || 'Projet supprimé',
+      projet_nom: req.projet?.nom_projet || req.projet_nom_cache || 'Projet supprimé',
       projet_description: req.projet?.description || null,
       raison: req.raison,
       statut: req.statut,
@@ -180,9 +180,10 @@ export async function POST(request) {
       }, { status: 409 });
     }
 
-    // Créer la demande
+    // Créer la demande avec nom du projet en cache
     const deletionRequest = await db.ProjetDeletionRequest.create({
       id_projet,
+      projet_nom_cache: projet.nom_projet, // Sauvegarder le nom pour l'historique
       requested_by: userId,
       raison,
       statut: 'en attente'
