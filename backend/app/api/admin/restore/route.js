@@ -37,6 +37,11 @@ export async function POST(request) {
     }
 
     // Récupérer le snapshot avec ses sections
+    console.log('\n=== 🔄 DÉBUT RESTAURATION ===');
+    console.log(`Snapshot ID: ${snapshotId}`);
+    console.log(`Créer backup: ${createBackup ? 'Oui' : 'Non'}`);
+    console.log(`User ID: ${userId}`);
+
     const snapshot = await db.ProjetSnapshot.findByPk(snapshotId, {
       include: [{
         model: db.ProjetSnapshotSection,
@@ -46,13 +51,16 @@ export async function POST(request) {
 
     if (!snapshot) {
       await transaction.rollback();
+      console.log('❌ Snapshot non trouvé');
       return NextResponse.json({
         success: false,
         message: 'Snapshot non trouvé'
       }, { status: 404 });
     }
 
-    console.log(`📸 Snapshot trouvé #${snapshotId} pour projet ${snapshot.id_projet}`);
+    console.log(`\n📸 Snapshot trouvé #${snapshotId} pour projet ${snapshot.id_projet}`);
+    console.log(`   Version: ${snapshot.version_number}`);
+    console.log(`   Date: ${snapshot.snapshot_date}`);
     console.log(`   Nombre de sections: ${snapshot.sections?.length || 0}`);
     if (snapshot.sections && snapshot.sections.length > 0) {
       console.log(`   Sections disponibles:`, snapshot.sections.map(s => s.section_name));
@@ -61,23 +69,34 @@ export async function POST(request) {
     const idProjet = snapshot.id_projet;
 
     // Reconstituer les données depuis les sections
+    console.log('\n📦 Reconstitution des données depuis les sections...');
     const snapshotData = {};
     if (snapshot.sections && snapshot.sections.length > 0) {
       snapshot.sections.forEach(section => {
-        console.log(`   📋 Traitement section: ${section.section_name}`);
+        const dataLength = Array.isArray(section.section_data)
+          ? section.section_data.length
+          : (section.section_data ? 'Objet' : 'Vide');
+
+        console.log(`   📋 Section "${section.section_name}": ${dataLength} élément(s)`);
+
         if (section.section_name === 'projet_info') {
           Object.assign(snapshotData, section.section_data);
           console.log(`      ✅ Données projet_info chargées:`, Object.keys(section.section_data));
         } else if (section.section_name === 'porteurs') {
           snapshotData.porteurs = section.section_data;
+          console.log(`      ✅ ${section.section_data.length} porteur(s)`);
         } else if (section.section_name === 'suivis') {
           snapshotData.suivis = section.section_data;
+          console.log(`      ✅ ${section.section_data.length} suivi(s)`);
         } else if (section.section_name === 'thematiques') {
           snapshotData.thematiques = section.section_data;
+          console.log(`      ✅ ${section.section_data.length} thématique(s)`);
         } else if (section.section_name === 'documents') {
           snapshotData.documents = section.section_data;
+          console.log(`      ✅ ${section.section_data.length} document(s)`);
         } else if (section.section_name === 'geometrie') {
           snapshotData.geometry = section.section_data;
+          console.log(`      ✅ Géométrie ${section.section_data ? 'présente' : 'absente'}`);
         }
       });
     } else {
@@ -86,12 +105,13 @@ export async function POST(request) {
       console.log(`   Snapshot complet:`, JSON.stringify(snapshot, null, 2));
     }
 
-    console.log(`📊 Données reconstituées:`, {
-      nom_projet: snapshotData.nom_projet,
-      hasPorteurs: !!snapshotData.porteurs,
-      hasSuivis: !!snapshotData.suivis,
-      hasGeometry: !!snapshotData.geometry
-    });
+    console.log(`\n📊 Résumé des données reconstituées:`);
+    console.log(`   - Nom projet: ${snapshotData.nom_projet}`);
+    console.log(`   - Porteurs: ${snapshotData.porteurs?.length || 0}`);
+    console.log(`   - Suivis: ${snapshotData.suivis?.length || 0}`);
+    console.log(`   - Thématiques: ${snapshotData.thematiques?.length || 0}`);
+    console.log(`   - Documents: ${snapshotData.documents?.length || 0}`);
+    console.log(`   - Géométrie: ${snapshotData.geometry ? 'Oui' : 'Non'}`);
 
     // Vérifier que nous avons au moins les infos de base du projet
     if (!snapshotData.nom_projet) {
@@ -116,6 +136,7 @@ export async function POST(request) {
 
     // Créer un backup de l'état actuel avant restauration
     if (createBackup) {
+      console.log('\n💾 Création d\'un backup avant restauration...');
       const currentProjet = await db.Projet.findByPk(idProjet, {
         include: [
           { model: db.ProjetPorteur, as: 'porteurs' },
@@ -134,9 +155,12 @@ export async function POST(request) {
         userId,
         transaction
       });
+      console.log('   ✅ Backup créé avec succès');
     }
 
     // 1. Mettre à jour les informations de base du projet
+    console.log('\n🔄 RESTAURATION DES DONNÉES...');
+    console.log('1️⃣  Mise à jour des informations de base du projet...');
     await projetExistant.update({
       nom_projet: snapshotData.nom_projet,
       description: snapshotData.description,
@@ -149,8 +173,10 @@ export async function POST(request) {
       updated_by: userId,
       updated_at: new Date()
     }, { transaction });
+    console.log('   ✅ Informations de base restaurées');
 
     // 2. Restaurer les porteurs
+    console.log('2️⃣  Restauration des porteurs...');
     await db.ProjetPorteur.destroy({ where: { id_projet: idProjet }, transaction });
     if (snapshotData.porteurs && snapshotData.porteurs.length > 0) {
       const porteursData = snapshotData.porteurs.map(p => ({
@@ -164,9 +190,13 @@ export async function POST(request) {
         referent_tel: p.referent_tel
       }));
       await db.ProjetPorteur.bulkCreate(porteursData, { transaction });
+      console.log(`   ✅ ${porteursData.length} porteur(s) restauré(s)`);
+    } else {
+      console.log('   ℹ️  Aucun porteur à restaurer');
     }
 
     // 3. Restaurer les suivis (NE PAS supprimer les anciens, juste restaurer ceux du snapshot)
+    console.log('3️⃣  Restauration des suivis...');
     if (snapshotData.suivis && snapshotData.suivis.length > 0) {
       const suivisData = snapshotData.suivis.map(s => ({
         id_projet: idProjet,
@@ -175,9 +205,13 @@ export async function POST(request) {
         created_at: s.created_at
       }));
       await db.ProjetSuivi.bulkCreate(suivisData, { transaction });
+      console.log(`   ✅ ${suivisData.length} suivi(s) restauré(s)`);
+    } else {
+      console.log('   ℹ️  Aucun suivi à restaurer');
     }
 
     // 4. Restaurer les documents
+    console.log('4️⃣  Restauration des documents...');
     await db.Document.destroy({ where: { id_projet: idProjet }, transaction });
     if (snapshotData.documents && snapshotData.documents.length > 0) {
       const documentsData = snapshotData.documents.map(d => ({
@@ -186,11 +220,16 @@ export async function POST(request) {
         lien_web: d.lien_web
       }));
       await db.Document.bulkCreate(documentsData, { transaction });
+      console.log(`   ✅ ${documentsData.length} document(s) restauré(s)`);
+    } else {
+      console.log('   ℹ️  Aucun document à restaurer');
     }
 
     // 5. Restaurer les thématiques
+    console.log('5️⃣  Restauration des thématiques...');
     await db.ProjetInThematique.destroy({ where: { id_projet: idProjet }, transaction });
     const thematiquesSources = snapshotData.thematiques || snapshotData.projet_in_thematiques || [];
+    console.log(`   📋 Sources trouvées: thematiques=${snapshotData.thematiques?.length || 0}, projet_in_thematiques=${snapshotData.projet_in_thematiques?.length || 0}`);
     if (thematiquesSources.length > 0) {
       const thematiqueData = thematiquesSources.map(t => ({
         id_projet: idProjet,
@@ -199,9 +238,14 @@ export async function POST(request) {
         date_ajout: t.date_ajout
       }));
       await db.ProjetInThematique.bulkCreate(thematiqueData, { transaction });
+      console.log(`   ✅ ${thematiqueData.length} thématique(s) restaurée(s)`);
+      console.log(`   📝 IDs restaurés: ${thematiqueData.map(t => t.id_thematique).join(', ')}`);
+    } else {
+      console.log('   ⚠️  Aucune thématique à restaurer');
     }
 
     // 6. Restaurer la géométrie
+    console.log('6️⃣  Restauration de la géométrie...');
     await db.ProjetGeometry.destroy({ where: { id_projet: idProjet }, transaction });
     if (snapshotData.geometry) {
       const geomData = {
@@ -218,6 +262,9 @@ export async function POST(request) {
         maires: snapshotData.geometry.maires
       };
       await db.ProjetGeometry.create(geomData, { transaction });
+      console.log('   ✅ Géométrie restaurée');
+    } else {
+      console.log('   ℹ️  Aucune géométrie à restaurer');
     }
 
     // Enregistrer l'action de restauration dans l'audit log
@@ -234,6 +281,11 @@ export async function POST(request) {
     });
 
     await transaction.commit();
+
+    console.log('\n✅ RESTAURATION TERMINÉE AVEC SUCCÈS');
+    console.log(`   Projet: ${idProjet}`);
+    console.log(`   Snapshot: #${snapshotId} (v${snapshot.version_number})`);
+    console.log('=== FIN RESTAURATION ===\n');
 
     return NextResponse.json({
       success: true,

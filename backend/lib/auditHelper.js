@@ -83,11 +83,26 @@ async function createSnapshot({
   transaction = null
 }) {
   try {
+    console.log('\n=== 📸 CRÉATION DE SNAPSHOT ===');
+    console.log(`Projet ID: ${idProjet}`);
+    console.log(`User ID: ${userId}`);
+    console.log(`Description: ${description || 'Aucune'}`);
+
     if (!userId) {
       throw new Error('userId est requis pour créer un snapshot');
     }
 
+    // Vérifier les données du projet
+    console.log('📦 Données du projet reçues:');
+    console.log(`  - nom_projet: ${projetData.nom_projet}`);
+    console.log(`  - porteurs: ${projetData.porteurs?.length || 0} entrée(s)`);
+    console.log(`  - suivis: ${projetData.suivis?.length || 0} entrée(s)`);
+    console.log(`  - projet_in_thematiques: ${projetData.projet_in_thematiques?.length || 0} entrée(s)`);
+    console.log(`  - documents: ${projetData.documents?.length || 0} entrée(s)`);
+    console.log(`  - geometry: ${projetData.geometry ? 'Présente' : 'Absente'}`);
+
     // Obtenir le prochain numéro de version
+    console.log('🔢 Calcul du numéro de version...');
     const versionNumber = await db.sequelize.query(
       'SELECT principale.get_next_version_number(:idProjet, :userId) as version',
       {
@@ -98,6 +113,7 @@ async function createSnapshot({
     );
 
     const nextVersion = versionNumber[0].version;
+    console.log(`  ✅ Prochaine version: ${nextVersion}`);
 
     // Marquer toutes les versions précédentes comme non-courantes
     await db.ProjetSnapshot.update(
@@ -110,6 +126,7 @@ async function createSnapshot({
 
     // ✅ Si on réutilise un numéro de version (rotation), supprimer l'ancien snapshot
     // Cela arrive quand on dépasse 10 versions et qu'on revient à 1
+    console.log('🔍 Vérification de rotation de version...');
     const existingSnapshot = await db.ProjetSnapshot.findOne({
       where: {
         id_projet: idProjet,
@@ -127,9 +144,13 @@ async function createSnapshot({
           where: { id_snapshot: existingSnapshot.id_snapshot },
           transaction
         });
+        console.log('  ✅ Sections de l\'ancien snapshot supprimées');
       }
       // Puis supprimer le snapshot
       await existingSnapshot.destroy({ transaction });
+      console.log('  ✅ Ancien snapshot supprimé');
+    } else {
+      console.log('  ℹ️  Pas de rotation nécessaire');
     }
 
     // Créer le snapshot
@@ -144,11 +165,14 @@ async function createSnapshot({
     };
 
     const options = transaction ? { transaction } : {};
+    console.log('\n💾 Création du snapshot en base de données...');
     const snapshot = await db.ProjetSnapshot.create(snapshotData, options);
+    console.log(`  ✅ Snapshot créé avec ID: ${snapshot.id_snapshot}`);
 
     // Créer les sections (si projetData fourni)
     if (projetData && db.ProjetSnapshotSection) {
       try {
+        console.log('\n📋 Création des sections du snapshot...');
         const sections = [
           { section_name: 'projet_info', section_data: {
             nom_projet: projetData.nom_projet,
@@ -168,18 +192,26 @@ async function createSnapshot({
         ];
 
         for (const section of sections) {
+          const sectionDataLength = Array.isArray(section.section_data)
+            ? section.section_data.length
+            : (section.section_data ? 1 : 0);
+
+          console.log(`  📝 Section "${section.section_name}": ${sectionDataLength} élément(s)`);
+
           await db.ProjetSnapshotSection.create({
             id_snapshot: snapshot.id_snapshot,
             ...section,
             created_at: new Date()
           }, options);
         }
+        console.log('  ✅ Toutes les sections créées avec succès');
       } catch (error) {
         console.log('⚠️  Impossible de créer les sections du snapshot:', error.message);
       }
     }
 
-    console.log(`📸 Snapshot v${nextVersion} créé pour projet#${idProjet} par user#${userId}`);
+    console.log(`\n✅ Snapshot v${nextVersion} créé avec succès pour projet#${idProjet} par user#${userId}`);
+    console.log('=== FIN CRÉATION SNAPSHOT ===\n');
     return snapshot;
   } catch (error) {
     console.error('❌ Erreur lors de la création du snapshot:', error.message);
