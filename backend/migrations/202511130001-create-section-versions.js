@@ -56,6 +56,10 @@ module.exports = {
         version_number: {
           type: Sequelize.INTEGER,
           allowNull: false,
+          validate: {
+            min: 1,
+            max: 10
+          },
           comment: 'Numéro de version (1-10, rotation circulaire)'
         },
         section_data: {
@@ -92,6 +96,13 @@ module.exports = {
         comment: 'Versions des sections de projets avec limite de 10 versions par section par utilisateur'
       }
     );
+
+    // Ajouter contrainte CHECK pour version_number (1-10)
+    await queryInterface.sequelize.query(`
+      ALTER TABLE ${schema}.section_version
+      ADD CONSTRAINT chk_version_number_range
+      CHECK (version_number >= 1 AND version_number <= 10)
+    `);
 
     // Index pour optimiser les requêtes
     await queryInterface.addIndex(
