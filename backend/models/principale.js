@@ -297,17 +297,47 @@ module.exports = (sequelize, DataTypes) => {
   const ProjetSnapshot = sequelize.define('projet_snapshot', {
     id_snapshot: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     id_projet: { type: DataTypes.STRING, references: { model: Projet, key: 'id_projet' }, onDelete: 'CASCADE' },
-    snapshot_data: { type: DataTypes.JSONB, allowNull: false },
-    snapshot_type: { type: DataTypes.ENUM('AUTO', 'MANUAL', 'BEFORE_DELETE'), defaultValue: 'AUTO' },
+    user_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: User, key: 'id_user' }, onDelete: 'CASCADE' },
+    version_number: { type: DataTypes.INTEGER, allowNull: false }, // 1 à 10
+    snapshot_date: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+    is_current: { type: DataTypes.BOOLEAN, defaultValue: false }, // Dernière version
     description: { type: DataTypes.TEXT },
-    created_by: { type: DataTypes.INTEGER, references: { model: User, key: 'id_user' } },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
   }, {
     schema,
     tableName: 'projet_snapshot',
     createdAt: 'created_at',
     updatedAt: false,
-    timestamps: true
+    timestamps: true,
+    indexes: [
+      { fields: ['id_projet'] },
+      { fields: ['user_id'] },
+      { fields: ['snapshot_date'] },
+      { fields: ['id_projet', 'user_id', 'version_number'], unique: true }
+    ]
+  });
+
+  // --- Table projet_snapshot_section : sections par snapshot (versioning granulaire) ---
+  const ProjetSnapshotSection = sequelize.define('projet_snapshot_section', {
+    id_section: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    id_snapshot: { type: DataTypes.INTEGER, allowNull: false, references: { model: ProjetSnapshot, key: 'id_snapshot' }, onDelete: 'CASCADE' },
+    section_name: {
+      type: DataTypes.ENUM('projet_info', 'porteurs', 'suivis', 'thematiques', 'documents', 'geometrie'),
+      allowNull: false
+    },
+    section_data: { type: DataTypes.JSONB, allowNull: false },
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+  }, {
+    schema,
+    tableName: 'projet_snapshot_section',
+    createdAt: 'created_at',
+    updatedAt: false,
+    timestamps: true,
+    indexes: [
+      { fields: ['id_snapshot'] },
+      { fields: ['section_name'] },
+      { fields: ['id_snapshot', 'section_name'], unique: true }
+    ]
   });
 
   // --- Table admin_access_log : journalisation des accès admin ---
@@ -331,6 +361,25 @@ module.exports = (sequelize, DataTypes) => {
     timestamps: true
   });
 
+  // --- Table projet_deletion_request : demandes de suppression ---
+  const ProjetDeletionRequest = sequelize.define('projet_deletion_request', {
+    id_deletion_request: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    id_projet: { type: DataTypes.STRING, allowNull: false, references: { model: Projet, key: 'id_projet' }, onDelete: 'CASCADE' },
+    requested_by: { type: DataTypes.INTEGER, allowNull: false, references: { model: User, key: 'id_user' } },
+    raison: { type: DataTypes.TEXT, allowNull: false },
+    statut: { type: DataTypes.ENUM('en attente', 'accepter', 'refuser'), allowNull: false, defaultValue: 'en attente' },
+    reviewed_by: { type: DataTypes.INTEGER, allowNull: true, references: { model: User, key: 'id_user' } },
+    review_comment: { type: DataTypes.TEXT, allowNull: true },
+    reviewed_at: { type: DataTypes.DATE, allowNull: true },
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+  }, {
+    schema,
+    tableName: 'projet_deletion_request',
+    createdAt: 'created_at',
+    updatedAt: false,
+    timestamps: true
+  });
+
   // Associations pour les tables d'audit
   AuditLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
   User.hasMany(AuditLog, { foreignKey: 'user_id' });
@@ -338,10 +387,23 @@ module.exports = (sequelize, DataTypes) => {
   AdminAccessLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
   User.hasMany(AdminAccessLog, { foreignKey: 'user_id' });
 
+  // Associations pour ProjetSnapshot
   ProjetSnapshot.belongsTo(Projet, { foreignKey: 'id_projet', onDelete: 'CASCADE', as: 'projet' });
-  ProjetSnapshot.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+  ProjetSnapshot.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
   Projet.hasMany(ProjetSnapshot, { foreignKey: 'id_projet', as: 'snapshots' });
-  User.hasMany(ProjetSnapshot, { foreignKey: 'created_by' });
+  User.hasMany(ProjetSnapshot, { foreignKey: 'user_id', as: 'snapshots' });
+
+  // Associations pour ProjetSnapshotSection
+  ProjetSnapshotSection.belongsTo(ProjetSnapshot, { foreignKey: 'id_snapshot', onDelete: 'CASCADE', as: 'snapshot' });
+  ProjetSnapshot.hasMany(ProjetSnapshotSection, { foreignKey: 'id_snapshot', as: 'sections' });
+
+  // Associations pour les demandes de suppression
+  ProjetDeletionRequest.belongsTo(Projet, { foreignKey: 'id_projet', as: 'projet' });
+  ProjetDeletionRequest.belongsTo(User, { foreignKey: 'requested_by', as: 'requestor' });
+  ProjetDeletionRequest.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
+  Projet.hasMany(ProjetDeletionRequest, { foreignKey: 'id_projet', as: 'deletion_requests' });
+  User.hasMany(ProjetDeletionRequest, { foreignKey: 'requested_by', as: 'deletion_requests_made' });
+  User.hasMany(ProjetDeletionRequest, { foreignKey: 'reviewed_by', as: 'deletion_requests_reviewed' });
 
 
 // Return all models as an object
@@ -361,10 +423,8 @@ module.exports = (sequelize, DataTypes) => {
     ProjetGeometryCommune,
     AuditLog,
     ProjetSnapshot,
+    ProjetSnapshotSection,
     AdminAccessLog,
+    ProjetDeletionRequest,
   };
-
-
-
-  // Return all models as an object
 };

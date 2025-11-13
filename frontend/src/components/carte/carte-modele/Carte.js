@@ -202,18 +202,36 @@ const Carte = forwardRef(({
                     }
                 },
                 pointToLayer: (feature, latlng) => {
-                    return L.marker(latlng, { icon: drawStyles.marker.icon });
+                    // ✅ Utiliser CircleMarker pour correspondre au style de dessin
+                    return L.circleMarker(latlng, {
+                        radius: 8,
+                        fillColor: '#e74c3c',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    });
                 }
             });
 
             drawnItemsRef.current.addLayer(layer);
 
-            // ✅ Pour les points, utiliser setView au lieu de fitBounds
+            // ✅ Gérer différemment les Points et les autres géométries
             if (geometry.geom_type === 'Point') {
+                // Pour un Point, utiliser setView au lieu de fitBounds
                 const coords = geometry.geom.coordinates;
-                mapInstanceRef.current.setView([coords[1], coords[0]], 15);
+                if (coords && coords.length === 2) {
+                    // GeoJSON utilise [lng, lat], Leaflet utilise [lat, lng]
+                    mapInstanceRef.current.setView([coords[1], coords[0]], 15);
+                    console.log('✅ Point centré sur:', [coords[1], coords[0]]);
+                }
             } else {
-                mapInstanceRef.current.fitBounds(layer.getBounds(), { padding: [20, 20] });
+                // Pour les polygones et lignes, utiliser fitBounds
+                try {
+                    mapInstanceRef.current.fitBounds(layer.getBounds(), { padding: [20, 20] });
+                } catch (error) {
+                    console.error('❌ Erreur fitBounds:', error);
+                }
             }
 
             setSelectedLayer(layer);

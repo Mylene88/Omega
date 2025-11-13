@@ -12,7 +12,6 @@ import db from '@/backend/models';
  * Query params:
  * - idProjet: ID du projet (optionnel)
  * - limit: nombre max de snapshots (défaut: 50)
- * - type: type de snapshot (AUTO, MANUAL, BEFORE_DELETE)
  */
 export async function GET(request) {
   try {
@@ -26,7 +25,6 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const idProjet = searchParams.get('idProjet');
     const limit = parseInt(searchParams.get('limit') || '50');
-    const type = searchParams.get('type');
 
     let snapshots;
 
@@ -36,16 +34,13 @@ export async function GET(request) {
     } else {
       // Récupérer tous les snapshots récents
       const where = {};
-      if (type) {
-        where.snapshot_type = type;
-      }
 
       snapshots = await db.ProjetSnapshot.findAll({
         where,
         include: [
           {
             model: db.User,
-            as: 'creator',
+            as: 'user',
             attributes: ['id_user', 'username', 'prenom', 'nom']
           },
           {
@@ -64,13 +59,14 @@ export async function GET(request) {
       id: snapshot.id_snapshot,
       idProjet: snapshot.id_projet,
       projetNom: snapshot.projet?.nom_projet || 'Projet inconnu',
-      snapshotType: snapshot.snapshot_type,
+      versionNumber: snapshot.version_number,
+      isCurrent: snapshot.is_current,
+      snapshotDate: snapshot.snapshot_date,
       description: snapshot.description,
-      snapshotData: snapshot.snapshot_data, // Données complètes du projet
-      creator: snapshot.creator ? {
-        id: snapshot.creator.id_user,
-        username: snapshot.creator.username,
-        nomComplet: `${snapshot.creator.prenom || ''} ${snapshot.creator.nom || ''}`.trim()
+      creator: snapshot.user ? {
+        id: snapshot.user.id_user,
+        username: snapshot.user.username,
+        nomComplet: `${snapshot.user.prenom || ''} ${snapshot.user.nom || ''}`.trim()
       } : null,
       createdAt: snapshot.created_at
     }));
@@ -81,7 +77,6 @@ export async function GET(request) {
       count: formattedSnapshots.length,
       filters: {
         idProjet,
-        type,
         limit
       }
     });
@@ -145,7 +140,6 @@ export async function POST(request) {
     const snapshot = await createSnapshot({
       idProjet,
       projetData: projet.toJSON(),
-      snapshotType: 'MANUAL',
       description: description || `Snapshot manuel créé le ${new Date().toLocaleString('fr-FR')}`,
       userId
     });
@@ -156,7 +150,8 @@ export async function POST(request) {
       data: {
         id: snapshot.id_snapshot,
         idProjet: snapshot.id_projet,
-        snapshotType: snapshot.snapshot_type,
+        versionNumber: snapshot.version_number,
+        isCurrent: snapshot.is_current,
         description: snapshot.description,
         createdAt: snapshot.created_at
       }
