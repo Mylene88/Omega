@@ -346,14 +346,17 @@ export default function VueListe({
                                     </div>
                                 </div>
 
-                                {/* Badges projet signalé / Charte d'accueil */}
-                                {(p.projet_signale || p.charte_accueil) && (
+                                {/* Badges projet signalé / Charte d'accueil / En attente de suppression */}
+                                {(p.projet_signale || p.charte_accueil || p.demande_suppression) && (
                                     <div className="project-badges">
                                         {p.projet_signale && (
                                             <span className="badge badge-signale">🚨 Projet signalé</span>
                                         )}
                                         {p.charte_accueil && (
                                             <span className="badge badge-charte">✅ Charte d'accueil</span>
+                                        )}
+                                        {p.demande_suppression && (
+                                            <span className="badge badge-suppression">⏳ En attente de suppression</span>
                                         )}
                                     </div>
                                 )}

@@ -169,6 +169,7 @@ export async function GET() {
       service: p.ddt_service_enum?.libelle_service,
       projet_signale: p.projet_signale,
       charte_accueil: p.charte_accueil,
+      demande_suppression: p.demande_suppression,
       referent_ddt: p.referent_ddt,
       created_by: p.creator?.username || null,
       created_by_name: p.creator?.nom_complet || p.creator?.username || null,
