@@ -490,9 +490,15 @@ export default function Sidebar({ projectId, onClose }) {
                                                                         } else if (typeof value === 'boolean') {
                                                                             displayValue = value ? 'Oui' : 'Non';
                                                                         } else if (Array.isArray(value)) {
-                                                                            displayValue = value.join(', ');
+                                                                            // ✅ Gérer les tableaux d'objets (champs à choix multiples)
+                                                                            displayValue = value.map(item => {
+                                                                                if (typeof item === 'object' && item !== null) {
+                                                                                    return item.label || item.value || item.nom || item.name || JSON.stringify(item);
+                                                                                }
+                                                                                return String(item);
+                                                                            }).join(', ');
                                                                         } else if (typeof value === 'object' && value !== null) {
-                                                                            displayValue = value.value || JSON.stringify(value);
+                                                                            displayValue = value.label || value.value || value.nom || value.name || JSON.stringify(value);
                                                                         } else {
                                                                             displayValue = String(value);
                                                                         }
@@ -529,9 +535,15 @@ export default function Sidebar({ projectId, onClose }) {
                                                                         if (typeof value === 'boolean') {
                                                                             displayValue = value ? 'Oui' : 'Non';
                                                                         } else if (Array.isArray(value)) {
-                                                                            displayValue = value.join(', ');
+                                                                            // ✅ Gérer les tableaux d'objets (champs à choix multiples)
+                                                                            displayValue = value.map(item => {
+                                                                                if (typeof item === 'object' && item !== null) {
+                                                                                    return item.label || item.value || item.nom || item.name || JSON.stringify(item);
+                                                                                }
+                                                                                return String(item);
+                                                                            }).join(', ');
                                                                         } else if (typeof value === 'object' && value !== null) {
-                                                                            displayValue = value.value || JSON.stringify(value);
+                                                                            displayValue = value.label || value.value || value.nom || value.name || JSON.stringify(value);
                                                                         } else {
                                                                             displayValue = String(value);
                                                                         }
