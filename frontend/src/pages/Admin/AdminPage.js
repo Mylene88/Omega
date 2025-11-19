@@ -155,7 +155,7 @@ const AdminPage = () => {
         throw new Error(data.message || 'Erreur lors de la restauration');
       }
 
-      alert('✅ Projet restauré avec succès !');
+      alert(`✅ Projet restauré avec succès !\n\n⚠️ IMPORTANT : Pour voir les changements, vous devez :\n1. Actualiser la page de visualisation (F5)\n2. Ou fermer et rouvrir le projet dans la vue liste\n\nLes modifications ont bien été appliquées en base de données.`);
       fetchSnapshots(); // Recharger les snapshots
     } catch (err) {
       alert(`❌ Erreur: ${err.message}`);
@@ -392,6 +392,7 @@ const AdminPage = () => {
                     <div className="snapshot-meta">
                       <span>Créé par: {snapshot.creator ? snapshot.creator.nomComplet : 'Système'}</span>
                       <span>Le: {formatDateTimeFr(snapshot.createdAt)}</span>
+                      <span>Version: {snapshot.versionNumber}</span>
                     </div>
                   </div>
                   <div className="snapshot-actions">
