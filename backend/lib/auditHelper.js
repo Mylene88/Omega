@@ -429,9 +429,108 @@ async function getActivityStats(filters = {}) {
   }
 }
 
+/**
+ * Crée une version pour une section spécifique d'un projet
+ * @param {Object} params
+ * @param {string} params.idProjet - ID du projet
+ * @param {number} params.userId - ID de l'utilisateur
+ * @param {string} params.sectionName - Nom de la section (projet_info, porteurs, suivis, thematiques, documents, geometrie)
+ * @param {Object|Array} params.sectionData - Données de la section
+ * @param {string} params.description - Description optionnelle
+ * @param {Object} params.transaction - Transaction Sequelize (optionnel)
+ * @returns {Promise<Object>} La version de section créée
+ */
+async function createSectionVersion({
+  idProjet,
+  userId,
+  sectionName,
+  sectionData,
+  description = null,
+  transaction = null
+}) {
+  try {
+    console.log(`📋 [SECTION VERSION] Création version pour ${sectionName} du projet ${idProjet} par user ${userId}`);
+
+    if (!userId) {
+      throw new Error('userId est requis pour créer une version de section');
+    }
+
+    const validSections = ['projet_info', 'porteurs', 'suivis', 'thematiques', 'documents', 'geometrie'];
+    if (!validSections.includes(sectionName)) {
+      throw new Error(`Section invalide: ${sectionName}. Valeurs autorisées: ${validSections.join(', ')}`);
+    }
+
+    // Obtenir le prochain numéro de version pour cette section et cet utilisateur
+    const versionNumber = await db.sequelize.query(
+      'SELECT principale.get_next_section_version_number(:idProjet, :userId, :sectionName) as version',
+      {
+        replacements: { idProjet, userId, sectionName },
+        type: db.sequelize.QueryTypes.SELECT,
+        transaction
+      }
+    );
+
+    const nextVersion = versionNumber[0].version;
+    console.log(`  ✅ Prochaine version pour ${sectionName}: ${nextVersion}`);
+
+    // Marquer toutes les versions précédentes de cette section comme non-courantes
+    await db.SectionVersion.update(
+      { is_current: false },
+      {
+        where: {
+          id_projet: idProjet,
+          user_id: userId,
+          section_name: sectionName
+        },
+        transaction
+      }
+    );
+
+    // Si rotation (version 1-10), supprimer l'ancienne version
+    const existingVersion = await db.SectionVersion.findOne({
+      where: {
+        id_projet: idProjet,
+        user_id: userId,
+        section_name: sectionName,
+        version_number: nextVersion
+      },
+      transaction
+    });
+
+    if (existingVersion) {
+      console.log(`🔄 [SECTION VERSION] Rotation détectée - Suppression version ${nextVersion} existante`);
+      await existingVersion.destroy({ transaction });
+    }
+
+    // Créer la nouvelle version
+    const versionData = {
+      id_projet: idProjet,
+      user_id: userId,
+      section_name: sectionName,
+      version_number: nextVersion,
+      section_data: sectionData,
+      snapshot_date: new Date(),
+      is_current: true,
+      description: description || `Version ${nextVersion} de ${sectionName}`,
+      created_at: new Date()
+    };
+
+    const options = transaction ? { transaction } : {};
+    const version = await db.SectionVersion.create(versionData, options);
+
+    console.log(`✅ [SECTION VERSION] Version créée: ${sectionName} v${nextVersion} pour projet ${idProjet}`);
+    return version;
+  } catch (error) {
+    console.error('❌ Erreur lors de la création de la version de section:', error.message);
+    // Ne pas bloquer si la création de version échoue
+    return null;
+  }
+}
+
 module.exports = {
   logAudit,
   createSnapshot,
+  createSectionVersion,
   getAuditHistory,
   getProjectSnapshots,
   extractRequestInfo,
