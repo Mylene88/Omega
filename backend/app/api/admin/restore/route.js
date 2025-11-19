@@ -195,8 +195,9 @@ export async function POST(request) {
       console.log('   ℹ️  Aucun porteur à restaurer');
     }
 
-    // 3. Restaurer les suivis (NE PAS supprimer les anciens, juste restaurer ceux du snapshot)
+    // 3. Restaurer les suivis
     console.log('3️⃣  Restauration des suivis...');
+    await db.ProjetSuivi.destroy({ where: { id_projet: idProjet }, transaction });
     if (snapshotData.suivis && snapshotData.suivis.length > 0) {
       const suivisData = snapshotData.suivis.map(s => ({
         id_projet: idProjet,
