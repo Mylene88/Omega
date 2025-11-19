@@ -12,13 +12,25 @@ export const formatDateFr = (dateString, options = {}) => {
   if (!dateString) return 'N/A';
 
   try {
-    // Parser la date
-    let date = dateString instanceof Date ? dateString : new Date(dateString);
+    // Parser la date - toujours traiter comme UTC si c'est une string
+    let date;
+    if (dateString instanceof Date) {
+      date = dateString;
+    } else {
+      // Si la date ne contient pas de timezone (pas de 'Z' ni de '+/-' pour offset),
+      // on ajoute 'Z' pour indiquer qu'elle est en UTC
+      const dateStr = String(dateString);
+      if (!dateStr.includes('Z') && !dateStr.match(/[+-]\d{2}:\d{2}$/)) {
+        date = new Date(dateStr + 'Z');
+      } else {
+        date = new Date(dateStr);
+      }
+    }
 
-    // Si la date ne contient pas de timezone (pas de 'Z' à la fin),
-    // on considère qu'elle est en UTC
-    if (typeof dateString === 'string' && !dateString.includes('Z') && !dateString.includes('+')) {
-      date = new Date(dateString + 'Z');
+    // Vérifier que la date est valide
+    if (isNaN(date.getTime())) {
+      console.error('Date invalide:', dateString);
+      return 'Date invalide';
     }
 
     const defaultOptions = {
@@ -57,10 +69,21 @@ export const formatTimeFr = (dateString) => {
   if (!dateString) return 'N/A';
 
   try {
-    let date = dateString instanceof Date ? dateString : new Date(dateString);
+    let date;
+    if (dateString instanceof Date) {
+      date = dateString;
+    } else {
+      const dateStr = String(dateString);
+      if (!dateStr.includes('Z') && !dateStr.match(/[+-]\d{2}:\d{2}$/)) {
+        date = new Date(dateStr + 'Z');
+      } else {
+        date = new Date(dateStr);
+      }
+    }
 
-    if (typeof dateString === 'string' && !dateString.includes('Z') && !dateString.includes('+')) {
-      date = new Date(dateString + 'Z');
+    if (isNaN(date.getTime())) {
+      console.error('Date invalide:', dateString);
+      return 'Heure invalide';
     }
 
     return new Intl.DateTimeFormat('fr-FR', {
@@ -85,10 +108,21 @@ export const formatDateOnlyFr = (dateString) => {
   if (!dateString) return 'N/A';
 
   try {
-    let date = dateString instanceof Date ? dateString : new Date(dateString);
+    let date;
+    if (dateString instanceof Date) {
+      date = dateString;
+    } else {
+      const dateStr = String(dateString);
+      if (!dateStr.includes('Z') && !dateStr.match(/[+-]\d{2}:\d{2}$/)) {
+        date = new Date(dateStr + 'Z');
+      } else {
+        date = new Date(dateStr);
+      }
+    }
 
-    if (typeof dateString === 'string' && !dateString.includes('Z') && !dateString.includes('+')) {
-      date = new Date(dateString + 'Z');
+    if (isNaN(date.getTime())) {
+      console.error('Date invalide:', dateString);
+      return 'Date invalide';
     }
 
     return new Intl.DateTimeFormat('fr-FR', {

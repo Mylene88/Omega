@@ -61,14 +61,14 @@ export async function GET(request) {
       projetNom: snapshot.projet?.nom_projet || 'Projet inconnu',
       versionNumber: snapshot.version_number,
       isCurrent: snapshot.is_current,
-      snapshotDate: snapshot.snapshot_date,
+      snapshotDate: snapshot.snapshot_date ? new Date(snapshot.snapshot_date).toISOString() : null,
       description: snapshot.description,
       creator: snapshot.user ? {
         id: snapshot.user.id_user,
         username: snapshot.user.username,
         nomComplet: `${snapshot.user.prenom || ''} ${snapshot.user.nom || ''}`.trim()
       } : null,
-      createdAt: snapshot.created_at
+      createdAt: snapshot.created_at ? new Date(snapshot.created_at).toISOString() : null
     }));
 
     return NextResponse.json({
