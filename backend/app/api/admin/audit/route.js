@@ -70,7 +70,7 @@ export async function GET(request) {
       } : null,
       userIp: activity.user_ip,
       userAgent: activity.user_agent,
-      createdAt: activity.created_at
+      createdAt: activity.created_at ? new Date(activity.created_at).toISOString() : null
     }));
 
     return NextResponse.json({
