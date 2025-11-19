@@ -27,11 +27,20 @@ const AdminPage = () => {
 
   // Vérifier l'authentification admin
   useEffect(() => {
+    console.log('🚀 [ADMIN] Initialisation de la page Admin');
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
+    console.log('🔐 [ADMIN] Vérification de l\'authentification');
+    console.log('👤 [ADMIN] User:', {
+      id: user.id_user,
+      role: user.role?.libelle,
+      username: user.username
+    });
+
     // Vérifier que l'utilisateur est connecté
     if (!token || !user || !user.id_user) {
+      console.warn('⚠️  [ADMIN] Utilisateur non connecté, redirection vers /admin/login');
       navigate('/admin/login', { replace: true });
       return;
     }
@@ -39,14 +48,19 @@ const AdminPage = () => {
     // Vérifier que l'utilisateur est admin
     const userRole = user.role?.libelle?.toLowerCase();
     if (userRole !== 'admin' && userRole !== 'administrateur') {
+      console.error('❌ [ADMIN] Accès refusé - rôle insuffisant:', userRole);
       alert('❌ Accès refusé. Seuls les administrateurs peuvent accéder à cette page.');
       navigate('/login', { replace: true });
       return;
     }
+
+    console.log('✅ [ADMIN] Authentification validée');
   }, [navigate]);
 
   // Charger les données selon l'onglet actif
   useEffect(() => {
+    console.log('🔄 [ADMIN] Changement d\'onglet:', activeTab);
+
     if (activeTab === 'stats') {
       fetchStats();
     } else if (activeTab === 'audit') {
@@ -57,21 +71,30 @@ const AdminPage = () => {
   }, [activeTab]);
 
   const fetchStats = async () => {
+    console.log('📊 [ADMIN] Début du chargement des statistiques');
     setIsLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem('token');
+      console.log('📤 [ADMIN] Requête GET stats');
+
       const response = await fetch('http://localhost:3000/api/admin/stats', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
+      console.log('📥 [ADMIN] Réponse reçue, status:', response.status);
+
       if (!response.ok) throw new Error('Erreur lors du chargement des statistiques');
 
       const data = await response.json();
+      console.log('📋 [ADMIN] Statistiques reçues:', data.data);
+
       setStats(data.data);
+      console.log('✅ [ADMIN] Statistiques chargées avec succès');
     } catch (err) {
+      console.error('❌ [ADMIN] Erreur lors du chargement des statistiques:', err);
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -79,6 +102,9 @@ const AdminPage = () => {
   };
 
   const fetchAuditLogs = async () => {
+    console.log('📝 [ADMIN] Début du chargement des logs d\'audit');
+    console.log('🔍 [ADMIN] Filtres appliqués:', filters);
+
     setIsLoading(true);
     setError(null);
     try {
@@ -90,17 +116,27 @@ const AdminPage = () => {
       if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
       if (filters.dateTo) params.append('dateTo', filters.dateTo);
 
+      const queryString = params.toString();
+      console.log('📤 [ADMIN] Requête GET audit avec params:', queryString);
+
       const response = await fetch(`http://localhost:3000/api/admin/audit?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
+      console.log('📥 [ADMIN] Réponse reçue, status:', response.status);
+
       if (!response.ok) throw new Error('Erreur lors du chargement de l\'historique');
 
       const data = await response.json();
+      console.log('📋 [ADMIN] Nombre de logs d\'audit reçus:', data.data?.length || 0);
+      console.log('📊 [ADMIN] Logs d\'audit:', data.data);
+
       setAuditLogs(data.data);
+      console.log('✅ [ADMIN] Logs d\'audit chargés avec succès');
     } catch (err) {
+      console.error('❌ [ADMIN] Erreur lors du chargement des logs d\'audit:', err);
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -108,21 +144,31 @@ const AdminPage = () => {
   };
 
   const fetchSnapshots = async () => {
+    console.log('📸 [ADMIN] Début du chargement des snapshots');
     setIsLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem('token');
+      console.log('📤 [ADMIN] Requête GET snapshots avec limit=100');
+
       const response = await fetch('http://localhost:3000/api/admin/snapshots?limit=100', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
+      console.log('📥 [ADMIN] Réponse reçue, status:', response.status);
+
       if (!response.ok) throw new Error('Erreur lors du chargement des snapshots');
 
       const data = await response.json();
+      console.log('📋 [ADMIN] Nombre de snapshots reçus:', data.data?.length || 0);
+      console.log('📊 [ADMIN] Snapshots:', data.data);
+
       setSnapshots(data.data);
+      console.log('✅ [ADMIN] Snapshots chargés avec succès');
     } catch (err) {
+      console.error('❌ [ADMIN] Erreur lors du chargement des snapshots:', err);
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -130,71 +176,121 @@ const AdminPage = () => {
   };
 
   const handleRestore = async (snapshotId) => {
+    console.log('🔄 [ADMIN] Début de la restauration');
+    console.log('📸 [ADMIN] Snapshot ID:', snapshotId);
+
     if (!window.confirm('Êtes-vous sûr de vouloir restaurer ce snapshot ? Cette action va écraser l\'état actuel du projet.')) {
+      console.log('❌ [ADMIN] Restauration annulée par l\'utilisateur');
       return;
     }
 
     setIsLoading(true);
+    console.log('⏳ [ADMIN] Envoi de la requête de restauration...');
+
     try {
       const token = localStorage.getItem('token');
+      const requestBody = {
+        snapshotId,
+        createBackup: true
+      };
+
+      console.log('📤 [ADMIN] Body de la requête:', requestBody);
+
       const response = await fetch('http://localhost:3000/api/admin/restore', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          snapshotId,
-          createBackup: true
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      console.log('📥 [ADMIN] Réponse reçue, status:', response.status);
+
       const data = await response.json();
+      console.log('📋 [ADMIN] Données de la réponse:', data);
 
       if (!response.ok) {
+        console.error('❌ [ADMIN] Erreur dans la réponse:', data);
         throw new Error(data.message || 'Erreur lors de la restauration');
       }
 
+      console.log('✅ [ADMIN] Restauration réussie!');
+      console.log('📊 [ADMIN] Détails:', {
+        idProjet: data.data?.idProjet,
+        snapshotId: data.data?.snapshotId,
+        restoredAt: data.data?.restoredAt
+      });
+
       alert(`✅ Projet restauré avec succès !\n\n⚠️ IMPORTANT : Pour voir les changements, vous devez :\n1. Actualiser la page de visualisation (F5)\n2. Ou fermer et rouvrir le projet dans la vue liste\n\nLes modifications ont bien été appliquées en base de données.`);
+
+      console.log('🔄 [ADMIN] Rechargement de la liste des snapshots...');
       fetchSnapshots(); // Recharger les snapshots
     } catch (err) {
+      console.error('💥 [ADMIN] Erreur lors de la restauration:', err);
+      console.error('📍 [ADMIN] Stack trace:', err.stack);
       alert(`❌ Erreur: ${err.message}`);
     } finally {
       setIsLoading(false);
+      console.log('🏁 [ADMIN] Fin du processus de restauration');
     }
   };
 
   const handleCreateSnapshot = async (idProjet) => {
+    console.log('📸 [ADMIN] Début de création manuelle de snapshot');
+    console.log('🆔 [ADMIN] ID Projet:', idProjet);
+
     const description = window.prompt('Description du snapshot (optionnel):');
-    if (description === null) return; // Annulé
+    if (description === null) {
+      console.log('❌ [ADMIN] Création de snapshot annulée par l\'utilisateur');
+      return; // Annulé
+    }
+
+    console.log('📝 [ADMIN] Description:', description || '(vide)');
 
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
+      const requestBody = {
+        idProjet,
+        description
+      };
+
+      console.log('📤 [ADMIN] Body de la requête:', requestBody);
+
       const response = await fetch('http://localhost:3000/api/admin/snapshots', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          idProjet,
-          description
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      console.log('📥 [ADMIN] Réponse reçue, status:', response.status);
+
       const data = await response.json();
+      console.log('📋 [ADMIN] Données de la réponse:', data);
 
       if (!response.ok) {
+        console.error('❌ [ADMIN] Erreur dans la réponse:', data);
         throw new Error(data.message || 'Erreur lors de la création du snapshot');
       }
 
+      console.log('✅ [ADMIN] Snapshot créé avec succès!');
+      console.log('📊 [ADMIN] Détails du nouveau snapshot:', data.data);
+
       alert('✅ Snapshot créé avec succès !');
+
+      console.log('🔄 [ADMIN] Rechargement de la liste des snapshots...');
       fetchSnapshots(); // Recharger les snapshots
     } catch (err) {
+      console.error('💥 [ADMIN] Erreur lors de la création du snapshot:', err);
+      console.error('📍 [ADMIN] Stack trace:', err.stack);
       alert(`❌ Erreur: ${err.message}`);
     } finally {
       setIsLoading(false);
+      console.log('🏁 [ADMIN] Fin du processus de création de snapshot');
     }
   };
 
