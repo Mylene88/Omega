@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { Op } from 'sequelize';
 import { getFormattedThematiqueLabel } from '@/backend/lib/config';
 import db from '@/backend/models';
-import { logAudit, createSnapshot, extractRequestInfo } from '@/backend/lib/auditHelper';
+import { logAudit, createSnapshot, createSectionVersion, extractRequestInfo } from '@/backend/lib/auditHelper';
 
 const {
   Projet,
@@ -745,6 +745,32 @@ export async function PUT(request, { params }) {
     }
 
     // 2. Mettre à jour les champs de base du projet
+    // 2.1 Sauvegarder version de la section projet_info AVANT modification
+    if (userId) {
+      try {
+        await createSectionVersion({
+          idProjet: id,
+          userId,
+          sectionName: 'projet_info',
+          sectionData: {
+            nom_projet: projet.nom_projet,
+            description: projet.description,
+            statut_projet_id: projet.statut_projet_id,
+            date_ident_projet: projet.date_ident_projet,
+            projet_signale: projet.projet_signale,
+            charte_accueil: projet.charte_accueil,
+            service_id: projet.service_id,
+            referent_ddt: projet.referent_ddt
+          },
+          description: 'Version automatique avant modification des informations du projet',
+          transaction
+        });
+        console.log('📋 Version de projet_info créée');
+      } catch (err) {
+        console.error('⚠️  Erreur création version projet_info (non bloquant):', err.message);
+      }
+    }
+
     await projet.update({
       nom_projet: body.nom_projet ?? projet.nom_projet,
       description: body.description ?? projet.description,
@@ -763,9 +789,31 @@ export async function PUT(request, { params }) {
 
     // 3. Mettre à jour les porteurs
     if (Array.isArray(body.porteurs)) {
+      // 3.1 Sauvegarder version de la section porteurs AVANT modification
+      if (userId) {
+        try {
+          const porteursAvant = await ProjetPorteur.findAll({
+            where: { id_projet: id },
+            transaction,
+            raw: true
+          });
+          await createSectionVersion({
+            idProjet: id,
+            userId,
+            sectionName: 'porteurs',
+            sectionData: { porteurs: porteursAvant },
+            description: 'Version automatique avant modification des porteurs',
+            transaction
+          });
+          console.log('📋 Version de porteurs créée');
+        } catch (err) {
+          console.error('⚠️  Erreur création version porteurs (non bloquant):', err.message);
+        }
+      }
+
       // Supprimer les anciens porteurs
       await ProjetPorteur.destroy({ where: { id_projet: id }, transaction });
-      
+
       // Créer les nouveaux
       if (body.porteurs.length > 0) {
         const porteursRecords = body.porteurs.map(p => ({
@@ -785,6 +833,28 @@ export async function PUT(request, { params }) {
 
     // 4. Mettre à jour les suivis
     if (Array.isArray(body.suivis) && body.suivis.length > 0) {
+      // 4.1 Sauvegarder version de la section suivis AVANT ajout
+      if (userId) {
+        try {
+          const suivisAvant = await ProjetSuivi.findAll({
+            where: { id_projet: id },
+            transaction,
+            raw: true
+          });
+          await createSectionVersion({
+            idProjet: id,
+            userId,
+            sectionName: 'suivis',
+            sectionData: { suivis: suivisAvant },
+            description: 'Version automatique avant ajout de suivis',
+            transaction
+          });
+          console.log('📋 Version de suivis créée');
+        } catch (err) {
+          console.error('⚠️  Erreur création version suivis (non bloquant):', err.message);
+        }
+      }
+
       const suivisRecords = body.suivis.map(s => ({
         id_projet: id,
         suivi: s.suivi,
@@ -796,9 +866,33 @@ export async function PUT(request, { params }) {
 
     // 5. Mettre à jour la géométrie
     if (body.geometry) {
+      // 5.1 Sauvegarder version de la section geometrie AVANT modification
+      if (userId) {
+        try {
+          const geometrieAvant = await ProjetGeometry.findOne({
+            where: { id_projet: id },
+            transaction,
+            raw: true
+          });
+          if (geometrieAvant) {
+            await createSectionVersion({
+              idProjet: id,
+              userId,
+              sectionName: 'geometrie',
+              sectionData: { geometry: geometrieAvant },
+              description: 'Version automatique avant modification de la géométrie',
+              transaction
+            });
+            console.log('📋 Version de geometrie créée');
+          }
+        } catch (err) {
+          console.error('⚠️  Erreur création version geometrie (non bloquant):', err.message);
+        }
+      }
+
       // Supprimer l'ancienne géométrie
       await ProjetGeometry.destroy({ where: { id_projet: id }, transaction });
-      
+
       // Créer la nouvelle
       await ProjetGeometry.create({
         id_projet: id,
@@ -818,9 +912,31 @@ export async function PUT(request, { params }) {
 
     // 6. Mettre à jour les documents
     if (Array.isArray(body.documents)) {
+      // 6.1 Sauvegarder version de la section documents AVANT modification
+      if (userId) {
+        try {
+          const documentsAvant = await Document.findAll({
+            where: { id_projet: id },
+            transaction,
+            raw: true
+          });
+          await createSectionVersion({
+            idProjet: id,
+            userId,
+            sectionName: 'documents',
+            sectionData: { documents: documentsAvant },
+            description: 'Version automatique avant modification des documents',
+            transaction
+          });
+          console.log('📋 Version de documents créée');
+        } catch (err) {
+          console.error('⚠️  Erreur création version documents (non bloquant):', err.message);
+        }
+      }
+
       // Supprimer les anciens documents
       await Document.destroy({ where: { id_projet: id }, transaction });
-      
+
       // Créer les nouveaux
       const documentsFiltered = body.documents.filter(doc => doc.lien_local || doc.lien_web);
       if (documentsFiltered.length > 0) {
@@ -836,9 +952,31 @@ export async function PUT(request, { params }) {
 
     // 7. Mettre à jour les thématiques (associations uniquement, pas les données)
     if (Array.isArray(body.thematiques)) {
+      // 7.1 Sauvegarder version de la section thematiques AVANT modification
+      if (userId) {
+        try {
+          const thematiquesAvant = await ProjetInThematique.findAll({
+            where: { id_projet: id },
+            transaction,
+            raw: true
+          });
+          await createSectionVersion({
+            idProjet: id,
+            userId,
+            sectionName: 'thematiques',
+            sectionData: { thematiques: thematiquesAvant },
+            description: 'Version automatique avant modification des thématiques',
+            transaction
+          });
+          console.log('📋 Version de thematiques créée');
+        } catch (err) {
+          console.error('⚠️  Erreur création version thematiques (non bloquant):', err.message);
+        }
+      }
+
       // Supprimer les anciennes associations
       await ProjetInThematique.destroy({ where: { id_projet: id }, transaction });
-      
+
       // Créer les nouvelles
       const thematiqueRecords = body.thematiques
         .filter(them => them.id_thematique)
