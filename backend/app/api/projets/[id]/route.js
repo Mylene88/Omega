@@ -723,9 +723,26 @@ export async function PUT(request, { params }) {
       }, { status: 404 });
     }
 
-    // 1.5. Sauvegarder l'état AVANT modification pour l'audit log
+    // 1.5. Sauvegarder l'état AVANT modification et créer un snapshot
     const userId = body.updated_by || body.created_by;
-    const projetAvant = projet.toJSON(); // Sauvegarder l'état avant modification pour audit
+    const projetAvant = projet.toJSON(); // Sauvegarder l'état avant modification
+
+    // Créer un snapshot AVANT modification pour permettre la restauration
+    if (userId) {
+      try {
+        await createSnapshot({
+          idProjet: id,
+          projetData: projetAvant,
+          description: `Snapshot automatique avant modification`,
+          userId,
+          transaction
+        });
+        console.log('📸 Snapshot créé avant modification');
+      } catch (snapshotError) {
+        console.error('⚠️  Erreur création snapshot (non bloquant):', snapshotError.message);
+        // Ne pas bloquer la mise à jour si le snapshot échoue
+      }
+    }
 
     // 2. Mettre à jour les champs de base du projet
     await projet.update({
@@ -864,23 +881,6 @@ export async function PUT(request, { params }) {
         transaction
       });
       console.log('✅ Audit log enregistré');
-    }
-
-    // 9. Créer un snapshot APRÈS modification pour sauvegarder le nouvel état
-    if (userId && projetApres) {
-      try {
-        await createSnapshot({
-          idProjet: id,
-          projetData: projetApres.toJSON(),
-          description: `Snapshot automatique après modification`,
-          userId,
-          transaction
-        });
-        console.log('📸 Snapshot créé après modification');
-      } catch (snapshotError) {
-        console.error('⚠️  Erreur création snapshot après modification (non bloquant):', snapshotError.message);
-        // Ne pas bloquer la mise à jour si le snapshot échoue
-      }
     }
 
     await transaction.commit();
