@@ -297,8 +297,24 @@ const AdminPageEnhanced = () => {
     };
   }, [autoRefresh, refreshInterval, activeTab, fetchStats, fetchAuditLogs, fetchSnapshots, fetchAccessLogs]);
 
+<<<<<<< HEAD
   // Formater la date (utilise la fonction utilitaire avec gestion timezone correcte)
   const formatDate = formatDateTimeFr;
+=======
+  // Formater la date
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    }).format(date);
+  };
+>>>>>>> 047fe70c63be5cbd62ae8d710ad8d60a501b11fb
 
   // Formater la durée relative
   const formatRelativeTime = (dateString) => {

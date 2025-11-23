@@ -451,7 +451,18 @@ const AdminPage = () => {
                     <span className="audit-table">{log.tableName}</span>
                     <span className="audit-record">#{log.recordId}</span>
                     <span className="audit-date">
+<<<<<<< HEAD
                       {formatDateTimeFr(log.createdAt)}
+=======
+                      {new Date(log.createdAt).toLocaleString('fr-FR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                      })}
+>>>>>>> 047fe70c63be5cbd62ae8d710ad8d60a501b11fb
                     </span>
                   </div>
                   <div className="audit-details">
@@ -487,8 +498,19 @@ const AdminPage = () => {
                     </div>
                     <div className="snapshot-meta">
                       <span>Créé par: {snapshot.creator ? snapshot.creator.nomComplet : 'Système'}</span>
+<<<<<<< HEAD
                       <span>Le: {formatDateTimeFr(snapshot.createdAt)}</span>
                       <span>Version: {snapshot.versionNumber}</span>
+=======
+                      <span>Le: {new Date(snapshot.createdAt).toLocaleString('fr-FR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                      })}</span>
+>>>>>>> 047fe70c63be5cbd62ae8d710ad8d60a501b11fb
                     </div>
                   </div>
                   <div className="snapshot-actions">
