@@ -11,6 +11,14 @@ export default function ProjetDetailPanel({
                                               onClose
                                           }) {
 
+    // 🔍 LOG: Afficher les données du projet pour debug
+    React.useEffect(() => {
+        if (selectedProjectDetails) {
+            console.log('📋 [ProjetDetailPanel] Données du projet reçues:', selectedProjectDetails);
+            console.log('📋 [ProjetDetailPanel] Thématiques:', selectedProjectDetails.thematiques);
+        }
+    }, [selectedProjectDetails]);
+
     const formatFieldLabel = (fieldName) => {
         return fieldName
             .split('_')
@@ -180,38 +188,36 @@ export default function ProjetDetailPanel({
                                             </div>
 
                                             <div className="info-grid">
-                                                {p.nom_structure && (
-                                                    <div className="info-item full-width">
-                                                        <span className="info-label">Structure</span>
-                                                        <span className="info-value">{p.nom_structure}</span>
-                                                    </div>
-                                                )}
-                                                {p.referent_nom && (
-                                                    <div className="info-item">
-                                                        <span className="info-label">Référent</span>
-                                                        <span className="info-value">{p.referent_nom}</span>
-                                                    </div>
-                                                )}
-                                                {p.referent_fonction && (
-                                                    <div className="info-item">
-                                                        <span className="info-label">Fonction du référent</span>
-                                                        <span className="info-value">{p.referent_fonction}</span>
-                                                    </div>
-                                                )}
-                                                {p.referent_email && (
-                                                    <div className="info-item full-width">
-                                                        <span className="info-label">Email du référent</span>
+                                                <div className="info-item full-width">
+                                                    <span className="info-label">Structure</span>
+                                                    <span className="info-value">{p.nom_structure || 'Non renseigné'}</span>
+                                                </div>
+
+                                                <div className="info-item">
+                                                    <span className="info-label">Référent</span>
+                                                    <span className="info-value">{p.referent_nom || 'Non renseigné'}</span>
+                                                </div>
+
+                                                <div className="info-item">
+                                                    <span className="info-label">Fonction du référent</span>
+                                                    <span className="info-value">{p.referent_fonction || 'Non renseigné'}</span>
+                                                </div>
+
+                                                <div className="info-item full-width">
+                                                    <span className="info-label">Email du référent</span>
+                                                    {p.referent_email ? (
                                                         <a className="info-link" href={`mailto:${p.referent_email}`}>
                                                             {p.referent_email}
                                                         </a>
-                                                    </div>
-                                                )}
-                                                {p.referent_tel && (
-                                                    <div className="info-item">
-                                                        <span className="info-label">Téléphone du référent</span>
-                                                        <span className="info-value">{p.referent_tel}</span>
-                                                    </div>
-                                                )}
+                                                    ) : (
+                                                        <span className="info-value">Non renseigné</span>
+                                                    )}
+                                                </div>
+
+                                                <div className="info-item">
+                                                    <span className="info-label">Téléphone du référent</span>
+                                                    <span className="info-value">{p.referent_tel || 'Non renseigné'}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     ))
@@ -416,7 +422,14 @@ export default function ProjetDetailPanel({
                                         );
                                     }
 
-                                    return thematiquesDepliees.map((depliee, idx) => (
+                                    return thematiquesDepliees.map((depliee, idx) => {
+                                        // 🔍 LOG: Afficher les données de la thématique
+                                        console.log(`🎯 [ProjetDetailPanel] Thématique ${depliee.libelle} - ${depliee.displayName}:`, {
+                                            donnees: depliee.donnees,
+                                            modeleMetadata: depliee.modeleMetadata
+                                        });
+
+                                        return (
                                         <div key={idx} className="thematique-item-detailed">
                                             <div className="thematique-header-main">
                                                 <h3 className="thematique-nom-principal">
@@ -425,7 +438,11 @@ export default function ProjetDetailPanel({
                                             </div>
 
                                             <div className="thematique-donnees">
-                                                {depliee.donnees.map((donnee, dIdx) => (
+                                                {depliee.donnees.map((donnee, dIdx) => {
+                                                    // 🔍 LOG: Afficher chaque donnée
+                                                    console.log(`📦 [ProjetDetailPanel] Donnée #${dIdx}:`, donnee);
+
+                                                    return (
                                                     <div key={dIdx} className="donnee-item">
                                                         {depliee.modeleMetadata && depliee.modeleMetadata.length > 0 ? (
                                                             depliee.modeleMetadata
@@ -451,6 +468,17 @@ export default function ProjetDetailPanel({
                                                                 })
                                                                 .map((field) => {
                                                                     const value = donnee[field.name];
+
+                                                                    // 🔍 LOG: Afficher la valeur du champ pour debug
+                                                                    if (field.name === 'regime_icpe_id' || field.name.includes('regime')) {
+                                                                        console.log(`🔍 [ProjetDetailPanel] Champ "${field.name}":`, {
+                                                                            value: value,
+                                                                            type: typeof value,
+                                                                            isArray: Array.isArray(value),
+                                                                            length: Array.isArray(value) ? value.length : 'N/A',
+                                                                            donneeComplete: donnee
+                                                                        });
+                                                                    }
 
                                                                     let displayValue;
                                                                     if (value === null || value === undefined || value === '') {
@@ -555,10 +583,12 @@ export default function ProjetDetailPanel({
                                                             <div className="donnee-separator"></div>
                                                         )}
                                                     </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         </div>
-                                    ));
+                                        );
+                                    });
                                 })()
                             ) : (
                                 <div className="empty-state">

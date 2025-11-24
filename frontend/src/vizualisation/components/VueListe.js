@@ -4,6 +4,7 @@ import {useNavigate} from 'react-router-dom';
 import { getStatusBadgeClass } from '../utils/statutColors';
 import Pagination from './common/Pagination';
 import DeletionRequestModal from './common/DeletionRequestModal';
+import { formatDateTimeFr } from '../../utils/dateFormatter';
 import '../styles/VueListeStyle.css';
 
 export default function VueListe({
@@ -103,7 +104,14 @@ export default function VueListe({
             // Récupérer l'utilisateur actuel (à adapter selon votre système d'authentification)
             const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
+            console.log('📋 Données de soumission:', {
+                projet: projectToDelete?.id_projet,
+                user: currentUser?.id_user,
+                raison: raison
+            });
+
             if (!currentUser.id_user) {
+                alert('❌ Erreur: Utilisateur non connecté. Veuillez vous reconnecter.');
                 throw new Error('Utilisateur non connecté');
             }
 
@@ -120,17 +128,24 @@ export default function VueListe({
             });
 
             const result = await response.json();
+            console.log('📡 Réponse du serveur:', result);
 
             if (!response.ok) {
-                throw new Error(result.error || 'Erreur lors de la soumission');
+                const errorMsg = result.error || result.message || 'Erreur lors de la soumission';
+                alert(`❌ Erreur: ${errorMsg}`);
+                throw new Error(errorMsg);
             }
 
             alert(`✅ Demande de suppression envoyée avec succès !\n\nVotre demande sera examinée par un administrateur.`);
             setDeletionModalOpen(false);
             setProjectToDelete(null);
 
+            // Recharger la page pour afficher le bandeau d'avertissement
+            window.location.reload();
+
         } catch (error) {
             console.error('❌ Erreur soumission demande:', error);
+            console.error('❌ Détails:', error.message);
             throw error;
         }
     };
@@ -279,14 +294,26 @@ export default function VueListe({
 
                                     {/* Bouton de suppression */}
                                     <button
-                                        className="delete-btn-header"
-                                        onClick={(e) => handleDeleteClick(e, p)}
-                                        title="Demander la suppression du projet"
+                                        className={`delete-btn-header ${p.demande_suppression ? 'disabled' : ''}`}
+                                        onClick={(e) => !p.demande_suppression && handleDeleteClick(e, p)}
+                                        title={p.demande_suppression ? "Une demande de suppression est déjà en attente" : "Demander la suppression du projet"}
+                                        disabled={p.demande_suppression}
                                     >
                                         🗑️
                                     </button>
                                 </div>
                             </div>
+
+                            {/* AVERTISSEMENT SUPPRESSION */}
+                            {p.demande_suppression && (
+                                <div className="deletion-warning-banner" onClick={(e) => e.stopPropagation()}>
+                                    <div className="warning-icon">⚠️</div>
+                                    <div className="warning-content">
+                                        <strong>ATTENTION !</strong>
+                                        <span>Ce projet est en attente de suppression</span>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* BODY */}
                             <div className="project-card-body">

@@ -28,6 +28,7 @@ const createConnection = () => {
   sequelizeInstance = new Sequelize(url, {
     dialect: 'postgres',
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    timezone: 'Europe/Paris',  // Configure timezone pour gérer correctement les dates
 
     // Optimize connection pool to prevent EMFILE errors
     pool: {

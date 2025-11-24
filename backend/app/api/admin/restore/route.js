@@ -26,7 +26,7 @@ export async function POST(request) {
     const userId = adminCheck.userId;
 
     const body = await request.json();
-    const { snapshotId, createBackup = true } = body;
+    const { snapshotId, createBackup = false } = body;  // Désactivé par défaut pour éviter les conflits de version
 
     if (!snapshotId) {
       await transaction.rollback();
@@ -134,9 +134,13 @@ export async function POST(request) {
       }, { status: 404 });
     }
 
-    // Créer un backup de l'état actuel avant restauration
+    // ⚠️ BACKUP DÉSACTIVÉ : Créer un backup de l'état actuel avant restauration
+    // Désactivé car cela cause des conflits de contrainte unique sur (id_projet, user_id, version_number)
+    // Lors de la restauration, vous restaurez un snapshot existant, donc vous avez déjà un backup.
     if (createBackup) {
-      console.log('\n💾 Création d\'un backup avant restauration...');
+      console.log('\n⚠️  Backup avant restauration désactivé (snapshot existant = backup)');
+      // Le code ci-dessous est commenté pour éviter les conflits
+      /*
       const currentProjet = await db.Projet.findByPk(idProjet, {
         include: [
           { model: db.ProjetPorteur, as: 'porteurs' },
@@ -153,15 +157,17 @@ export async function POST(request) {
         projetData: currentProjet.toJSON(),
         description: `Backup automatique avant restauration du snapshot #${snapshotId}`,
         userId,
-        transaction
+        transaction,
+        skipRotation: true
       });
-      console.log('   ✅ Backup créé avec succès');
+      */
     }
 
     // 1. Mettre à jour les informations de base du projet
     console.log('\n🔄 RESTAURATION DES DONNÉES...');
     console.log('1️⃣  Mise à jour des informations de base du projet...');
-    await projetExistant.update({
+
+    const updateData = {
       nom_projet: snapshotData.nom_projet,
       description: snapshotData.description,
       statut_projet_id: snapshotData.statut_projet_id,
@@ -172,7 +178,21 @@ export async function POST(request) {
       referent_ddt: snapshotData.referent_ddt,
       updated_by: userId,
       updated_at: new Date()
-    }, { transaction });
+    };
+
+    console.log('   📋 Données à restaurer:');
+    console.log(`      - nom_projet: "${snapshotData.nom_projet}"`);
+    console.log(`      - description: "${snapshotData.description?.substring(0, 50)}..."`);
+    console.log(`      - statut_projet_id: ${snapshotData.statut_projet_id}`);
+    console.log(`      - service_id: ${snapshotData.service_id}`);
+
+    console.log('   📋 Valeurs actuelles:');
+    console.log(`      - nom_projet: "${projetExistant.nom_projet}"`);
+    console.log(`      - description: "${projetExistant.description?.substring(0, 50)}..."`);
+    console.log(`      - statut_projet_id: ${projetExistant.statut_projet_id}`);
+    console.log(`      - service_id: ${projetExistant.service_id}`);
+
+    await projetExistant.update(updateData, { transaction });
     console.log('   ✅ Informations de base restaurées');
 
     // 2. Restaurer les porteurs

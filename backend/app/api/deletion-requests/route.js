@@ -126,6 +126,8 @@ export async function GET(request) {
  * - requested_by: ID de l'utilisateur (optionnel, sera déduit du token)
  */
 export async function POST(request) {
+  const transaction = await db.sequelize.transaction();
+
   try {
     const body = await request.json();
     const { id_projet, raison, requested_by } = body;
@@ -134,6 +136,7 @@ export async function POST(request) {
 
     // Validation
     if (!id_projet || !raison) {
+      await transaction.rollback();
       return NextResponse.json({
         success: false,
         message: 'id_projet et raison sont requis'
@@ -150,6 +153,7 @@ export async function POST(request) {
     }
 
     if (!userId) {
+      await transaction.rollback();
       return NextResponse.json({
         success: false,
         message: 'Utilisateur non identifié'
@@ -157,23 +161,32 @@ export async function POST(request) {
     }
 
     // Vérifier que le projet existe
-    const projet = await db.Projet.findByPk(id_projet);
+    const projet = await db.Projet.findByPk(id_projet, { transaction });
     if (!projet) {
+      await transaction.rollback();
       return NextResponse.json({
         success: false,
         message: 'Projet non trouvé'
       }, { status: 404 });
     }
 
+    console.log('📋 Projet trouvé:', {
+      id: projet.id_projet,
+      nom: projet.nom_projet,
+      demande_suppression_actuel: projet.demande_suppression
+    });
+
     // Vérifier qu'il n'y a pas déjà une demande en attente pour ce projet
     const existingRequest = await db.ProjetDeletionRequest.findOne({
       where: {
         id_projet,
         statut: 'en attente'
-      }
+      },
+      transaction
     });
 
     if (existingRequest) {
+      await transaction.rollback();
       return NextResponse.json({
         success: false,
         message: 'Une demande de suppression est déjà en attente pour ce projet'
@@ -187,16 +200,25 @@ export async function POST(request) {
       requested_by: userId,
       raison,
       statut: 'en attente'
-    });
+    }, { transaction });
+
+    console.log('✅ Demande de suppression créée:', deletionRequest.id_deletion_request);
 
     // Mettre à jour le flag demande_suppression du projet
-    await projet.update({
+    const updateResult = await projet.update({
       demande_suppression: true,
       updated_by: userId,
       updated_at: new Date()
+    }, { transaction });
+
+    console.log('✅ Projet mis à jour:', {
+      id: updateResult.id_projet,
+      demande_suppression: updateResult.demande_suppression
     });
 
-    console.log('✅ Demande de suppression créée:', deletionRequest.id_deletion_request);
+    // Commit de la transaction
+    await transaction.commit();
+    console.log('✅ Transaction committée avec succès');
 
     return NextResponse.json({
       success: true,
@@ -204,12 +226,15 @@ export async function POST(request) {
       data: {
         id: deletionRequest.id_deletion_request,
         id_projet: deletionRequest.id_projet,
-        statut: deletionRequest.statut
+        statut: deletionRequest.statut,
+        projet_demande_suppression: true
       }
     }, { status: 201 });
 
   } catch (error) {
+    await transaction.rollback();
     console.error('❌ Erreur POST /api/deletion-requests:', error);
+    console.error('❌ Stack:', error.stack);
     return NextResponse.json({
       success: false,
       message: 'Erreur lors de la création de la demande',

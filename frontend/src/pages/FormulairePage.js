@@ -248,7 +248,11 @@ export default function FormulairePage() {
                             enjeuPrioritaire: projetComplet.projet.projetSignale || false,
                             charteAccueil: projetComplet.projet.charteAccueil || false,
                             service_id: projetComplet.serviceDdt?.id || null,
-                            contactDDT: projetComplet.projet.referentDdt || ''
+                            contactDDT: projetComplet.projet.referentDdt || '',
+                            // 🔥 AJOUT : Champs de métadonnées du projet (conversion ISO → YYYY-MM-DD)
+                            dateCreation: projetComplet.projet.dateCreation ? new Date(projetComplet.projet.dateCreation).toISOString().split('T')[0] : '',
+                            createur: projetComplet.createur?.nomComplet || projetComplet.createur?.username || '',
+                            dateMaj: projetComplet.projet.dateMiseAJour ? new Date(projetComplet.projet.dateMiseAJour).toISOString().split('T')[0] : ''
                         });
                     } else {
                         // Si pas de suivis, initialiser quand même avec les valeurs du projet
@@ -258,7 +262,11 @@ export default function FormulairePage() {
                             enjeuPrioritaire: projetComplet.projet.projetSignale || false,
                             charteAccueil: projetComplet.projet.charteAccueil || false,
                             service_id: projetComplet.serviceDdt?.id || null,
-                            contactDDT: projetComplet.projet.referentDdt || ''
+                            contactDDT: projetComplet.projet.referentDdt || '',
+                            // 🔥 AJOUT : Champs de métadonnées du projet (conversion ISO → YYYY-MM-DD)
+                            dateCreation: projetComplet.projet.dateCreation ? new Date(projetComplet.projet.dateCreation).toISOString().split('T')[0] : '',
+                            createur: projetComplet.createur?.nomComplet || projetComplet.createur?.username || '',
+                            dateMaj: projetComplet.projet.dateMiseAJour ? new Date(projetComplet.projet.dateMiseAJour).toISOString().split('T')[0] : ''
                         });
                     }
 
@@ -351,7 +359,7 @@ export default function FormulairePage() {
 
 
             const porteursMapped = (porteursData || [])
-                .filter(p => p.type_porteur_id && p.nom_structure)
+                .filter(p => p.type_porteur_id || p.nom_structure || p.referent_nom)
                 .map(p => ({
                     type_porteur_id: parseInt(p.type_porteur_id, 10),
                     autre_type_porteur: p.autre_type_porteur || null,
@@ -413,7 +421,8 @@ export default function FormulairePage() {
                 description: projetData.description || '',
                 statut_projet_id: projetData.statut_projet_id ?? null,
                 date_ident_projet: projetData.date_ident_projet ?? null,
-                created_by: currentUser.id_user,
+                // 🔥 CORRECTION: created_by uniquement en mode création (pas en mode édition)
+                ...(id ? {} : { created_by: currentUser.id_user }),
                 updated_by: currentUser.id_user,
                 service_id: suiviData.service_id ?? null,
                 projet_signale: suiviData.enjeuPrioritaire ?? false,
