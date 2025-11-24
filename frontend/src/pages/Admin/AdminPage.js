@@ -413,7 +413,7 @@ const AdminPage = () => {
                   <input
                       type="text"
                       placeholder="Table name..."
-                      value={filters.tableName}
+                      value={filters.tableName}la
                       onChange={(e) => setFilters({ ...filters, tableName: e.target.value })}
                   />
                   <select
@@ -477,10 +477,31 @@ const AdminPage = () => {
                   {snapshots.map((snapshot) => (
                       <div key={snapshot.id} className="snapshot-item">
                         <div className="snapshot-header">
-                          <span className="snapshot-type">{snapshot.snapshotType}</span>
                           <span className="snapshot-projet">{snapshot.projetNom}</span>
+                          <span className="snapshot-version">v{snapshot.versionNumber}</span>
                           <span className="snapshot-id">#{snapshot.id}</span>
                         </div>
+
+                        {/* Données du snapshot au moment de sa création */}
+                        <div className="snapshot-data">
+                          <div className="snapshot-data-row">
+                            <strong>Nom du projet:</strong> {snapshot.snapshotNomProjet || 'N/A'}
+                          </div>
+                          <div className="snapshot-data-row">
+                            <strong>Statut ID:</strong> {snapshot.snapshotStatutId || 'N/A'}
+                          </div>
+                          <div className="snapshot-data-row">
+                            <strong>Description:</strong> {snapshot.snapshotDescription || 'N/A'}...
+                          </div>
+                          <div className="snapshot-data-counts">
+                            <span>👥 {snapshot.nbPorteurs} porteur(s)</span>
+                            <span>📋 {snapshot.nbSuivis} suivi(s)</span>
+                            <span>🏷️ {snapshot.nbThematiques} thématique(s)</span>
+                            <span>📄 {snapshot.nbDocuments} document(s)</span>
+                            {snapshot.hasGeometry && <span>📍 Géométrie</span>}
+                          </div>
+                        </div>
+
                         <div className="snapshot-details">
                           <div className="snapshot-description">
                             {snapshot.description || 'Pas de description'}
@@ -488,7 +509,6 @@ const AdminPage = () => {
                           <div className="snapshot-meta">
                             <span>Créé par: {snapshot.creator ? snapshot.creator.nomComplet : 'Système'}</span>
                             <span>Le: {formatDateTimeFr(snapshot.createdAt)}</span>
-                            <span>Version: {snapshot.versionNumber}</span>
                           </div>
                         </div>
                         <div className="snapshot-actions">

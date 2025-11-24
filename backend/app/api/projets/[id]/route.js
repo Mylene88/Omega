@@ -335,13 +335,27 @@ export async function GET(request, { params }) {
             }
 
             function getEnumDisplayAttributes(enumTableName) {
-              const usesLibelle = enumTableName === 'type_sol_enum';
-              return ['id', usesLibelle ? 'libelle' : 'value'];
+              // Tables qui ont SEULEMENT 'libelle' (pas de 'value')
+              const usesLibelleOnly = ['type_sol_enum'].includes(enumTableName);
+
+              if (usesLibelleOnly) {
+                return ['id', 'libelle'];
+              } else {
+                // Toutes les autres tables enum ont {id, value}
+                return ['id', 'value'];
+              }
             }
 
 
           // ✅ CONSTRUIRE LES INCLUDES POUR LES ENUMS
              const includeOptions = [];
+
+              console.log(`🔧 Traitement des champs pour ${modeleConfig.tableName}:`, modeleConfig.fields?.map(f => ({
+                name: f.name,
+                type: f.type,
+                enumTable: f.enumTable,
+                relationTable: f.relationTable
+              })));
 
               modeleConfig.fields?.forEach(field => {
                 if (!field.enumTable) return;
@@ -365,28 +379,65 @@ export async function GET(request, { params }) {
 
                 // Many-to-Many (checkbox-multiple)
                 if (field.type === 'checkbox-multiple' && field.relationTable) {
+                  console.log(`🔍 Traitement M2M pour ${field.name}:`);
+
+                  // Debug: lister tous les modèles avec cette table
+                  const modelsWithTable = Object.values(db).filter(
+                    model => model.tableName === field.enumTable
+                  );
+                  console.log(`   Modèles trouvés pour ${field.enumTable}:`, modelsWithTable.map(m => ({
+                    name: m.name,
+                    schema: m.options?.schema,
+                    tableName: m.tableName
+                  })));
+
                   const EnumModelM2M = Object.values(db).find(
                     model => model.tableName === field.enumTable && model.options?.schema === field.enumSchema
                   );
+                  console.log(`   EnumModelM2M trouvé:`, !!EnumModelM2M, EnumModelM2M?.name);
+
                   const assocM2M = findBelongsToManyAssociation(
                     Model,
                     field.enumTable,
                     field.enumSchema,
                     field.relationTable
                   );
+                  console.log(`   Association M2M trouvée:`, !!assocM2M, assocM2M?.as);
+
+                  // Debug: afficher les associations trouvées
+                  if (!assocM2M) {
+                    console.warn(`⚠️ Association M2M introuvable ${Model.tableName} -> ${field.enumTable}`);
+                    console.warn(`   Recherche: enumTable=${field.enumTable}, enumSchema=${field.enumSchema}, relationTable=${field.relationTable}`);
+                    console.warn(`   Associations disponibles:`, Object.keys(Model.associations || {}).map(k => {
+                      const a = Model.associations[k];
+                      return `${k} (type=${a.associationType}, target=${a.target?.tableName}, schema=${a.target?.options?.schema}, through=${a.through?.model?.tableName})`;
+                    }));
+                  }
+
+                  if (!EnumModelM2M) {
+                    console.error(`❌ EnumModelM2M non trouvé pour ${field.enumTable} dans schema ${field.enumSchema}`);
+                  }
+
                   if (EnumModelM2M && assocM2M) {
-                    includeOptions.push({
+                    const includeConfig = {
                       model: EnumModelM2M,
                       as: assocM2M.as,                 // ex. 'type_sol_enum' / 'origine_intrants_enum'
                       through: { attributes: [] },
                       attributes: getEnumDisplayAttributes(field.enumTable),
                       required: false
+                    };
+                    includeOptions.push(includeConfig);
+                    console.log(`✅ Include M2M ajouté pour ${field.name}:`, {
+                      fieldName: field.name,
+                      alias: assocM2M.as,
+                      enumTable: field.enumTable,
+                      attributes: includeConfig.attributes
                     });
-                  } else {
-                    console.warn(`Association M2M introuvable ${Model.tableName} -> ${field.enumTable}`);
                   }
                 }
               });
+
+              console.log(`📦 Includes totaux pour ${Model.tableName}:`, includeOptions.length, 'includes');
 
 // ✅ RÉCUPÉRER LES DONNÉES AVEC LES RELATIONS (uniquement le plus récent)
 const donnees = await Model.findAll({
@@ -432,7 +483,8 @@ console.log(`✅ ${donnees.length} enregistrement(s) trouvé(s) pour ${modeleVal
   if (Array.isArray(relatedData) && relatedData.length > 0) {
     formattedData[field.name] = relatedData.map(item => ({
       id: item.id,
-      value: item.value || item.libelle || item.id
+      label: item.libelle || item.value || String(item.id), // Priorité: libelle > value > id
+      value: item.libelle || item.value || String(item.id)
     }));
   }
   // ✅ Ne pas ajouter le champ s'il est vide (pour ne pas polluer avec des tableaux vides)

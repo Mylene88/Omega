@@ -1875,6 +1875,23 @@
   box-shadow: 0 2px 6px rgba(200, 144, 144, 0.1);
 }
 
+.delete-btn-header.disabled,
+.delete-btn-header:disabled {
+  background: #e5e5e5;
+  color: #999;
+  border-color: #d0d0d0;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.delete-btn-header.disabled:hover,
+.delete-btn-header:disabled:hover {
+  background: #e5e5e5;
+  border-color: #d0d0d0;
+  transform: none;
+  box-shadow: none;
+}
+
 /* Responsive pour les petits écrans */
 @media (max-width: 768px) {
   .header-actions {
@@ -2080,5 +2097,77 @@
     background: #d8e2f0;
     border-color: #b8c9e0;
     color: #2d4373;
+}
+
+/* ==================== BANDEAU D'AVERTISSEMENT SUPPRESSION ==================== */
+.deletion-warning-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%);
+    border-left: 4px solid #ff0000;
+    border-radius: 8px;
+    margin: -8px 16px 16px 16px;
+    box-shadow: 0 4px 12px rgba(255, 0, 0, 0.25);
+    animation: pulse-warning 2s ease-in-out infinite;
+    cursor: default;
+}
+
+.deletion-warning-banner:hover {
+    box-shadow: 0 6px 16px rgba(255, 0, 0, 0.35);
+}
+
+.warning-icon {
+    font-size: 28px;
+    animation: shake 0.5s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+.warning-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.warning-content strong {
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.warning-content span {
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0.95;
+}
+
+/* Animation de pulsation */
+@keyframes pulse-warning {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.01);
+        opacity: 0.95;
+    }
+}
+
+/* Animation de tremblement pour l'icône */
+@keyframes shake {
+    0%, 100% {
+        transform: translateX(0) rotate(0deg);
+    }
+    25% {
+        transform: translateX(-2px) rotate(-5deg);
+    }
+    75% {
+        transform: translateX(2px) rotate(5deg);
+    }
 }
 

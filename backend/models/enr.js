@@ -45,7 +45,8 @@ module.exports = (sequelize, DataTypes, { Projet, Thematique, User }) => {
     value: { type: DataTypes.TEXT, allowNull: false, unique: true }
   }, { schema, tableName: 'origine_intrants_enum', timestamps: false });
 
-  const RegimeIcpeEnum = sequelize.define('regime_icpe_enum', {
+  // ✅ Définir RegimeIcpeEnumEnr pour le schema ENR (distinct de celui dans AUTRES)
+  const RegimeIcpeEnumEnr = sequelize.define('regime_icpe_enum_enr', {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     value: { type: DataTypes.TEXT, allowNull: false, unique: true }
   }, { schema, tableName: 'regime_icpe_enum', timestamps: false });
@@ -189,13 +190,13 @@ module.exports = (sequelize, DataTypes, { Projet, Thematique, User }) => {
   });
 
   // Methanisation <-> régimes ICPE (M2M)
-  Methanisation.belongsToMany(RegimeIcpeEnum, {
+  Methanisation.belongsToMany(RegimeIcpeEnumEnr, {
     as: 'regime_icpe_enum',
     through: MethanisationRegimeIcpe,
     foreignKey: 'id_methanisation',
     otherKey: 'id_regime_icpe'
   });
-  RegimeIcpeEnum.belongsToMany(Methanisation, {
+  RegimeIcpeEnumEnr.belongsToMany(Methanisation, {
     as: 'methanisation',
     through: MethanisationRegimeIcpe,
     foreignKey: 'id_regime_icpe',
@@ -218,7 +219,7 @@ module.exports = (sequelize, DataTypes, { Projet, Thematique, User }) => {
     TypeMethaniseurEnum,
     InstructeurIcpeEnum,
     OrigineIntrantsEnum,
-    RegimeIcpeEnum,
+    RegimeIcpeEnumEnr, // ✅ Modèle spécifique pour enr.regime_icpe_enum
     // jonctions exportées
     PvTypeSol,
     MethanisationOrigineIntrants,

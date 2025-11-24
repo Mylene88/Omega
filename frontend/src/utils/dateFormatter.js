@@ -25,7 +25,6 @@ export const formatDateFr = (dateString, options = {}) => {
             hour: '2-digit',
             minute: '2-digit',
             second: options.showSeconds ? '2-digit' : undefined,
-            timeZone: 'Europe/Paris',
             hour12: false
         };
 
@@ -63,7 +62,6 @@ export const formatTimeFr = (dateString) => {
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit',
-            timeZone: 'Europe/Paris',
             hour12: false
         }).format(date);
     } catch (error) {
@@ -89,8 +87,7 @@ export const formatDateOnlyFr = (dateString) => {
         return new Intl.DateTimeFormat('fr-FR', {
             day: '2-digit',
             month: '2-digit',
-            year: 'numeric',
-            timeZone: 'Europe/Paris'
+            year: 'numeric'
         }).format(date);
     } catch (error) {
         console.error('Erreur formatage date:', error, dateString);

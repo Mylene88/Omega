@@ -47,6 +47,11 @@ export async function GET(request) {
             model: db.Projet,
             as: 'projet',
             attributes: ['id_projet', 'nom_projet']
+          },
+          {
+            model: db.ProjetSnapshotSection,
+            as: 'sections',
+            attributes: ['section_name', 'section_data']
           }
         ],
         order: [['created_at', 'DESC']],
@@ -55,21 +60,52 @@ export async function GET(request) {
     }
 
     // Formater les données pour le frontend
-    const formattedSnapshots = snapshots.map(snapshot => ({
-      id: snapshot.id_snapshot,
-      idProjet: snapshot.id_projet,
-      projetNom: snapshot.projet?.nom_projet || 'Projet inconnu',
-      versionNumber: snapshot.version_number,
-      isCurrent: snapshot.is_current,
-      snapshotDate: snapshot.snapshot_date ? new Date(snapshot.snapshot_date).toISOString() : null,
-      description: snapshot.description,
-      creator: snapshot.user ? {
-        id: snapshot.user.id_user,
-        username: snapshot.user.username,
-        nomComplet: `${snapshot.user.prenom || ''} ${snapshot.user.nom || ''}`.trim()
-      } : null,
-      createdAt: snapshot.created_at ? new Date(snapshot.created_at).toISOString() : null
-    }));
+    const formattedSnapshots = snapshots.map(snapshot => {
+      // Extraire les données des sections
+      const snapshotData = {};
+      if (snapshot.sections && snapshot.sections.length > 0) {
+        snapshot.sections.forEach(section => {
+          if (section.section_name === 'projet_info') {
+            snapshotData.projetInfo = section.section_data;
+          } else if (section.section_name === 'porteurs') {
+            snapshotData.nbPorteurs = section.section_data?.length || 0;
+          } else if (section.section_name === 'suivis') {
+            snapshotData.nbSuivis = section.section_data?.length || 0;
+          } else if (section.section_name === 'thematiques') {
+            snapshotData.nbThematiques = section.section_data?.length || 0;
+          } else if (section.section_name === 'documents') {
+            snapshotData.nbDocuments = section.section_data?.length || 0;
+          } else if (section.section_name === 'geometrie') {
+            snapshotData.hasGeometry = !!section.section_data;
+          }
+        });
+      }
+
+      return {
+        id: snapshot.id_snapshot,
+        idProjet: snapshot.id_projet,
+        projetNom: snapshot.projet?.nom_projet || 'Projet inconnu',
+        versionNumber: snapshot.version_number,
+        isCurrent: snapshot.is_current,
+        snapshotDate: snapshot.snapshot_date ? new Date(snapshot.snapshot_date).toISOString() : null,
+        description: snapshot.description,
+        creator: snapshot.user ? {
+          id: snapshot.user.id_user,
+          username: snapshot.user.username,
+          nomComplet: `${snapshot.user.prenom || ''} ${snapshot.user.nom || ''}`.trim()
+        } : null,
+        createdAt: snapshot.created_at ? new Date(snapshot.created_at).toISOString() : null,
+        // Données du snapshot au moment de la création
+        snapshotNomProjet: snapshotData.projetInfo?.nom_projet,
+        snapshotStatutId: snapshotData.projetInfo?.statut_projet_id,
+        snapshotDescription: snapshotData.projetInfo?.description?.substring(0, 100),
+        nbPorteurs: snapshotData.nbPorteurs || 0,
+        nbSuivis: snapshotData.nbSuivis || 0,
+        nbThematiques: snapshotData.nbThematiques || 0,
+        nbDocuments: snapshotData.nbDocuments || 0,
+        hasGeometry: snapshotData.hasGeometry || false
+      };
+    });
 
     return NextResponse.json({
       success: true,

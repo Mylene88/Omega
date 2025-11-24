@@ -80,13 +80,15 @@ async function createSnapshot({
   projetData,
   description = null,
   userId,
-  transaction = null
+  transaction = null,
+  skipRotation = false  // Nouveau paramètre pour désactiver la rotation (backups de restauration)
 }) {
   try {
     console.log('\n=== 📸 CRÉATION DE SNAPSHOT ===');
     console.log(`Projet ID: ${idProjet}`);
     console.log(`User ID: ${userId}`);
     console.log(`Description: ${description || 'Aucune'}`);
+    console.log(`Skip Rotation: ${skipRotation ? 'Oui (backup de restauration)' : 'Non'}`);
 
     if (!userId) {
       throw new Error('userId est requis pour créer un snapshot');
@@ -126,31 +128,36 @@ async function createSnapshot({
 
     // ✅ Si on réutilise un numéro de version (rotation), supprimer l'ancien snapshot
     // Cela arrive quand on dépasse 10 versions et qu'on revient à 1
-    console.log('🔍 Vérification de rotation de version...');
-    const existingSnapshot = await db.ProjetSnapshot.findOne({
-      where: {
-        id_projet: idProjet,
-        user_id: userId,
-        version_number: nextVersion
-      },
-      transaction
-    });
+    // SAUF si skipRotation=true (backups de restauration)
+    if (!skipRotation) {
+      console.log('🔍 Vérification de rotation de version...');
+      const existingSnapshot = await db.ProjetSnapshot.findOne({
+        where: {
+          id_projet: idProjet,
+          user_id: userId,
+          version_number: nextVersion
+        },
+        transaction
+      });
 
-    if (existingSnapshot) {
-      console.log(`🔄 Rotation de version détectée - Suppression du snapshot v${nextVersion} existant`);
-      // Supprimer d'abord les sections associées
-      if (db.ProjetSnapshotSection) {
-        await db.ProjetSnapshotSection.destroy({
-          where: { id_snapshot: existingSnapshot.id_snapshot },
-          transaction
-        });
-        console.log('  ✅ Sections de l\'ancien snapshot supprimées');
+      if (existingSnapshot) {
+        console.log(`🔄 Rotation de version détectée - Suppression du snapshot v${nextVersion} existant`);
+        // Supprimer d'abord les sections associées
+        if (db.ProjetSnapshotSection) {
+          await db.ProjetSnapshotSection.destroy({
+            where: { id_snapshot: existingSnapshot.id_snapshot },
+            transaction
+          });
+          console.log('  ✅ Sections de l\'ancien snapshot supprimées');
+        }
+        // Puis supprimer le snapshot
+        await existingSnapshot.destroy({ transaction });
+        console.log('  ✅ Ancien snapshot supprimé');
+      } else {
+        console.log('  ℹ️  Pas de rotation nécessaire');
       }
-      // Puis supprimer le snapshot
-      await existingSnapshot.destroy({ transaction });
-      console.log('  ✅ Ancien snapshot supprimé');
     } else {
-      console.log('  ℹ️  Pas de rotation nécessaire');
+      console.log('⏭️  Rotation désactivée (backup de restauration)');
     }
 
     // Créer le snapshot

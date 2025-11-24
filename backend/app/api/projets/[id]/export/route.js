@@ -131,10 +131,35 @@ export async function GET(request, { params }) {
             thematiqueNormalized = thematiquesCaseSensitive[thematiqueLibelle];
           }
 
-          const fullModeleKey = `${thematiqueNormalized}-${modeleValue}`;
+          // 🔥 AJOUT : Alias pour les modèles qui ont des noms différents dans la config
+          const modeleAliases = {
+            'pv': 'pv_agri_pv',
+            'agripv': 'pv_agri_pv',
+            'agri-pv': 'pv_agri_pv',
+            'agri_pv': 'pv_agri_pv',
+            'pvagripv': 'pv_agri_pv',
+            'pv et agri-pv': 'pv_agri_pv',
+            'pv et agri pv': 'pv_agri_pv',
+            'pvetagri-pv': 'pv_agri_pv',
+            'pvetagripv': 'pv_agri_pv'
+          };
+
+          let modeleNormalized = modeleValue.toLowerCase();
+          if (modeleAliases[modeleNormalized]) {
+            modeleNormalized = modeleAliases[modeleNormalized];
+            console.log(`🔄 [EXPORT] Alias appliqué: "${modeleValue}" → "${modeleNormalized}"`);
+          }
+
+          const fullModeleKey = `${thematiqueNormalized}-${modeleNormalized}`;
+          console.log(`🔍 [EXPORT] Recherche thématique: "${fullModeleKey}" (libelle: "${thematiqueLibelle}", modele original: "${modeleValue}")`);
           const modeleConfig = getModelByValue(fullModeleKey);
 
-          if (!modeleConfig) continue;
+          if (!modeleConfig) {
+            console.warn(`⚠️  [EXPORT] Configuration non trouvée pour: "${fullModeleKey}"`);
+            continue;
+          }
+          console.log(`✅ [EXPORT] Configuration trouvée pour: "${fullModeleKey}"`);
+
 
           const modelName = getSequelizeModelName(modeleConfig.tableName);
           const Model = db[modelName];
@@ -150,12 +175,36 @@ export async function GET(request, { params }) {
                 );
 
                 if (EnumModel) {
+                  // 🔍 Détecter dynamiquement les colonnes disponibles dans l'enum table
+                  const modelAttributes = Object.keys(EnumModel.rawAttributes || {});
+                  console.log(`🔍 [EXPORT] Colonnes disponibles pour ${field.enumTable}:`, modelAttributes);
+
+                  // Chercher la colonne d'affichage (priorité: value > libelle > label > nom)
+                  const displayColumn = modelAttributes.find(attr =>
+                    ['value', 'libelle', 'label', 'nom', 'type'].includes(attr.toLowerCase())
+                  );
+
+                  // Construire les attributs dynamiquement
+                  const enumAttributes = ['id'];
+                  if (displayColumn) {
+                    enumAttributes.push(displayColumn);
+                    console.log(`✅ [EXPORT] Colonne d'affichage détectée pour ${field.enumTable}: ${displayColumn}`);
+                  } else {
+                    console.warn(`⚠️  [EXPORT] Aucune colonne d'affichage trouvée pour ${field.enumTable}, utilisation de toutes les colonnes`);
+                  }
+
+                  // 🔍 Pour les relations many-to-many (belongsToMany), Sequelize utilise directement l'alias de l'enum
                   includeAssociations.push({
                     model: EnumModel,
                     as: field.enumTable,
-                    attributes: ['id', 'value'],
-                    required: false
+                    attributes: displayColumn ? enumAttributes : undefined,
+                    required: false,
+                    through: field.relationTable ? { attributes: [] } : undefined // Masquer les colonnes de la table de jointure
                   });
+
+                  if (field.relationTable) {
+                    console.log(`✅ [EXPORT] Association many-to-many (belongsToMany) ajoutée: ${field.enumTable} via ${field.relationTable}`);
+                  }
                 }
               }
             });
@@ -176,6 +225,38 @@ export async function GET(request, { params }) {
               if (modeleConfig.fields) {
                 modeleConfig.fields.forEach((field) => {
                   const displayLabel = field.label || field.name;
+
+                  // 🔍 Gérer les champs avec enumTable
+                  if (field.enumTable && d[field.enumTable]) {
+                    const enumData = d[field.enumTable];
+
+                    // 🔍 Cas 1: Array (belongsToMany) - choix multiples
+                    if (Array.isArray(enumData)) {
+                      console.log(`🔍 [EXPORT] Traitement champ multiple: ${field.name}, valeurs:`, enumData.length);
+
+                      const values = enumData
+                        .map(enumObj => {
+                          const enumKeys = Object.keys(enumObj).filter(k => k !== 'id' && !k.startsWith('_'));
+                          const displayKey = ['value', 'libelle', 'label', 'nom', 'type'].find(k => enumObj[k] !== undefined) || enumKeys[0];
+                          return displayKey ? enumObj[displayKey] : null;
+                        })
+                        .filter(v => v !== null);
+
+                      formatted[displayLabel] = values.length > 0 ? values.join(', ') : 'Non renseigné';
+                      console.log(`✅ [EXPORT] ${displayLabel}: ${formatted[displayLabel]}`);
+                      return; // Skip le reste pour ce champ
+                    }
+                    // 🔍 Cas 2: Objet unique (belongsTo) - choix simple
+                    else if (typeof enumData === 'object') {
+                      const enumKeys = Object.keys(enumData).filter(k => k !== 'id' && !k.startsWith('_'));
+                      const displayKey = ['value', 'libelle', 'label', 'nom', 'type'].find(k => enumData[k] !== undefined) || enumKeys[0];
+                      formatted[displayLabel] = displayKey ? enumData[displayKey] : 'Non renseigné';
+                      console.log(`🔍 [EXPORT] Enum ${field.enumTable} - clé utilisée: ${displayKey}, valeur: ${formatted[displayLabel]}`);
+                      return; // Skip le reste pour ce champ
+                    }
+                  }
+
+                  // 🔍 Traitement des champs non-enum
                   const value = d[field.name];
 
                   if (value === null || value === undefined || value === '') {
@@ -183,9 +264,7 @@ export async function GET(request, { params }) {
                   } else {
                     let displayValue = value;
 
-                    if (field.enumTable && d[field.enumTable]) {
-                      displayValue = d[field.enumTable].value || value;
-                    } else if (typeof value === 'boolean') {
+                    if (typeof value === 'boolean') {
                       displayValue = value ? 'Oui' : 'Non';
                     } else if (Array.isArray(value)) {
                       displayValue = value.length > 0 ? value.join(', ') : 'Non renseigné';
@@ -477,52 +556,51 @@ function generateHTML(projet) {
   }
 
   // SUIVI DDT
-  let suivisHTML = '';
+  // 🔥 MODIFICATION : Toujours afficher la section Suivi DDT avec les infos générales
+  let suivisHTML = '<div class="section"><h2 class="section-title">Suivi DDT</h2>';
+
+  // Informations générales du Suivi DDT (toujours affichées)
+  suivisHTML += `
+    <div class="suivi-block">
+      <table class="data-table">
+        <tr>
+          <td class="field-label">Projet signalé</td>
+          <td class="field-value">${projet.projet_signale ? 'Oui' : 'Non'}</td>
+        </tr>
+        <tr>
+          <td class="field-label">Charte d'Accueil</td>
+          <td class="field-value">${projet.charte_accueil ? 'Oui' : 'Non'}</td>
+        </tr>
+        <tr>
+          <td class="field-label">Service DDT</td>
+          <td class="field-value">${projet.ddt_service_enum?.libelle_service || 'Non renseigné'}</td>
+        </tr>
+        <tr>
+          <td class="field-label">Contact à la DDT</td>
+          <td class="field-value">${projet.referent_ddt || 'Non renseigné'}</td>
+        </tr>
+        <tr>
+          <td class="field-label">Date de création de la fiche projet</td>
+          <td class="field-value">${projet.created_at ? new Date(projet.created_at).toLocaleString('fr-FR') : 'Non renseignée'}</td>
+        </tr>
+        <tr>
+          <td class="field-label">Créateur de la fiche projet</td>
+          <td class="field-value">${projet.creator ? `${projet.creator.prenom} ${projet.creator.nom}` : 'Non renseigné'}</td>
+        </tr>
+        <tr>
+          <td class="field-label">Date de dernière mise à jour de la fiche projet</td>
+          <td class="field-value">${projet.updated_at ? new Date(projet.updated_at).toLocaleString('fr-FR', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+              }) : 'Non renseignée'}
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
+
+  // Historique des suivis (conditionnel)
   if (projet.suivis && projet.suivis.length > 0) {
-    suivisHTML = '<div class="section"><h2 class="section-title">Suivi DDT</h2>';
-
-    const dernierSuivi = projet.suivis[0];
-
-    suivisHTML += `
-      <div class="suivi-block">
-        <table class="data-table">
-          <tr>
-            <td class="field-label">Projet signalé</td>
-            <td class="field-value">${dernierSuivi.projet_signale ? 'Oui' : 'Non'}</td>
-          </tr>
-          <tr>
-            <td class="field-label">Charte d'Accueil</td>
-            <td class="field-value">${dernierSuivi.charte_accueil ? 'Oui' : 'Non'}</td>
-          </tr>
-          <tr>
-            <td class="field-label">Service DDT</td>
-            <td class="field-value">${projet.ddt_service_enum?.libelle_service || 'Non renseigné'}</td>
-          </tr>
-          <tr>
-            <td class="field-label">Contact à la DDT</td>
-            <td class="field-value">${dernierSuivi.contact_ddt || 'Non renseigné'}</td>
-          </tr>
-          <tr>
-            <td class="field-label">Date de création de la fiche projet</td>
-            <td class="field-value">${projet.created_at ? new Date(projet.created_at).toLocaleString('fr-FR') : 'Non renseignée'}</td>
-          </tr>
-          <tr>
-            <td class="field-label">Créateur de la fiche projet</td>
-            <td class="field-value">${projet.creator ? `${projet.creator.prenom} ${projet.creator.nom}` : 'Non renseigné'}</td>
-          </tr>
-          <tr>
-            <td class="field-value"> Date de dernière mise à jour de la fiche projet</td>
-            <td class="field-value"> ${projet.updated_at ? new Date(projet.updated_at).toLocaleString('fr-FR', {
-                  day: '2-digit', month: '2-digit', year: 'numeric',
-                  hour: '2-digit', minute: '2-digit'
-                }) : 'Non renseignée'}
-            </td>
-          </tr>
-          
-        </table>
-      </div>
-    `;
-
     suivisHTML += `
       <div class="suivi-block">
         <div class="block-header">
@@ -541,22 +619,36 @@ function generateHTML(projet) {
           : 'Non renseigné';
 
       suivisHTML += `
-    <div class="timeline-entry">
-      <div class="timeline-marker">${idx + 1}</div>
-      <div class="timeline-content">
-        <div class="timeline-header">
-          <span class="timeline-date">${dateHeure}</span>
-          <span class="timeline-author">${auteur}</span>
+        <div class="timeline-entry">
+          <div class="timeline-marker">${idx + 1}</div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <span class="timeline-date">${dateHeure}</span>
+              <span class="timeline-author">${auteur}</span>
+            </div>
+            <div class="timeline-text">${suivi.suivi || 'Aucun commentaire'}</div>
+          </div>
         </div>
-        <div class="timeline-text">${suivi.suivi || 'Aucun commentaire'}</div>
-      </div>
-    </div>
-  `;
+      `;
     });
 
-
-    suivisHTML += `</div></div></div>`;
+    suivisHTML += `</div></div>`;
+  } else {
+    // 🔥 AJOUT : Message quand il n'y a pas d'historique de suivis
+    suivisHTML += `
+      <div class="suivi-block">
+        <div class="block-header">
+          <h3 class="block-title">Historique des suivis</h3>
+        </div>
+        <div class="empty-block">
+          <div class="empty-icon">📝</div>
+          <p class="empty-message">Aucun suivi associé à ce projet</p>
+        </div>
+      </div>
+    `;
   }
+
+  suivisHTML += '</div>'; // Fermeture de la section
 
 
   // THÉMATIQUES
@@ -595,6 +687,17 @@ function generateHTML(projet) {
     });
 
     thematiquesHTML += '</div>';
+  } else {
+    // 🔥 AJOUT : Afficher un message quand il n'y a pas de thématiques
+    thematiquesHTML = `
+      <div class="section">
+        <h2 class="section-title">Thématiques</h2>
+        <div class="empty-block">
+          <div class="empty-icon">📋</div>
+          <p class="empty-message">Aucune thématique associée à ce projet</p>
+        </div>
+      </div>
+    `;
   }
 
   // DOCUMENTS
@@ -699,6 +802,17 @@ function generateHTML(projet) {
     });
 
     geometriesHTML += '</div>';
+  } else {
+    // 🔥 AJOUT : Afficher un message quand il n'y a pas de géométrie
+    geometriesHTML = `
+      <div class="section">
+        <h2 class="section-title">Géométries</h2>
+        <div class="empty-block">
+          <div class="empty-icon">🗺️</div>
+          <p class="empty-message">Aucune géométrie associée à ce projet</p>
+        </div>
+      </div>
+    `;
   }
 
   return `
