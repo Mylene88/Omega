@@ -4,13 +4,11 @@ import React, { useEffect, useRef, useState, useCallback, useImperativeHandle, f
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import styles from '../../../styles/CarteSection.module.css';
+import { TILE_CONFIG, MAP_CENTER, MAP_BOUNDS } from '../../../vizualisation/config/mapConfig';
 
 // Configuration pour Eure-et-Loir
-const EURE_ET_LOIR_CENTER = [48.5525242, 1.1989814];
-const EURE_ET_LOIR_BOUNDS = [
-    [47.95, 0.45], // Sud-Ouest
-    [48.95, 1.99]  // Nord-Est
-];
+const EURE_ET_LOIR_CENTER = MAP_CENTER;
+const EURE_ET_LOIR_BOUNDS = MAP_BOUNDS;
 
 // ✅ CORRECTION: Utiliser () au lieu de {}
 const Carte = forwardRef(({
@@ -35,28 +33,20 @@ const Carte = forwardRef(({
     // Définition des couches de fond IGN
     const tileLayers = {
         ortho: L.tileLayer(
-            "https://data.geopf.fr/wmts?" +
-            "&REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0" +
-            "&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg" +
-            "&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&TILEMATRIX={z}" +
-            "&TILEROW={y}&TILECOL={x}",
+            TILE_CONFIG.ortho.url,
             {
-                minZoom: 0,
-                maxZoom: 19,
-                attribution: "IGN-F/Geoportail",
+                minZoom: TILE_CONFIG.ortho.minZoom,
+                maxZoom: TILE_CONFIG.ortho.maxZoom,
+                attribution: TILE_CONFIG.ortho.attribution,
                 tileSize: 256,
             }
         ),
         plan: L.tileLayer(
-            "https://data.geopf.fr/wmts?" +
-            "&REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0" +
-            "&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/png" +
-            "&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&TILEMATRIX={z}" +
-            "&TILEROW={y}&TILECOL={x}",
+            TILE_CONFIG.plan.url,
             {
-                minZoom: 0,
-                maxZoom: 19,
-                attribution: "IGN-F/Geoportail",
+                minZoom: TILE_CONFIG.plan.minZoom,
+                maxZoom: TILE_CONFIG.plan.maxZoom,
+                attribution: TILE_CONFIG.plan.attribution,
                 tileSize: 256,
             }
         ),
