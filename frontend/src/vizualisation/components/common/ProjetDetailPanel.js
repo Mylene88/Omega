@@ -11,6 +11,14 @@ export default function ProjetDetailPanel({
                                               onClose
                                           }) {
 
+    // 🔍 LOG: Afficher les données du projet pour debug
+    React.useEffect(() => {
+        if (selectedProjectDetails) {
+            console.log('📋 [ProjetDetailPanel] Données du projet reçues:', selectedProjectDetails);
+            console.log('📋 [ProjetDetailPanel] Thématiques:', selectedProjectDetails.thematiques);
+        }
+    }, [selectedProjectDetails]);
+
     const formatFieldLabel = (fieldName) => {
         return fieldName
             .split('_')
@@ -180,38 +188,36 @@ export default function ProjetDetailPanel({
                                             </div>
 
                                             <div className="info-grid">
-                                                {p.nom_structure && (
-                                                    <div className="info-item full-width">
-                                                        <span className="info-label">Structure</span>
-                                                        <span className="info-value">{p.nom_structure}</span>
-                                                    </div>
-                                                )}
-                                                {p.referent_nom && (
-                                                    <div className="info-item">
-                                                        <span className="info-label">Référent</span>
-                                                        <span className="info-value">{p.referent_nom}</span>
-                                                    </div>
-                                                )}
-                                                {p.referent_fonction && (
-                                                    <div className="info-item">
-                                                        <span className="info-label">Fonction du référent</span>
-                                                        <span className="info-value">{p.referent_fonction}</span>
-                                                    </div>
-                                                )}
-                                                {p.referent_email && (
-                                                    <div className="info-item full-width">
-                                                        <span className="info-label">Email du référent</span>
+                                                <div className="info-item full-width">
+                                                    <span className="info-label">Structure</span>
+                                                    <span className="info-value">{p.nom_structure || 'Non renseigné'}</span>
+                                                </div>
+
+                                                <div className="info-item">
+                                                    <span className="info-label">Référent</span>
+                                                    <span className="info-value">{p.referent_nom || 'Non renseigné'}</span>
+                                                </div>
+
+                                                <div className="info-item">
+                                                    <span className="info-label">Fonction du référent</span>
+                                                    <span className="info-value">{p.referent_fonction || 'Non renseigné'}</span>
+                                                </div>
+
+                                                <div className="info-item full-width">
+                                                    <span className="info-label">Email du référent</span>
+                                                    {p.referent_email ? (
                                                         <a className="info-link" href={`mailto:${p.referent_email}`}>
                                                             {p.referent_email}
                                                         </a>
-                                                    </div>
-                                                )}
-                                                {p.referent_tel && (
-                                                    <div className="info-item">
-                                                        <span className="info-label">Téléphone du référent</span>
-                                                        <span className="info-value">{p.referent_tel}</span>
-                                                    </div>
-                                                )}
+                                                    ) : (
+                                                        <span className="info-value">Non renseigné</span>
+                                                    )}
+                                                </div>
+
+                                                <div className="info-item">
+                                                    <span className="info-label">Téléphone du référent</span>
+                                                    <span className="info-value">{p.referent_tel || 'Non renseigné'}</span>
+                                                </div>
                                             </div>
                                         </div>
                                     ))
@@ -416,7 +422,14 @@ export default function ProjetDetailPanel({
                                         );
                                     }
 
-                                    return thematiquesDepliees.map((depliee, idx) => (
+                                    return thematiquesDepliees.map((depliee, idx) => {
+                                        // 🔍 LOG: Afficher les données de la thématique
+                                        console.log(`🎯 [ProjetDetailPanel] Thématique ${depliee.libelle} - ${depliee.displayName}:`, {
+                                            donnees: depliee.donnees,
+                                            modeleMetadata: depliee.modeleMetadata
+                                        });
+
+                                        return (
                                         <div key={idx} className="thematique-item-detailed">
                                             <div className="thematique-header-main">
                                                 <h3 className="thematique-nom-principal">
@@ -425,7 +438,11 @@ export default function ProjetDetailPanel({
                                             </div>
 
                                             <div className="thematique-donnees">
-                                                {depliee.donnees.map((donnee, dIdx) => (
+                                                {depliee.donnees.map((donnee, dIdx) => {
+                                                    // 🔍 LOG: Afficher chaque donnée
+                                                    console.log(`📦 [ProjetDetailPanel] Donnée #${dIdx}:`, donnee);
+
+                                                    return (
                                                     <div key={dIdx} className="donnee-item">
                                                         {depliee.modeleMetadata && depliee.modeleMetadata.length > 0 ? (
                                                             depliee.modeleMetadata
@@ -452,20 +469,44 @@ export default function ProjetDetailPanel({
                                                                 .map((field) => {
                                                                     const value = donnee[field.name];
 
+                                                                    // 🔍 LOG: Afficher la valeur du champ pour debug
+                                                                    if (field.name === 'regime_icpe_id' || field.name.includes('regime')) {
+                                                                        console.log(`🔍 [ProjetDetailPanel] Champ "${field.name}":`, {
+                                                                            value: value,
+                                                                            type: typeof value,
+                                                                            isArray: Array.isArray(value),
+                                                                            length: Array.isArray(value) ? value.length : 'N/A',
+                                                                            donneeComplete: donnee
+                                                                        });
+                                                                    }
+
                                                                     let displayValue;
                                                                     if (value === null || value === undefined || value === '') {
                                                                         displayValue = <em style={{ color: '#999' }}>Non renseigné</em>;
                                                                     } else if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
-                                                                        // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
-                                                                        displayValue = value.map(item =>
-                                                                            typeof item === 'object' && item !== null
-                                                                                ? (item.value || item.libelle || item.id)
-                                                                                : item
-                                                                        ).join(', ');
+                                                                        // ✅ Gérer les tableaux d'objets (champs à choix multiples) avec badges
+                                                                        if (value.length === 0) {
+                                                                            displayValue = <em style={{ color: '#999' }}>Non renseigné</em>;
+                                                                        } else {
+                                                                            displayValue = (
+                                                                                <div className="field-badges">
+                                                                                    {value.map((item, idx) => {
+                                                                                        const text = typeof item === 'object' && item !== null
+                                                                                            ? (item.label || item.value || item.nom || item.name || JSON.stringify(item))
+                                                                                            : String(item);
+                                                                                        return (
+                                                                                            <span key={idx} className="field-badge">
+                                                                                                {text}
+                                                                                            </span>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            );
+                                                                        }
                                                                     } else if (typeof value === 'object' && value !== null) {
-                                                                        displayValue = value.value || value.libelle || JSON.stringify(value);
+                                                                        displayValue = value.label || value.value || value.nom || value.name || JSON.stringify(value);
                                                                     } else {
                                                                         displayValue = String(value);
                                                                     }
@@ -501,14 +542,26 @@ export default function ProjetDetailPanel({
                                                                     if (typeof value === 'boolean') {
                                                                         displayValue = value ? 'Oui' : 'Non';
                                                                     } else if (Array.isArray(value)) {
-                                                                        // ✅ Gérer les tableaux d'objets { id, value } ou de valeurs simples
-                                                                        displayValue = value.map(item =>
-                                                                            typeof item === 'object' && item !== null
-                                                                                ? (item.value || item.libelle || item.id)
-                                                                                : item
-                                                                        ).join(', ');
+                                                                        // ✅ Gérer les tableaux d'objets (champs à choix multiples) avec badges
+                                                                        if (value.length === 0) {
+                                                                            return null;
+                                                                        }
+                                                                        displayValue = (
+                                                                            <div className="field-badges">
+                                                                                {value.map((item, idx) => {
+                                                                                    const text = typeof item === 'object' && item !== null
+                                                                                        ? (item.label || item.value || item.nom || item.name || JSON.stringify(item))
+                                                                                        : String(item);
+                                                                                    return (
+                                                                                        <span key={idx} className="field-badge">
+                                                                                            {text}
+                                                                                        </span>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        );
                                                                     } else if (typeof value === 'object' && value !== null) {
-                                                                        displayValue = value.value || value.libelle || JSON.stringify(value);
+                                                                        displayValue = value.label || value.value || value.nom || value.name || JSON.stringify(value);
                                                                     } else {
                                                                         displayValue = String(value);
                                                                     }
@@ -530,10 +583,12 @@ export default function ProjetDetailPanel({
                                                             <div className="donnee-separator"></div>
                                                         )}
                                                     </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         </div>
-                                    ));
+                                        );
+                                    });
                                 })()
                             ) : (
                                 <div className="empty-state">
@@ -640,17 +695,21 @@ export default function ProjetDetailPanel({
                                             </div>
                                         )}
 
-                                        {Array.isArray(g.communesTraversees) && g.communesTraversees.length > 0 && (
+                                        {Array.isArray(g.codes_insee) && g.codes_insee.length > 0 && (
                                             <div className="geom-section">
-                                                <h5 className="geom-section-title">Communes traversées</h5>
-                                                <div className="communes-box">{g.communesTraversees.join(', ')}</div>
+                                                <h5 className="geom-section-title">Code INSEE</h5>
+                                                <div className="codes-box">{g.codes_insee.join(', ')}</div>
                                             </div>
                                         )}
 
-                                        {Array.isArray(g.codesInsee) && g.codesInsee.length > 0 && (
+                                        {Array.isArray(g.communes_traversees) && g.communes_traversees.length > 0 && (
                                             <div className="geom-section">
-                                                <h5 className="geom-section-title">Codes INSEE</h5>
-                                                <div className="codes-box">{g.codesInsee.join(', ')}</div>
+                                                <h5 className="geom-section-title">
+                                                    {g.type && (g.type.toLowerCase().includes('point'))
+                                                        ? 'Commune'
+                                                        : 'Commune traversée'}
+                                                </h5>
+                                                <div className="communes-box">{g.communes_traversees.join(', ')}</div>
                                             </div>
                                         )}
 

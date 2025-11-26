@@ -261,8 +261,8 @@ export default function Map({ onSelect }) {
             try {
                 const geoJsonLayer = L.geoJSON(featureCollection, {
                     style: (feature) => {
-                        const statut = feature.properties?.libelle_statut || 
-                            feature.properties?.statut_projet || 
+                        const statut = feature.properties?.libelle_statut ||
+                            feature.properties?.statut_projet ||
                             feature.properties?.statut || 'Non défini';
                         const style = getStatusStyle(statut);
                         return {
@@ -274,8 +274,8 @@ export default function Map({ onSelect }) {
                         };
                     },
                     pointToLayer: (feature, latlng) => {
-                        const statut = feature.properties?.libelle_statut || 
-                             feature.properties?.statut_projet || 
+                        const statut = feature.properties?.libelle_statut ||
+                             feature.properties?.statut_projet ||
                             feature.properties?.statut || 'Non défini';
                         const style = getStatusStyle(statut);
                         return L.circleMarker(latlng, {
@@ -297,33 +297,6 @@ export default function Map({ onSelect }) {
                         const description = props.description || 'Aucune description'
                         const statut = props.libelle_statut || props.statut_projet || props.statut || 'Aucun statut';
                         const serviceDDT = props.service || props.service_ddt || 'Aucun service';
-                        
-                        // Communes
-                        let communesText = 'Non renseignée';
-                        if (props.communes_traversees && Array.isArray(props.communes_traversees)) {
-                            const communes = props.communes_traversees;
-                            if (communes.length === 1) {
-                                communesText = communes[0];
-                            } else if (communes.length <= 3) {
-                                communesText = communes.join(', ');
-                            } else {
-                                communesText = `${communes.slice(0, 3).join(', ')} +${communes.length - 3} autres`;
-                            }
-                        } else if (props.commune) {
-                            communesText = props.commune;
-                        }
-
-                        // Type de porteur
-                        let typePorteur = 'Aucun type de porteur renseigné';
-                        if (props.porteurs && Array.isArray(props.porteurs) && props.porteurs.length > 0) {
-                            const types = props.porteurs
-                                .map(p => p.type_porteur)
-                                .filter(t => t)
-                                .join(', ');
-                            typePorteur = types || 'Aucun type';
-                        } else if (props.type_porteur) {
-                            typePorteur = props.type_porteur;
-                        }
 
                         // Superficie ou longueur
                         let dimensionText = '';
@@ -402,8 +375,8 @@ export default function Map({ onSelect }) {
                             else if (Array.isArray(props.thematiques)) {
                                 nombreThematiques = props.thematiques.length;
                             }
-                            
-                            
+
+
 
                             console.log(`🎯 Projet ${idProjet}: ${nombreThematiques} thématique(s)`);
 
@@ -484,17 +457,46 @@ export default function Map({ onSelect }) {
                                     <div style="display: flex; align-items: flex-start; gap: 8px;">
                                         <span style="font-size: 16px;">📍</span>
                                         <div style="flex: 1; min-width: 0;">
-                                            <div style="font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 2px;">COMMUNE(S)</div>
-                                            <div style="font-size: 13px; color: #1e293b; font-weight: 500; word-wrap: break-word; word-break: break-word;">${communesText}</div>
-                                        </div>
-                                    </div>
+                                            <div style="font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 4px;">COMMUNE(S)</div>
+                                            ${
+                                                props.communes_traversees && Array.isArray(props.communes_traversees) && props.communes_traversees.length > 0
+                                                    ? (() => {
+                                                        const communes = props.communes_traversees;
+                                                        const communesToShow = communes.slice(0, 3);
+                                                        const remaining = communes.length - 3;
 
-                                    <!-- Type de porteur -->
-                                    <div style="display: flex; align-items: flex-start; gap: 8px;">
-                                        <span style="font-size: 16px;">👥</span>
-                                        <div style="flex: 1; min-width: 0;">
-                                            <div style="font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 2px;">TYPE DE PORTEUR</div>
-                                            <div style="font-size: 13px; color: #1e293b; font-weight: 500; word-wrap: break-word; word-break: break-word;">${typePorteur}</div>
+                                                        return `<div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                                                            ${communesToShow.map(commune => `
+                                                                <span style="
+                                                                    display: inline-flex;
+                                                                    align-items: center;
+                                                                    padding: 4px 10px;
+                                                                    background: #eff6ff;
+                                                                    color: #1e40af;
+                                                                    border-radius: 6px;
+                                                                    font-size: 12px;
+                                                                    font-weight: 600;
+                                                                    border: 1px solid #bfdbfe;
+                                                                    white-space: nowrap;
+                                                                ">${commune}</span>
+                                                            `).join('')}
+                                                            ${remaining > 0 ? `
+                                                                <span style="
+                                                                    display: inline-flex;
+                                                                    align-items: center;
+                                                                    padding: 4px 10px;
+                                                                    background: #f1f5f9;
+                                                                    color: #475569;
+                                                                    border-radius: 6px;
+                                                                    font-size: 12px;
+                                                                    font-weight: 700;
+                                                                    border: 1px solid #cbd5e1;
+                                                                ">+${remaining}</span>
+                                                            ` : ''}
+                                                        </div>`;
+                                                    })()
+                                                    : `<div style="font-size: 13px; color: #94a3b8; font-style: italic;">Non renseignée</div>`
+                                            }
                                         </div>
                                     </div>
 
@@ -507,12 +509,12 @@ export default function Map({ onSelect }) {
                                                 display: inline-block;
                                                 padding: 4px 10px;
                                                 background: ${getStatusStyle(statut).fillColor};
-                                                color: ${getStatusStyle(statut).color};
+                                                color: white;
                                                 border-radius: 6px;
                                                 font-size: 12px;
                                                 font-weight: 600;
                                                 border: 1px solid ${getStatusStyle(statut).color};
-                                            ">${statut}</div>
+                                            ">${getStatusStyle(statut).libelle}</div>
                                         </div>
                                     </div>
 
@@ -672,7 +674,7 @@ export default function Map({ onSelect }) {
             }
     }, [onSelect]);
 
-   
+
 
     // Appliquer les filtres
     useEffect(() => {

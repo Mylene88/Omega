@@ -166,8 +166,8 @@ export default function Sidebar({ projectId, onClose }) {
                         type: g.type,
                         surface: g.surface,
                         longueur: g.longueur,
-                        communesTraversees: g.communesTraversees || [],
-                        codesInsee: g.codesInsee || [],
+                        communes_traversees: g.communes_traversees || [],
+                        codes_insee: g.codes_insee || [],
                         epci: g.epci || [],
                         arrondissements: g.arrondissements || [],
                         deputes: g.deputes || [],
@@ -237,7 +237,7 @@ export default function Sidebar({ projectId, onClose }) {
 
                                         <div className="info-item">
                                             <span className="info-label">Statut du projet</span>
-                                            <span className="info-badge info-badge-status">
+                                            <span className="info-value">
                                                 {info.statut || 'N/A'}
                                             </span>
                                         </div>
@@ -282,14 +282,14 @@ export default function Sidebar({ projectId, onClose }) {
                                     <div className="info-grid" style={{ marginBottom: '24px' }}>
                                         <div className="info-item">
                                             <span className="info-label">Projet signalé</span>
-                                            <span className={`info-badge ${info.projet_signale ? 'badge-yes' : 'badge-no'}`}>
+                                            <span className="info-value">
                                                 {info.projet_signale ? 'Oui' : 'Non'}
                                             </span>
                                         </div>
 
                                         <div className="info-item">
                                             <span className="info-label">Charte d'Accueil</span>
-                                            <span className={`info-badge ${info.charte_accueil ? 'badge-yes' : 'badge-no'}`}>
+                                            <span className="info-value">
                                                 {info.charte_accueil ? 'Oui' : 'Non'}
                                             </span>
                                         </div>
@@ -318,7 +318,7 @@ export default function Sidebar({ projectId, onClose }) {
                                             <span className="info-label">Date de dernière mise-à-jour</span>
                                             <span className="info-value">{formatDateTime(info.updated_at)}</span>
                                         </div>
-              
+
                                     </div>
 
                                     {/* Historique des suivis */}
@@ -477,15 +477,15 @@ export default function Sidebar({ projectId, onClose }) {
                                                                             'created_by',
                                                                             'creePar'
                                                                         ];
-                                                                        
+
                                                                         // Exclure les IDs (primary keys)
                                                                         const isIdField = field.name.startsWith('id_');
-                                                                        
+
                                                                         return !excludedFields.includes(field.name) && !isIdField;
                                                                     })
                                                                     .map((field) => {
                                                                         const value = donnee[field.name];
-                                                                        
+
                                                                         // ✅ Formater la valeur (ou afficher "Non renseigné")
                                                                         let displayValue;
                                                                         if (value === null || value === undefined || value === '') {
@@ -493,9 +493,27 @@ export default function Sidebar({ projectId, onClose }) {
                                                                         } else if (typeof value === 'boolean') {
                                                                             displayValue = value ? 'Oui' : 'Non';
                                                                         } else if (Array.isArray(value)) {
-                                                                            displayValue = value.join(', ');
+                                                                            // ✅ Gérer les tableaux d'objets (champs à choix multiples) avec badges
+                                                                            if (value.length === 0) {
+                                                                                displayValue = <em style={{ color: '#999' }}>Non renseigné</em>;
+                                                                            } else {
+                                                                                displayValue = (
+                                                                                    <div className="field-badges">
+                                                                                        {value.map((item, idx) => {
+                                                                                            const text = typeof item === 'object' && item !== null
+                                                                                                ? (item.label || item.value || item.nom || item.name || JSON.stringify(item))
+                                                                                                : String(item);
+                                                                                            return (
+                                                                                                <span key={idx} className="field-badge">
+                                                                                                    {text}
+                                                                                                </span>
+                                                                                            );
+                                                                                        })}
+                                                                                    </div>
+                                                                                );
+                                                                            }
                                                                         } else if (typeof value === 'object' && value !== null) {
-                                                                            displayValue = value.value || JSON.stringify(value);
+                                                                            displayValue = value.label || value.value || value.nom || value.name || JSON.stringify(value);
                                                                         } else {
                                                                             displayValue = String(value);
                                                                         }
@@ -527,14 +545,31 @@ export default function Sidebar({ projectId, onClose }) {
                                                                         if (value === null || value === undefined || value === '') {
                                                                             return null;
                                                                         }
-                                                                        
+
                                                                         let displayValue;
                                                                         if (typeof value === 'boolean') {
                                                                             displayValue = value ? 'Oui' : 'Non';
                                                                         } else if (Array.isArray(value)) {
-                                                                            displayValue = value.join(', ');
+                                                                            // ✅ Gérer les tableaux d'objets (champs à choix multiples) avec badges
+                                                                            if (value.length === 0) {
+                                                                                return null;
+                                                                            }
+                                                                            displayValue = (
+                                                                                <div className="field-badges">
+                                                                                    {value.map((item, idx) => {
+                                                                                        const text = typeof item === 'object' && item !== null
+                                                                                            ? (item.label || item.value || item.nom || item.name || JSON.stringify(item))
+                                                                                            : String(item);
+                                                                                        return (
+                                                                                            <span key={idx} className="field-badge">
+                                                                                                {text}
+                                                                                            </span>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            );
                                                                         } else if (typeof value === 'object' && value !== null) {
-                                                                            displayValue = value.value || JSON.stringify(value);
+                                                                            displayValue = value.label || value.value || value.nom || value.name || JSON.stringify(value);
                                                                         } else {
                                                                             displayValue = String(value);
                                                                         }
@@ -666,17 +701,21 @@ export default function Sidebar({ projectId, onClose }) {
                                                         </div>
                                                     )}
 
-                                                    {Array.isArray(g.communesTraversees) && g.communesTraversees.length > 0 && (
+                                                    {Array.isArray(g.codes_insee) && g.codes_insee.length > 0 && (
                                                         <div className="geom-section">
-                                                            <h5 className="geom-section-title">Communes traversées</h5>
-                                                            <div className="communes-box">{g.communesTraversees.join(', ')}</div>
+                                                            <h5 className="geom-section-title">Code INSEE</h5>
+                                                            <div className="codes-box">{g.codes_insee.join(', ')}</div>
                                                         </div>
                                                     )}
 
-                                                    {Array.isArray(g.codesInsee) && g.codesInsee.length > 0 && (
+                                                    {Array.isArray(g.communes_traversees) && g.communes_traversees.length > 0 && (
                                                         <div className="geom-section">
-                                                            <h5 className="geom-section-title">Codes INSEE</h5>
-                                                            <div className="codes-box">{g.codesInsee.join(', ')}</div>
+                                                            <h5 className="geom-section-title">
+                                                                {g.type && (g.type.toLowerCase().includes('point'))
+                                                                    ? 'Commune'
+                                                                    : 'Commune traversée'}
+                                                            </h5>
+                                                            <div className="communes-box">{g.communes_traversees.join(', ')}</div>
                                                         </div>
                                                     )}
 

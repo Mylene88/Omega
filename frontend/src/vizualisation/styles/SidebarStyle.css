@@ -506,6 +506,35 @@
     font-weight: 500;
 }
 
+/* ==================== FIELD BADGES (Champs à choix multiples) ==================== */
+.field-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.field-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    background: #e8eef7;
+    color: #3b5998;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    transition: all 0.2s ease;
+    border: 1px solid #d0daea;
+}
+
+.field-badge:hover {
+    background: #d8e2f0;
+    border-color: #b8c9e0;
+    color: #2d4373;
+}
+
 .donnee-separator {
     height: 1px;
     background: var(--border-light);

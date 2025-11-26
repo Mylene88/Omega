@@ -149,6 +149,12 @@ export async function GET() {
           ]
         },
         {
+          model: ProjetInThematique,
+          as: 'projet_in_thematiques',
+          attributes: ['id_thematique'],
+          required: false
+        },
+        {
           model: User,
           as: 'creator',
           attributes: ['id_user', 'username', 'nom_complet']
@@ -166,9 +172,11 @@ export async function GET() {
       nom_projet: p.nom_projet,
       description: p.description,
       statut: p.statut_projet_enum?.libelle,
+      statut_projet_id: p.statut_projet_id,  // ✅ Ajouter l'ID du statut pour le filtrage
       service: p.ddt_service_enum?.libelle_service,
       projet_signale: p.projet_signale,
       charte_accueil: p.charte_accueil,
+      demande_suppression: p.demande_suppression,
       referent_ddt: p.referent_ddt,
       created_by: p.creator?.username || null,
       created_by_name: p.creator?.nom_complet || p.creator?.username || null,
@@ -177,6 +185,8 @@ export async function GET() {
       date_ident_projet: p.date_ident_projet,
       created_at: p.created_at,
       updated_at: p.updated_at,
+      // 🔥 AJOUT : Nombre de thématiques pour l'affichage dans les cartes
+      nombre_thematiques: p.projet_in_thematiques?.length || 0,
     }));
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
@@ -204,6 +214,10 @@ export async function POST(request) {
     console.log('   - suivis:', body.suivis);
     console.log('   - thematiques:', body.thematiques);
     console.log('   - documents:', body.documents);
+
+    // 🆔 Extraire l'ID utilisateur pour les snapshots et audits
+    const userId = body.created_by || body.updated_by;
+    console.log('   - userId:', userId);
 
     // ✅ Vérifier si le projet existe déjà (mode édition)
     const projetExistant = await Projet.findOne({
@@ -265,6 +279,19 @@ export async function POST(request) {
       // ✅ MODE MISE À JOUR
       console.log('\n6. 🔄 Mise à jour du projet...');
 
+      // 🔥 NOUVEAU: Créer un snapshot de l'état AVANT modification
+      if (oldProjectData && userId) {
+        console.log('   📸 Création snapshot AVANT modification...');
+        await createSnapshot({
+          idProjet: projetExistant.id_projet,
+          projetData: oldProjectData,
+          description: `Snapshot automatique avant modification`,
+          userId,
+          transaction
+        });
+        console.log('   ✅ Snapshot AVANT créé (sauvegarde de l\'état actuel)');
+      }
+
       // Mettre à jour les champs du projet
       await projetExistant.update({
         nom_projet: securisedData.nom_projet,
@@ -278,6 +305,21 @@ export async function POST(request) {
         updated_by: securisedData.updated_by,
         updated_at: new Date()
       }, { transaction });
+
+      // ✅ Récupérer les suivis existants avant suppression pour préserver les dates
+      const suivisExistants = await ProjetSuivi.findAll({
+        where: { id_projet: projetExistant.id_projet },
+        transaction
+      });
+
+      // Créer une map des suivis existants (texte -> date de création)
+      const suivisMap = new Map();
+      suivisExistants.forEach(s => {
+        suivisMap.set(s.suivi.trim().toLowerCase(), {
+          created_at: s.created_at,
+          created_by: s.created_by
+        });
+      });
 
       // ✅ Supprimer les anciennes relations
       console.log('\n   🗑️  Suppression des anciennes relations...');
@@ -295,16 +337,21 @@ export async function POST(request) {
         console.log(`   ✅ ${porteursData.length} porteurs mis à jour`);
       }
 
-      // ✅ Créer les nouvelles relations suivis
+      // ✅ Créer les nouvelles relations suivis en préservant les dates originales
       if (securisedData.suivis && securisedData.suivis.length > 0) {
-        const suivisData = securisedData.suivis.map(s => ({
-          id_projet: projetExistant.id_projet,
-          suivi: s.suivi,
-          created_by: s.created_by,
-          created_at: new Date()
-        }));
+        const suivisData = securisedData.suivis.map(s => {
+          const suiviKey = s.suivi.trim().toLowerCase();
+          const existant = suivisMap.get(suiviKey);
+
+          return {
+            id_projet: projetExistant.id_projet,
+            suivi: s.suivi,
+            created_by: existant ? existant.created_by : (s.created_by || securisedData.updated_by),
+            created_at: existant ? existant.created_at : new Date()
+          };
+        });
         await ProjetSuivi.bulkCreate(suivisData, { transaction });
-        console.log(`   ✅ ${suivisData.length} suivis mis à jour`);
+        console.log(`   ✅ ${suivisData.length} suivis mis à jour (dates préservées)`);
       }
 
       // ✅ Créer la nouvelle géométrie
@@ -585,7 +632,7 @@ export async function POST(request) {
     // ✅ 11. AUDIT LOG ET SNAPSHOT
     console.log('\n11. 📝 Enregistrement de l\'audit...');
     const { userIp, userAgent } = extractRequestInfo(request);
-    const userId = body.created_by || body.updated_by;
+    // userId déjà défini au début de la fonction
 
     // Récupérer l'état complet du projet après modification pour l'audit
     const fullNewProject = await Projet.findByPk(nouveauProjet.id_projet, {
@@ -614,24 +661,17 @@ export async function POST(request) {
     });
     console.log(`   ✅ Audit log enregistré (${isUpdate ? 'UPDATE' : 'CREATE'})`);
 
-    // Créer un snapshot pour les mises à jour
-    if (isUpdate && newProjectData) {
-      await createSnapshot({
-        idProjet: nouveauProjet.id_projet,
-        projetData: newProjectData,
-        snapshotType: 'AUTO',
-        description: `Snapshot automatique après modification`,
-        userId,
-        transaction
-      });
-      console.log('   ✅ Snapshot créé');
-    }
+    // 🔥 MODIFIÉ: Snapshot AVANT modification déjà créé (plus besoin d'un snapshot APRÈS)
+    // Le snapshot automatique est maintenant créé AVANT la modification pour capturer l'état original
+    // Si besoin d'un snapshot APRÈS, utilisez le bouton "Créer snapshot" dans l'interface admin
 
     console.log('=================================================================\n');
     await transaction.commit();
     return NextResponse.json({
       success: true,
       data: {
+        id_projet: nouveauProjet.id_projet,
+        nom_projet: nouveauProjet.nom_projet,
         projet: nouveauProjet,
         liaisonIds: extra?.liaisonIds || []
       }

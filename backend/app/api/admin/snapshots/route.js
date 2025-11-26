@@ -12,7 +12,6 @@ import db from '@/backend/models';
  * Query params:
  * - idProjet: ID du projet (optionnel)
  * - limit: nombre max de snapshots (défaut: 50)
- * - type: type de snapshot (AUTO, MANUAL, BEFORE_DELETE)
  */
 export async function GET(request) {
   try {
@@ -26,7 +25,6 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const idProjet = searchParams.get('idProjet');
     const limit = parseInt(searchParams.get('limit') || '50');
-    const type = searchParams.get('type');
 
     let snapshots;
 
@@ -36,22 +34,24 @@ export async function GET(request) {
     } else {
       // Récupérer tous les snapshots récents
       const where = {};
-      if (type) {
-        where.snapshot_type = type;
-      }
 
       snapshots = await db.ProjetSnapshot.findAll({
         where,
         include: [
           {
             model: db.User,
-            as: 'creator',
+            as: 'user',
             attributes: ['id_user', 'username', 'prenom', 'nom']
           },
           {
             model: db.Projet,
             as: 'projet',
             attributes: ['id_projet', 'nom_projet']
+          },
+          {
+            model: db.ProjetSnapshotSection,
+            as: 'sections',
+            attributes: ['section_name', 'section_data']
           }
         ],
         order: [['created_at', 'DESC']],
@@ -60,20 +60,52 @@ export async function GET(request) {
     }
 
     // Formater les données pour le frontend
-    const formattedSnapshots = snapshots.map(snapshot => ({
-      id: snapshot.id_snapshot,
-      idProjet: snapshot.id_projet,
-      projetNom: snapshot.projet?.nom_projet || 'Projet inconnu',
-      snapshotType: snapshot.snapshot_type,
-      description: snapshot.description,
-      snapshotData: snapshot.snapshot_data, // Données complètes du projet
-      creator: snapshot.creator ? {
-        id: snapshot.creator.id_user,
-        username: snapshot.creator.username,
-        nomComplet: `${snapshot.creator.prenom || ''} ${snapshot.creator.nom || ''}`.trim()
-      } : null,
-      createdAt: snapshot.created_at
-    }));
+    const formattedSnapshots = snapshots.map(snapshot => {
+      // Extraire les données des sections
+      const snapshotData = {};
+      if (snapshot.sections && snapshot.sections.length > 0) {
+        snapshot.sections.forEach(section => {
+          if (section.section_name === 'projet_info') {
+            snapshotData.projetInfo = section.section_data;
+          } else if (section.section_name === 'porteurs') {
+            snapshotData.nbPorteurs = section.section_data?.length || 0;
+          } else if (section.section_name === 'suivis') {
+            snapshotData.nbSuivis = section.section_data?.length || 0;
+          } else if (section.section_name === 'thematiques') {
+            snapshotData.nbThematiques = section.section_data?.length || 0;
+          } else if (section.section_name === 'documents') {
+            snapshotData.nbDocuments = section.section_data?.length || 0;
+          } else if (section.section_name === 'geometrie') {
+            snapshotData.hasGeometry = !!section.section_data;
+          }
+        });
+      }
+
+      return {
+        id: snapshot.id_snapshot,
+        idProjet: snapshot.id_projet,
+        projetNom: snapshot.projet?.nom_projet || 'Projet inconnu',
+        versionNumber: snapshot.version_number,
+        isCurrent: snapshot.is_current,
+        snapshotDate: snapshot.snapshot_date ? new Date(snapshot.snapshot_date).toISOString() : null,
+        description: snapshot.description,
+        creator: snapshot.user ? {
+          id: snapshot.user.id_user,
+          username: snapshot.user.username,
+          nomComplet: `${snapshot.user.prenom || ''} ${snapshot.user.nom || ''}`.trim()
+        } : null,
+        createdAt: snapshot.created_at ? new Date(snapshot.created_at).toISOString() : null,
+        // Données du snapshot au moment de la création
+        snapshotNomProjet: snapshotData.projetInfo?.nom_projet,
+        snapshotStatutId: snapshotData.projetInfo?.statut_projet_id,
+        snapshotDescription: snapshotData.projetInfo?.description?.substring(0, 100),
+        nbPorteurs: snapshotData.nbPorteurs || 0,
+        nbSuivis: snapshotData.nbSuivis || 0,
+        nbThematiques: snapshotData.nbThematiques || 0,
+        nbDocuments: snapshotData.nbDocuments || 0,
+        hasGeometry: snapshotData.hasGeometry || false
+      };
+    });
 
     return NextResponse.json({
       success: true,
@@ -81,7 +113,6 @@ export async function GET(request) {
       count: formattedSnapshots.length,
       filters: {
         idProjet,
-        type,
         limit
       }
     });
@@ -145,7 +176,6 @@ export async function POST(request) {
     const snapshot = await createSnapshot({
       idProjet,
       projetData: projet.toJSON(),
-      snapshotType: 'MANUAL',
       description: description || `Snapshot manuel créé le ${new Date().toLocaleString('fr-FR')}`,
       userId
     });
@@ -156,7 +186,8 @@ export async function POST(request) {
       data: {
         id: snapshot.id_snapshot,
         idProjet: snapshot.id_projet,
-        snapshotType: snapshot.snapshot_type,
+        versionNumber: snapshot.version_number,
+        isCurrent: snapshot.is_current,
         description: snapshot.description,
         createdAt: snapshot.created_at
       }

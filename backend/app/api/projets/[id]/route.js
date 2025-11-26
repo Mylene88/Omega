@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { Op } from 'sequelize';
 import { getFormattedThematiqueLabel } from '@/backend/lib/config';
 import db from '@/backend/models';
-import { logAudit, createSnapshot, extractRequestInfo } from '@/backend/lib/auditHelper';
+import { logAudit, createSnapshot, createSectionVersion, extractRequestInfo } from '@/backend/lib/auditHelper';
 
 const {
   Projet,
@@ -110,6 +110,7 @@ export async function GET(request, { params }) {
         'date_ident_projet',
         'projet_signale',
         'charte_accueil',
+        'demande_suppression',
         'referent_ddt',
         'statut_projet_id',
         'service_id',
@@ -334,13 +335,27 @@ export async function GET(request, { params }) {
             }
 
             function getEnumDisplayAttributes(enumTableName) {
-              const usesLibelle = enumTableName === 'type_sol_enum';
-              return ['id', usesLibelle ? 'libelle' : 'value'];
+              // Tables qui ont SEULEMENT 'libelle' (pas de 'value')
+              const usesLibelleOnly = ['type_sol_enum'].includes(enumTableName);
+
+              if (usesLibelleOnly) {
+                return ['id', 'libelle'];
+              } else {
+                // Toutes les autres tables enum ont {id, value}
+                return ['id', 'value'];
+              }
             }
 
 
           // ✅ CONSTRUIRE LES INCLUDES POUR LES ENUMS
              const includeOptions = [];
+
+              console.log(`🔧 Traitement des champs pour ${modeleConfig.tableName}:`, modeleConfig.fields?.map(f => ({
+                name: f.name,
+                type: f.type,
+                enumTable: f.enumTable,
+                relationTable: f.relationTable
+              })));
 
               modeleConfig.fields?.forEach(field => {
                 if (!field.enumTable) return;
@@ -364,28 +379,65 @@ export async function GET(request, { params }) {
 
                 // Many-to-Many (checkbox-multiple)
                 if (field.type === 'checkbox-multiple' && field.relationTable) {
+                  console.log(`🔍 Traitement M2M pour ${field.name}:`);
+
+                  // Debug: lister tous les modèles avec cette table
+                  const modelsWithTable = Object.values(db).filter(
+                    model => model.tableName === field.enumTable
+                  );
+                  console.log(`   Modèles trouvés pour ${field.enumTable}:`, modelsWithTable.map(m => ({
+                    name: m.name,
+                    schema: m.options?.schema,
+                    tableName: m.tableName
+                  })));
+
                   const EnumModelM2M = Object.values(db).find(
                     model => model.tableName === field.enumTable && model.options?.schema === field.enumSchema
                   );
+                  console.log(`   EnumModelM2M trouvé:`, !!EnumModelM2M, EnumModelM2M?.name);
+
                   const assocM2M = findBelongsToManyAssociation(
                     Model,
                     field.enumTable,
                     field.enumSchema,
                     field.relationTable
                   );
+                  console.log(`   Association M2M trouvée:`, !!assocM2M, assocM2M?.as);
+
+                  // Debug: afficher les associations trouvées
+                  if (!assocM2M) {
+                    console.warn(`⚠️ Association M2M introuvable ${Model.tableName} -> ${field.enumTable}`);
+                    console.warn(`   Recherche: enumTable=${field.enumTable}, enumSchema=${field.enumSchema}, relationTable=${field.relationTable}`);
+                    console.warn(`   Associations disponibles:`, Object.keys(Model.associations || {}).map(k => {
+                      const a = Model.associations[k];
+                      return `${k} (type=${a.associationType}, target=${a.target?.tableName}, schema=${a.target?.options?.schema}, through=${a.through?.model?.tableName})`;
+                    }));
+                  }
+
+                  if (!EnumModelM2M) {
+                    console.error(`❌ EnumModelM2M non trouvé pour ${field.enumTable} dans schema ${field.enumSchema}`);
+                  }
+
                   if (EnumModelM2M && assocM2M) {
-                    includeOptions.push({
+                    const includeConfig = {
                       model: EnumModelM2M,
                       as: assocM2M.as,                 // ex. 'type_sol_enum' / 'origine_intrants_enum'
                       through: { attributes: [] },
                       attributes: getEnumDisplayAttributes(field.enumTable),
                       required: false
+                    };
+                    includeOptions.push(includeConfig);
+                    console.log(`✅ Include M2M ajouté pour ${field.name}:`, {
+                      fieldName: field.name,
+                      alias: assocM2M.as,
+                      enumTable: field.enumTable,
+                      attributes: includeConfig.attributes
                     });
-                  } else {
-                    console.warn(`Association M2M introuvable ${Model.tableName} -> ${field.enumTable}`);
                   }
                 }
               });
+
+              console.log(`📦 Includes totaux pour ${Model.tableName}:`, includeOptions.length, 'includes');
 
 // ✅ RÉCUPÉRER LES DONNÉES AVEC LES RELATIONS (uniquement le plus récent)
 const donnees = await Model.findAll({
@@ -413,23 +465,36 @@ console.log(`✅ ${donnees.length} enregistrement(s) trouvé(s) pour ${modeleVal
     for (const field of modeleConfig.fields || []) {
       const fieldValue = d[field.name];
 
-      // Ignorer les champs vides
-      if (fieldValue === null || fieldValue === undefined) {
-        continue;
-      }
-
     // ✅ CAS 1: Champ Many-to-Many (checkbox-multiple)
+    // IMPORTANT: Ne pas skipper même si fieldValue est null, car les données sont dans la table de jonction
     if (field.type === 'checkbox-multiple' && field.relationTable) {
   const assocM2M = findBelongsToManyAssociation(Model, field.enumTable, field.enumSchema, field.relationTable);
   const relatedData = assocM2M ? d[assocM2M.as] : null;
+
+  console.log(`🔍 Champ M2M [${field.name}]:`, {
+    assocFound: !!assocM2M,
+    assocAs: assocM2M?.as,
+    relatedData: relatedData,
+    isArray: Array.isArray(relatedData),
+    length: relatedData?.length
+  });
+
   // ✅ Renvoyer les objets complets avec ID et libellé pour l'affichage
-  formattedData[field.name] = Array.isArray(relatedData)
-    ? relatedData.map(item => ({
-        id: item.id,
-        value: item.value || item.libelle || item.id
-      }))
-    : fieldValue;
+  if (Array.isArray(relatedData) && relatedData.length > 0) {
+    formattedData[field.name] = relatedData.map(item => ({
+      id: item.id,
+      label: item.libelle || item.value || String(item.id), // Priorité: libelle > value > id
+      value: item.libelle || item.value || String(item.id)
+    }));
+  }
+  // ✅ Ne pas ajouter le champ s'il est vide (pour ne pas polluer avec des tableaux vides)
+  continue; // Passer au champ suivant
 }
+
+      // Ignorer les champs vides (sauf pour checkbox-multiple traité ci-dessus)
+      if (fieldValue === null || fieldValue === undefined) {
+        continue;
+      }
 
     // ✅ CAS 2: Champ avec enumTable (select simple)
    else if (field.enumTable) {
@@ -440,7 +505,9 @@ console.log(`✅ ${donnees.length} enregistrement(s) trouvé(s) pour ${modeleVal
     a.target?.options?.schema === modeleConfig.schema
   );
 
-  if (assoc && d[assoc.as]) {
+  // ✅ Vérification améliorée : ne pas considérer null/undefined comme "pas d'association"
+  // Permet de gérer les valeurs 0 et false qui sont valides
+  if (assoc && d[assoc.as] !== null && d[assoc.as] !== undefined) {
     // ✅ Renvoyer un objet {id, value} pour que le frontend puisse extraire l'ID
     formattedData[field.name] = {
       id: fieldValue, // L'ID stocké dans la base
@@ -539,6 +606,7 @@ console.log(`✅ ${donnees.length} enregistrement(s) trouvé(s) pour ${modeleVal
         dateIdentification: projetComplet.date_ident_projet,
         projetSignale: projetComplet.projet_signale,
         charteAccueil: projetComplet.charte_accueil,
+        demandeSuppression: projetComplet.demande_suppression,
         referentDdt: projetComplet.referent_ddt,
         dateCreation: projetComplet.created_at,
         dateMiseAJour: projetComplet.updated_at
@@ -687,8 +755,18 @@ export async function PUT(request, { params }) {
     console.log(`🔄 Mise à jour du projet ${id}`);
     console.log('Body reçu:', JSON.stringify(body, null, 2));
 
-    // 1. Vérifier que le projet existe
-    const projet = await Projet.findByPk(id);
+    // 1. Vérifier que le projet existe et récupérer l'état actuel pour snapshot
+    const projet = await Projet.findByPk(id, {
+      include: [
+        { model: ProjetPorteur, as: 'porteurs' },
+        { model: ProjetSuivi, as: 'suivis' },
+        { model: Document, as: 'documents' },
+        { model: ProjetGeometry, as: 'geometry' },
+        { model: ProjetInThematique, as: 'projet_in_thematiques' }
+      ],
+      transaction
+    });
+
     if (!projet) {
       await transaction.rollback();
       return NextResponse.json({
@@ -697,7 +775,54 @@ export async function PUT(request, { params }) {
       }, { status: 404 });
     }
 
+    // 1.5. Sauvegarder l'état AVANT modification et créer un snapshot
+    const userId = body.updated_by || body.created_by;
+    const projetAvant = projet.toJSON(); // Sauvegarder l'état avant modification
+
+    // Créer un snapshot AVANT modification pour permettre la restauration
+    if (userId) {
+      try {
+        await createSnapshot({
+          idProjet: id,
+          projetData: projetAvant,
+          description: `Snapshot automatique avant modification`,
+          userId,
+          transaction
+        });
+        console.log('📸 Snapshot créé avant modification');
+      } catch (snapshotError) {
+        console.error('⚠️  Erreur création snapshot (non bloquant):', snapshotError.message);
+        // Ne pas bloquer la mise à jour si le snapshot échoue
+      }
+    }
+
     // 2. Mettre à jour les champs de base du projet
+    // 2.1 Sauvegarder version de la section projet_info AVANT modification
+    if (userId) {
+      try {
+        await createSectionVersion({
+          idProjet: id,
+          userId,
+          sectionName: 'projet_info',
+          sectionData: {
+            nom_projet: projet.nom_projet,
+            description: projet.description,
+            statut_projet_id: projet.statut_projet_id,
+            date_ident_projet: projet.date_ident_projet,
+            projet_signale: projet.projet_signale,
+            charte_accueil: projet.charte_accueil,
+            service_id: projet.service_id,
+            referent_ddt: projet.referent_ddt
+          },
+          description: 'Version automatique avant modification des informations du projet',
+          transaction
+        });
+        console.log('📋 Version de projet_info créée');
+      } catch (err) {
+        console.error('⚠️  Erreur création version projet_info (non bloquant):', err.message);
+      }
+    }
+
     await projet.update({
       nom_projet: body.nom_projet ?? projet.nom_projet,
       description: body.description ?? projet.description,
@@ -705,6 +830,7 @@ export async function PUT(request, { params }) {
       date_ident_projet: body.date_ident_projet ?? projet.date_ident_projet,
       projet_signale: body.projet_signale ?? projet.projet_signale,
       charte_accueil: body.charte_accueil ?? projet.charte_accueil,
+      demande_suppression: body.demande_suppression ?? projet.demande_suppression,
       service_id: body.service_id ?? projet.service_id,
       referent_ddt: body.referent_ddt ?? projet.referent_ddt,
       updated_by: body.updated_by ?? projet.updated_by,
@@ -715,9 +841,31 @@ export async function PUT(request, { params }) {
 
     // 3. Mettre à jour les porteurs
     if (Array.isArray(body.porteurs)) {
+      // 3.1 Sauvegarder version de la section porteurs AVANT modification
+      if (userId) {
+        try {
+          const porteursAvant = await ProjetPorteur.findAll({
+            where: { id_projet: id },
+            transaction,
+            raw: true
+          });
+          await createSectionVersion({
+            idProjet: id,
+            userId,
+            sectionName: 'porteurs',
+            sectionData: { porteurs: porteursAvant },
+            description: 'Version automatique avant modification des porteurs',
+            transaction
+          });
+          console.log('📋 Version de porteurs créée');
+        } catch (err) {
+          console.error('⚠️  Erreur création version porteurs (non bloquant):', err.message);
+        }
+      }
+
       // Supprimer les anciens porteurs
       await ProjetPorteur.destroy({ where: { id_projet: id }, transaction });
-      
+
       // Créer les nouveaux
       if (body.porteurs.length > 0) {
         const porteursRecords = body.porteurs.map(p => ({
@@ -737,6 +885,28 @@ export async function PUT(request, { params }) {
 
     // 4. Mettre à jour les suivis
     if (Array.isArray(body.suivis) && body.suivis.length > 0) {
+      // 4.1 Sauvegarder version de la section suivis AVANT ajout
+      if (userId) {
+        try {
+          const suivisAvant = await ProjetSuivi.findAll({
+            where: { id_projet: id },
+            transaction,
+            raw: true
+          });
+          await createSectionVersion({
+            idProjet: id,
+            userId,
+            sectionName: 'suivis',
+            sectionData: { suivis: suivisAvant },
+            description: 'Version automatique avant ajout de suivis',
+            transaction
+          });
+          console.log('📋 Version de suivis créée');
+        } catch (err) {
+          console.error('⚠️  Erreur création version suivis (non bloquant):', err.message);
+        }
+      }
+
       const suivisRecords = body.suivis.map(s => ({
         id_projet: id,
         suivi: s.suivi,
@@ -748,9 +918,33 @@ export async function PUT(request, { params }) {
 
     // 5. Mettre à jour la géométrie
     if (body.geometry) {
+      // 5.1 Sauvegarder version de la section geometrie AVANT modification
+      if (userId) {
+        try {
+          const geometrieAvant = await ProjetGeometry.findOne({
+            where: { id_projet: id },
+            transaction,
+            raw: true
+          });
+          if (geometrieAvant) {
+            await createSectionVersion({
+              idProjet: id,
+              userId,
+              sectionName: 'geometrie',
+              sectionData: { geometry: geometrieAvant },
+              description: 'Version automatique avant modification de la géométrie',
+              transaction
+            });
+            console.log('📋 Version de geometrie créée');
+          }
+        } catch (err) {
+          console.error('⚠️  Erreur création version geometrie (non bloquant):', err.message);
+        }
+      }
+
       // Supprimer l'ancienne géométrie
       await ProjetGeometry.destroy({ where: { id_projet: id }, transaction });
-      
+
       // Créer la nouvelle
       await ProjetGeometry.create({
         id_projet: id,
@@ -770,9 +964,31 @@ export async function PUT(request, { params }) {
 
     // 6. Mettre à jour les documents
     if (Array.isArray(body.documents)) {
+      // 6.1 Sauvegarder version de la section documents AVANT modification
+      if (userId) {
+        try {
+          const documentsAvant = await Document.findAll({
+            where: { id_projet: id },
+            transaction,
+            raw: true
+          });
+          await createSectionVersion({
+            idProjet: id,
+            userId,
+            sectionName: 'documents',
+            sectionData: { documents: documentsAvant },
+            description: 'Version automatique avant modification des documents',
+            transaction
+          });
+          console.log('📋 Version de documents créée');
+        } catch (err) {
+          console.error('⚠️  Erreur création version documents (non bloquant):', err.message);
+        }
+      }
+
       // Supprimer les anciens documents
       await Document.destroy({ where: { id_projet: id }, transaction });
-      
+
       // Créer les nouveaux
       const documentsFiltered = body.documents.filter(doc => doc.lien_local || doc.lien_web);
       if (documentsFiltered.length > 0) {
@@ -788,9 +1004,31 @@ export async function PUT(request, { params }) {
 
     // 7. Mettre à jour les thématiques (associations uniquement, pas les données)
     if (Array.isArray(body.thematiques)) {
+      // 7.1 Sauvegarder version de la section thematiques AVANT modification
+      if (userId) {
+        try {
+          const thematiquesAvant = await ProjetInThematique.findAll({
+            where: { id_projet: id },
+            transaction,
+            raw: true
+          });
+          await createSectionVersion({
+            idProjet: id,
+            userId,
+            sectionName: 'thematiques',
+            sectionData: { thematiques: thematiquesAvant },
+            description: 'Version automatique avant modification des thématiques',
+            transaction
+          });
+          console.log('📋 Version de thematiques créée');
+        } catch (err) {
+          console.error('⚠️  Erreur création version thematiques (non bloquant):', err.message);
+        }
+      }
+
       // Supprimer les anciennes associations
       await ProjetInThematique.destroy({ where: { id_projet: id }, transaction });
-      
+
       // Créer les nouvelles
       const thematiqueRecords = body.thematiques
         .filter(them => them.id_thematique)
@@ -805,6 +1043,34 @@ export async function PUT(request, { params }) {
         await ProjetInThematique.bulkCreate(thematiqueRecords, { transaction });
         console.log(`✅ ${thematiqueRecords.length} thématiques associées`);
       }
+    }
+
+    // 8. Enregistrer l'audit log pour tracer la modification
+    const { userIp, userAgent } = extractRequestInfo(request);
+    const projetApres = await Projet.findByPk(id, {
+      include: [
+        { model: ProjetPorteur, as: 'porteurs' },
+        { model: ProjetSuivi, as: 'suivis' },
+        { model: Document, as: 'documents' },
+        { model: ProjetGeometry, as: 'geometry' },
+        { model: ProjetInThematique, as: 'projet_in_thematiques' }
+      ],
+      transaction
+    });
+
+    if (userId && projetApres) {
+      await logAudit({
+        tableName: 'projet',
+        recordId: id,
+        action: 'UPDATE',
+        oldValues: projetAvant,
+        newValues: projetApres.toJSON(),
+        userId,
+        userIp,
+        userAgent,
+        transaction
+      });
+      console.log('✅ Audit log enregistré');
     }
 
     await transaction.commit();

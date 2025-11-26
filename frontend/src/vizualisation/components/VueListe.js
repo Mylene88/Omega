@@ -3,6 +3,8 @@ import React, {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router-dom';
 import { getStatusBadgeClass } from '../utils/statutColors';
 import Pagination from './common/Pagination';
+import DeletionRequestModal from './common/DeletionRequestModal';
+import { formatDateTimeFr } from '../../utils/dateFormatter';
 import '../styles/VueListeStyle.css';
 
 export default function VueListe({
@@ -17,6 +19,8 @@ export default function VueListe({
     const [openDropdownId, setOpenDropdownId] = useState(null);
     const [selectedFormat, setSelectedFormat] = useState('pdf');
     const [downloading, setDownloading] = useState(false);
+    const [deletionModalOpen, setDeletionModalOpen] = useState(false);
+    const [projectToDelete, setProjectToDelete] = useState(null);
     const navigate = useNavigate()
 
 
@@ -89,7 +93,62 @@ export default function VueListe({
         }
     };
 
+    const handleDeleteClick = (e, project) => {
+        e.stopPropagation();
+        setProjectToDelete(project);
+        setDeletionModalOpen(true);
+    };
 
+    const handleDeletionSubmit = async (raison) => {
+        try {
+            // Récupérer l'utilisateur actuel (à adapter selon votre système d'authentification)
+            const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+            console.log('📋 Données de soumission:', {
+                projet: projectToDelete?.id_projet,
+                user: currentUser?.id_user,
+                raison: raison
+            });
+
+            if (!currentUser.id_user) {
+                alert('❌ Erreur: Utilisateur non connecté. Veuillez vous reconnecter.');
+                throw new Error('Utilisateur non connecté');
+            }
+
+            const response = await fetch('http://localhost:3000/api/deletion-requests', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    id_projet: projectToDelete.id_projet,
+                    requested_by: currentUser.id_user,
+                    raison: raison
+                })
+            });
+
+            const result = await response.json();
+            console.log('📡 Réponse du serveur:', result);
+
+            if (!response.ok) {
+                const errorMsg = result.error || result.message || 'Erreur lors de la soumission';
+                alert(`❌ Erreur: ${errorMsg}`);
+                throw new Error(errorMsg);
+            }
+
+            alert(`✅ Demande de suppression envoyée avec succès !\n\nVotre demande sera examinée par un administrateur.`);
+            setDeletionModalOpen(false);
+            setProjectToDelete(null);
+
+            // Recharger la page pour afficher le bandeau d'avertissement
+            window.location.reload();
+
+        } catch (error) {
+            console.error('❌ Erreur soumission demande:', error);
+            console.error('❌ Détails:', error.message);
+            throw error;
+        }
+    };
 
     if (loading) {
         return (
@@ -232,8 +291,29 @@ export default function VueListe({
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Bouton de suppression */}
+                                    <button
+                                        className={`delete-btn-header ${p.demande_suppression ? 'disabled' : ''}`}
+                                        onClick={(e) => !p.demande_suppression && handleDeleteClick(e, p)}
+                                        title={p.demande_suppression ? "Une demande de suppression est déjà en attente" : "Demander la suppression du projet"}
+                                        disabled={p.demande_suppression}
+                                    >
+                                        🗑️
+                                    </button>
                                 </div>
                             </div>
+
+                            {/* AVERTISSEMENT SUPPRESSION */}
+                            {p.demande_suppression && (
+                                <div className="deletion-warning-banner" onClick={(e) => e.stopPropagation()}>
+                                    <div className="warning-icon">⚠️</div>
+                                    <div className="warning-content">
+                                        <strong>ATTENTION !</strong>
+                                        <span>Ce projet est en attente de suppression</span>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* BODY */}
                             <div className="project-card-body">
@@ -283,18 +363,19 @@ export default function VueListe({
                                         </div>
                                     )}
 
-                                    {/* Thématiques */}
-                                    {nombreThematiques > 0 && (
-                                        <div className="card-info-item">
-                                            <span className="card-info-icon">🎯</span>
-                                            <div className="card-info-content">
-                                                <span className="card-info-label">Thématiques</span>
-                                                <span className="card-info-value">
-                                                    {nombreThematiques} thématique{nombreThematiques > 1 ? 's' : ''}
-                                                </span>
-                                            </div>
+                                    {/* Thématiques - Toujours affiché */}
+                                    <div className="card-info-item">
+                                        <span className="card-info-icon">🎯</span>
+                                        <div className="card-info-content">
+                                            <span className="card-info-label">Thématiques</span>
+                                            <span className="card-info-value">
+                                                {nombreThematiques > 0
+                                                    ? `${nombreThematiques} thématique${nombreThematiques > 1 ? 's' : ''}`
+                                                    : <em style={{ color: '#999' }}>Aucune thématique pour ce projet</em>
+                                                }
+                                            </span>
                                         </div>
-                                    )}
+                                    </div>
 
                                     {/* Communes - Toujours affiché */}
                                     <div className="card-info-item full-width">
@@ -346,14 +427,17 @@ export default function VueListe({
                                     </div>
                                 </div>
 
-                                {/* Badges projet signalé / Charte d'accueil */}
-                                {(p.projet_signale || p.charte_accueil) && (
+                                {/* Badges projet signalé / Charte d'accueil / En attente de suppression */}
+                                {(p.projet_signale || p.charte_accueil || p.demande_suppression) && (
                                     <div className="project-badges">
                                         {p.projet_signale && (
                                             <span className="badge badge-signale">🚨 Projet signalé</span>
                                         )}
                                         {p.charte_accueil && (
                                             <span className="badge badge-charte">✅ Charte d'accueil</span>
+                                        )}
+                                        {p.demande_suppression && (
+                                            <span className="badge badge-suppression">⏳ En attente de suppression</span>
                                         )}
                                     </div>
                                 )}
@@ -422,6 +506,18 @@ export default function VueListe({
                     totalItems={projects.length}
                     itemsPerPage={itemsPerPage}
                     onPageChange={onPageChange}
+                />
+            )}
+
+            {/* Modal de demande de suppression */}
+            {deletionModalOpen && projectToDelete && (
+                <DeletionRequestModal
+                    projet={projectToDelete}
+                    onClose={() => {
+                        setDeletionModalOpen(false);
+                        setProjectToDelete(null);
+                    }}
+                    onSubmit={handleDeletionSubmit}
                 />
             )}
         </>

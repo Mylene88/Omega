@@ -14,6 +14,8 @@ import { useNavigate } from 'react-router-dom';
 import './AdminPage.css';
 import ConfirmationModal from '../../components/admin/ConfirmationModal';
 import Toast, { useToast } from '../../components/admin/Toast';
+import DeletionRequestsTab from '../../components/admin/DeletionRequestsTab';
+import { formatDateTimeFr } from '../../utils/dateFormatter';
 
 const API_BASE_URL = 'http://localhost:3000/api';
 
@@ -295,6 +297,10 @@ const AdminPageEnhanced = () => {
     };
   }, [autoRefresh, refreshInterval, activeTab, fetchStats, fetchAuditLogs, fetchSnapshots, fetchAccessLogs]);
 
+<<<<<<< HEAD
+  // Formater la date (utilise la fonction utilitaire avec gestion timezone correcte)
+  const formatDate = formatDateTimeFr;
+=======
   // Formater la date
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -304,9 +310,11 @@ const AdminPageEnhanced = () => {
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      second: '2-digit'
     }).format(date);
   };
+>>>>>>> 047fe70c63be5cbd62ae8d710ad8d60a501b11fb
 
   // Formater la durée relative
   const formatRelativeTime = (dateString) => {
@@ -541,6 +549,12 @@ const AdminPageEnhanced = () => {
         >
           🔑 Accès admin
         </button>
+        <button
+          className={`tab-btn ${activeTab === 'deletion-requests' ? 'active' : ''}`}
+          onClick={() => setActiveTab('deletion-requests')}
+        >
+          🗑️ Demandes de suppression
+        </button>
       </div>
 
       {/* Content */}
@@ -554,6 +568,14 @@ const AdminPageEnhanced = () => {
         )}
 
         {activeTab === 'stats' && renderStatsTab()}
+        {activeTab === 'deletion-requests' && (
+          <DeletionRequestsTab
+            apiCall={apiCall}
+            success={success}
+            error={errorToast}
+            warning={warning}
+          />
+        )}
         {/* Les autres onglets seront ajoutés dans la partie 2 */}
       </div>
     </div>

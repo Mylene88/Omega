@@ -56,7 +56,9 @@ export default function ListeProjetPage() {
             console.log('🔍 Vérification:', {
                 id_projet: data.id_projet,
                 nom_projet: data.nom_projet,
-                nbThematiques: data.thematiques?.length
+                nbThematiques: data.thematiques?.length,
+                nbPorteurs: data.porteurs?.length,
+                porteursData: data.porteurs
             });
             
             setSelectedProjectDetails(data);
@@ -91,6 +93,18 @@ export default function ListeProjetPage() {
             }
         };
         load();
+
+        // 🔥 AJOUT : Rafraîchir les données quand la fenêtre reprend le focus
+        const handleFocus = () => {
+            console.log('🔄 Fenêtre en focus - Rafraîchissement des projets...');
+            load();
+        };
+
+        window.addEventListener('focus', handleFocus);
+
+        return () => {
+            window.removeEventListener('focus', handleFocus);
+        };
     }, []);
 
     // Charger communes

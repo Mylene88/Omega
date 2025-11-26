@@ -177,13 +177,14 @@ export default function PorteurContactList({ value = [], onChange, title = 'Port
                             name={`type-${p.id}`}
                             value={t.id_type_porteur}
                             checked={String(p.type_porteur_id) === String(t.id_type_porteur)}
-                            onChange={() => {
-                              // Si on reclique sur l’option déjà sélectionnée, on retire la sélection
+                            onClick={() => {
+                              // Si on reclique sur l'option déjà sélectionnée, on retire la sélection
                               const newValue = String(p.type_porteur_id) === String(t.id_type_porteur)
                                 ? ''
                                 : String(t.id_type_porteur);
                               update(p.id, { type_porteur_id: newValue });
                             }}
+                            onChange={() => {}} // Gestionnaire vide pour éviter les avertissements React
                             className={styles.radio}
                           />
                           <span className={styles.textMuted}>{t.libelle}</span>

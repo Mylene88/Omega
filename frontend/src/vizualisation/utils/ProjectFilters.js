@@ -111,16 +111,25 @@ export const filterProject = (feature, filters) => {
     if (!hasMatchingThematique) return false;
   }
   
-  // 4. Filtre projet signalé
+  // 4. Filtre par statut du projet
+  if (filters.statutIds && filters.statutIds.length > 0) {
+    const projetStatutId = props.statut_projet_id || props.statut_id || props.statutId || props.id_statut;
+
+    if (!projetStatutId || !filters.statutIds.includes(projetStatutId)) {
+      return false;
+    }
+  }
+
+  // 5. Filtre projet signalé
   if (filters.projetSignale && !props.projet_signale) {
     return false;
   }
-  
-  // 5. Filtre charte accueil
+
+  // 6. Filtre charte accueil
   if (filters.charteAccueil && !props.charte_accueil) {
     return false;
   }
-  
+
   return true;
 };
 
@@ -226,16 +235,25 @@ export const filterProjectsArray = (projects, filters, debug = false) => {
       if (!hasMatchingThematique) return false;
     }
     
-    // 4. Filtre projet signalé
+    // 4. Filtre par statut du projet
+    if (filters.statutIds && filters.statutIds.length > 0) {
+      const projetStatutId = project.statut_projet_id || project.statut_id || project.statutId || project.id_statut;
+
+      if (!projetStatutId || !filters.statutIds.includes(projetStatutId)) {
+        return false;
+      }
+    }
+
+    // 5. Filtre projet signalé
     if (filters.projetSignale && !project.projet_signale) {
       return false;
     }
-    
-    // 5. Filtre charte accueil
+
+    // 6. Filtre charte accueil
     if (filters.charteAccueil && !project.charte_accueil) {
       return false;
     }
-    
+
     return true;
   });
   
@@ -269,6 +287,7 @@ export const hasActiveFilters = (filters) => {
     filters.searchArrondissement ||
     (filters.serviceIds && filters.serviceIds.length > 0) ||
     (filters.thematiqueIds && filters.thematiqueIds.length > 0) ||
+    (filters.statutIds && filters.statutIds.length > 0) ||
     filters.projetSignale ||
     filters.charteAccueil
   );
@@ -279,12 +298,13 @@ export const hasActiveFilters = (filters) => {
  */
 export const countActiveFilters = (filters) => {
   let count = 0;
-  
+
   if (filters.searchText || filters.searchCodeInsee || filters.searchEpci || filters.searchArrondissement) count++;
   if (filters.serviceIds && filters.serviceIds.length > 0) count += filters.serviceIds.length;
   if (filters.thematiqueIds && filters.thematiqueIds.length > 0) count += filters.thematiqueIds.length;
+  if (filters.statutIds && filters.statutIds.length > 0) count += filters.statutIds.length;
   if (filters.projetSignale) count++;
   if (filters.charteAccueil) count++;
-  
+
   return count;
 };
