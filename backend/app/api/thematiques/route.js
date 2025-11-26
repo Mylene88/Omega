@@ -1,18 +1,19 @@
 //backend/app/api/thematiques/route.js
 
 import { NextResponse } from 'next/server';
-import { Op } from 'sequelize';  
-import db from '@/backend/models';  
-import { generateModeleOptions } from '@/backend/lib/config';  
+import { Op } from 'sequelize';
+import db from '@/backend/models';
+import { generateModeleOptions } from '@/backend/lib/config';
+import { saveCurrentSectionVersion, extractUserId } from '@/backend/lib/sectionVersionHelper';
 
-const { 
-    Thematique, 
-    ProjetInThematique, 
-    Projet, 
-    User, 
-    StatutProjetEnum, 
-    DdtServiceEnum, 
-    RoleEnum 
+const {
+    Thematique,
+    ProjetInThematique,
+    Projet,
+    User,
+    StatutProjetEnum,
+    DdtServiceEnum,
+    RoleEnum
 } = db;
 
 
@@ -97,15 +98,19 @@ export async function GET(request) {
 //POST /api/thematiques
 
 export async function POST(request) {
+    const transaction = await db.sequelize.transaction();
+
     try {
         const body = await request.json();
         const { libelle, modele, projetId, userId, thematiqueId } = body;
+        const requestUserId = extractUserId(request, body) || userId;
 
         // Cas 1: Association d'une thÃ©matique existante Ã  un projet
         if (thematiqueId && projetId) {
             // VÃ©rifier que la thÃ©matique existe
-            const thematique = await Thematique.findByPk(thematiqueId);
+            const thematique = await Thematique.findByPk(thematiqueId, { transaction });
             if (!thematique) {
+                await transaction.rollback();
                 return NextResponse.json({
                     success: false,
                     message: 'Thématique non trouvée'
@@ -113,8 +118,9 @@ export async function POST(request) {
             }
 
             // VÃ©rifier que le projet existe
-            const projet = await Projet.findByPk(projetId);
+            const projet = await Projet.findByPk(projetId, { transaction });
             if (!projet) {
+                await transaction.rollback();
                 return NextResponse.json({
                     success: false,
                     message: 'Projet non trouvÃ©'
@@ -126,16 +132,20 @@ export async function POST(request) {
                 where: {
                     id_projet: projetId,
                     id_thematique: thematiqueId
-                }
+                },
+                transaction
             });
 
-            /*if (existingAssociation) {
-                return NextResponse.json({
-                    success: false,
-                    message: 'Cette thÃ©matique est dÃ©jÃ  associÃ©e au projet',
-                    association: existingAssociation
-                }, { status: 409 });
-            }*/
+            // 📸 Sauvegarder la version actuelle avant ajout
+            if (requestUserId && projetId) {
+                await saveCurrentSectionVersion({
+                    idProjet: projetId,
+                    userId: requestUserId,
+                    sectionName: 'thematiques',
+                    description: 'Association d\'une thématique au projet',
+                    transaction
+                });
+            }
 
             // CrÃ©er l'association
             const nouvelleAssociation = await ProjetInThematique.create({
@@ -143,7 +153,7 @@ export async function POST(request) {
                 id_thematique: thematiqueId,
                 ajoute_par: userId || null,
                 date_ajout: new Date()
-            });
+            }, { transaction });
 
             // RÃ©cupÃ©rer l'association complÃ¨te avec les donnÃ©es liÃ©es
             const associationComplete = await ProjetInThematique.findByPk(nouvelleAssociation.id, {
@@ -151,8 +161,11 @@ export async function POST(request) {
                     { model: Thematique, attributes: ['id_thematique','libelle','modele'] },
                     { model: Projet,     attributes: ['id_projet','nom_projet'] },
                     { model: User,       foreignKey: 'ajoute_par', attributes: ['id_user','prenom','nom'] }
-                ]
+                ],
+                transaction
             });
+
+            await transaction.commit();
 
             return NextResponse.json({
                 success: true,
@@ -163,6 +176,7 @@ export async function POST(request) {
 
         // Cas 2: CrÃ©ation d'une nouvelle thÃ©matique
         if (!libelle?.trim()) {
+            await transaction.rollback();
             return NextResponse.json({
                 success: false,
                 message: 'Le libellÃ© de la thÃ©matique est requis'
@@ -171,10 +185,12 @@ export async function POST(request) {
 
         // VÃ©rifier si la thÃ©matique existe dÃ©jÃ
         const existingThematique = await Thematique.findOne({
-            where: { libelle: libelle.trim() }
+            where: { libelle: libelle.trim() },
+            transaction
         });
 
         if (existingThematique) {
+            await transaction.rollback();
             return NextResponse.json({
                 success: false,
                 message: 'Une thÃ©matique avec ce libellÃ© existe dÃ©jÃ ',
@@ -190,17 +206,30 @@ export async function POST(request) {
         const nouvelleThematique = await Thematique.create({
             libelle: libelle.trim(),
             modele: modele ? JSON.stringify(modele) : null
-        });
+        }, { transaction });
 
         // Si un projetId est fourni, crÃ©er Ã©galement l'association
         if (projetId) {
+            // 📸 Sauvegarder la version actuelle avant ajout
+            if (requestUserId) {
+                await saveCurrentSectionVersion({
+                    idProjet: projetId,
+                    userId: requestUserId,
+                    sectionName: 'thematiques',
+                    description: 'Création et association d\'une nouvelle thématique',
+                    transaction
+                });
+            }
+
             await ProjetInThematique.create({
                 id_projet: projetId,
                 id_thematique: nouvelleThematique.id_thematique,
                 ajoute_par: userId || null,
                 date_ajout: new Date()
-            });
+            }, { transaction });
         }
+
+        await transaction.commit();
 
         return NextResponse.json({
             success: true,
@@ -211,6 +240,7 @@ export async function POST(request) {
         }, { status: 201 });
 
     } catch (error) {
+        await transaction.rollback();
         console.error('Erreur POST /api/thematiques:', error);
         return NextResponse.json({
             success: false,
@@ -305,45 +335,81 @@ export async function PUT(request) {
  * Supprime une thÃ©matique ou une association thÃ©matique-projet
  */
 export async function DELETE(request) {
+  const transaction = await db.sequelize.transaction();
+
   try {
     const { searchParams } = new URL(request.url);
     const pitId       = searchParams.get('pitId');           // ✅ préféré
     const projetId    = searchParams.get('projetId');
     const id_thematique = searchParams.get('id');            // id de thématique
     const force       = searchParams.get('force') === 'true';
+    const userId      = parseInt(searchParams.get('userId'), 10) || null;
 
     // 1) ✅ Suppression ciblée par PK technique
     if (pitId) {
-      const association = await ProjetInThematique.findByPk(pitId);
+      const association = await ProjetInThematique.findByPk(pitId, { transaction });
       if (!association) {
+        await transaction.rollback();
         return NextResponse.json({ success: false, message: 'Association non trouvée' }, { status: 404 });
       }
-      await association.destroy();
+
+      // 📸 Sauvegarder la version actuelle avant suppression
+      if (userId && association.id_projet) {
+        await saveCurrentSectionVersion({
+          idProjet: association.id_projet,
+          userId,
+          sectionName: 'thematiques',
+          description: 'Suppression d\'une association thématique',
+          transaction
+        });
+      }
+
+      await association.destroy({ transaction });
+      await transaction.commit();
       return NextResponse.json({ success: true, message: 'Association thématique-projet supprimée' });
     }
 
     // 2) Fallback historique: une association (projet, thématique)
     if (projetId && id_thematique) {
       const association = await ProjetInThematique.findOne({
-        where: { id_projet: projetId, id_thematique }
+        where: { id_projet: projetId, id_thematique },
+        transaction
       });
       if (!association) {
+        await transaction.rollback();
         return NextResponse.json({ success: false, message: 'Association thématique-projet non trouvée' }, { status: 404 });
       }
-      await association.destroy();
+
+      // 📸 Sauvegarder la version actuelle avant suppression
+      if (userId && projetId) {
+        await saveCurrentSectionVersion({
+          idProjet: projetId,
+          userId,
+          sectionName: 'thematiques',
+          description: 'Suppression d\'une association thématique',
+          transaction
+        });
+      }
+
+      await association.destroy({ transaction });
+      await transaction.commit();
       return NextResponse.json({ success: true, message: 'Association thématique-projet supprimée avec succès' });
     }
 
-    // 3) Suppression d’une thématique du catalogue (option “force”)
+    // 3) Suppression d'une thématique du catalogue (option "force")
+    // Pas de versioning ici car c'est la suppression du catalogue global, pas d'un projet
     if (!id_thematique) {
+      await transaction.rollback();
       return NextResponse.json({ success: false, message: 'ID de la thématique requis' }, { status: 400 });
     }
-    const thematique = await Thematique.findByPk(id_thematique);
+    const thematique = await Thematique.findByPk(id_thematique, { transaction });
     if (!thematique) {
+      await transaction.rollback();
       return NextResponse.json({ success: false, message: 'Thématique non trouvée' }, { status: 404 });
     }
-    const associationsCount = await ProjetInThematique.count({ where: { id_thematique } });
+    const associationsCount = await ProjetInThematique.count({ where: { id_thematique }, transaction });
     if (associationsCount > 0 && !force) {
+      await transaction.rollback();
       return NextResponse.json({
         success: false,
         message: `Impossible de supprimer la thématique : ${associationsCount} projet(s) associée(s)`,
@@ -352,13 +418,15 @@ export async function DELETE(request) {
         hint: 'Utilisez le paramètre force=true pour forcer la suppression'
       }, { status: 409 });
     }
-    await thematique.destroy(); // ON DELETE CASCADE sur la FK nettoiera les liaisons
+    await thematique.destroy({ transaction }); // ON DELETE CASCADE sur la FK nettoiera les liaisons
+    await transaction.commit();
     return NextResponse.json({
       success: true,
       message: `Thématique supprimée avec succès${associationsCount ? ` (${associationsCount} associations supprimées)` : ''}`,
       deletedAssociations: associationsCount
     });
   } catch (error) {
+    await transaction.rollback();
     console.error('Erreur DELETE /api/thematiques:', error);
     return NextResponse.json({ success: false, message: 'Erreur lors de la suppression' }, { status: 500 });
   }

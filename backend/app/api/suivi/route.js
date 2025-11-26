@@ -2,6 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import db from '@/backend/models';
+import { saveCurrentSectionVersion, extractUserId } from '@/backend/lib/sectionVersionHelper';
 
 const { ProjetSuivi, User, Projet } = db;
 
@@ -33,25 +34,43 @@ export async function GET(request) {  // ✅ Enlevé contextPromise
 }
 
 // POST /api/suivi
-export async function POST(request) {  // ✅ Enlevé contextPromise
+export async function POST(request) {
+  const transaction = await db.sequelize.transaction();
+
   try {
     const data = await request.json();
+    const userId = extractUserId(request, data) || data.created_by;
 
-    const projet = await Projet.findByPk(data.id_projet);
+    const projet = await Projet.findByPk(data.id_projet, { transaction });
     if (!projet) {
+      await transaction.rollback();
       return NextResponse.json({ error: 'Projet non trouvé' }, { status: 404 });
     }
 
-    const user = await User.findByPk(data.created_by);
+    const user = await User.findByPk(data.created_by, { transaction });
     if (!user) {
+      await transaction.rollback();
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
+    }
+
+    // 📸 Sauvegarder la version actuelle avant ajout
+    if (userId && data.id_projet) {
+      await saveCurrentSectionVersion({
+        idProjet: data.id_projet,
+        userId,
+        sectionName: 'suivis',
+        description: 'Ajout d\'un nouveau suivi',
+        transaction
+      });
     }
 
     const suivi = await ProjetSuivi.create({
       id_projet: data.id_projet,
       suivi: data.suivi,
       created_by: data.created_by,
-    });
+    }, { transaction });
+
+    await transaction.commit();
 
     return NextResponse.json({
       id_suivi: suivi.id_suivi,
@@ -61,6 +80,7 @@ export async function POST(request) {  // ✅ Enlevé contextPromise
       created_by: user.username,
     }, { status: 201 });
   } catch (error) {
+    await transaction.rollback();
     console.error('Erreur POST /api/suivi:', error);
     return NextResponse.json({ error: 'Impossible de créer le suivi' }, { status: 500 });
   }

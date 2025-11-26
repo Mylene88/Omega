@@ -16,8 +16,14 @@ export default function SectionVersionsTab({ apiCall }) {
   const [error, setError] = useState(null);
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [restoreReason, setRestoreReason] = useState('');
   const [restoring, setRestoring] = useState(false);
+
+  // Listes pour les dropdowns
+  const [projets, setProjets] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loadingDropdowns, setLoadingDropdowns] = useState(true);
 
   // Filtres
   const [filters, setFilters] = useState({
@@ -34,6 +40,41 @@ export default function SectionVersionsTab({ apiCall }) {
     'thematiques': '🎯 Thématiques',
     'documents': '📄 Documents',
     'geometrie': '🗺️ Géométrie'
+  };
+
+  // Charger les dropdowns (projets et users)
+  const loadDropdowns = async () => {
+    try {
+      setLoadingDropdowns(true);
+
+      console.log('🔄 Chargement des dropdowns...');
+
+      const [projetsResponse, usersResponse] = await Promise.all([
+        apiCall('/admin/projets'),
+        apiCall('/admin/users?active=true')
+      ]);
+
+      console.log('📁 Réponse projets:', projetsResponse);
+      console.log('👤 Réponse users:', usersResponse);
+
+      if (projetsResponse.success) {
+        setProjets(projetsResponse.data);
+        console.log(`✅ ${projetsResponse.data.length} projets chargés`);
+      } else {
+        console.error('❌ Erreur projets:', projetsResponse.message);
+      }
+
+      if (usersResponse.success) {
+        setUsers(usersResponse.data);
+        console.log(`✅ ${usersResponse.data.length} utilisateurs chargés`);
+      } else {
+        console.error('❌ Erreur users:', usersResponse.message);
+      }
+    } catch (err) {
+      console.error('❌ Erreur chargement dropdowns:', err);
+    } finally {
+      setLoadingDropdowns(false);
+    }
   };
 
   // Charger les versions
@@ -63,10 +104,23 @@ export default function SectionVersionsTab({ apiCall }) {
     }
   };
 
-  // Charger au montage et quand les filtres changent
+  // Charger au montage
   useEffect(() => {
-    loadVersions();
-  }, [filters]);
+    loadDropdowns();
+  }, []);
+
+  // Charger quand les filtres changent
+  useEffect(() => {
+    if (!loadingDropdowns) {
+      loadVersions();
+    }
+  }, [filters, loadingDropdowns]);
+
+  // Afficher le modal de preview
+  const handleShowPreview = (version) => {
+    setSelectedVersion(version);
+    setShowPreviewModal(true);
+  };
 
   // Afficher le modal de restauration
   const handleShowRestore = (version) => {
@@ -160,17 +214,23 @@ export default function SectionVersionsTab({ apiCall }) {
       {/* Filtres */}
       <div className="filters-section">
         <div className="filter-group">
-          <label>ID Projet:</label>
-          <input
-            type="text"
-            placeholder="Ex: PROJ001"
+          <label>📁 Projet:</label>
+          <select
             value={filters.idProjet}
             onChange={(e) => setFilters({ ...filters, idProjet: e.target.value })}
-          />
+            disabled={loadingDropdowns}
+          >
+            <option value="">Tous les projets</option>
+            {projets.map(projet => (
+              <option key={projet.id_projet} value={projet.id_projet}>
+                {projet.display_label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="filter-group">
-          <label>Section:</label>
+          <label>📦 Section:</label>
           <select
             value={filters.sectionName}
             onChange={(e) => setFilters({ ...filters, sectionName: e.target.value })}
@@ -183,17 +243,23 @@ export default function SectionVersionsTab({ apiCall }) {
         </div>
 
         <div className="filter-group">
-          <label>ID Utilisateur:</label>
-          <input
-            type="text"
-            placeholder="Ex: 1"
+          <label>👤 Utilisateur:</label>
+          <select
             value={filters.userId}
             onChange={(e) => setFilters({ ...filters, userId: e.target.value })}
-          />
+            disabled={loadingDropdowns}
+          >
+            <option value="">Tous les utilisateurs</option>
+            {users.map(user => (
+              <option key={user.id_user} value={user.id_user}>
+                {user.nom_complet} ({user.username})
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="filter-group">
-          <label>Limite:</label>
+          <label>📊 Limite:</label>
           <select
             value={filters.limit}
             onChange={(e) => setFilters({ ...filters, limit: parseInt(e.target.value) })}
@@ -201,6 +267,7 @@ export default function SectionVersionsTab({ apiCall }) {
             <option value="25">25</option>
             <option value="50">50</option>
             <option value="100">100</option>
+            <option value="200">200</option>
           </select>
         </div>
       </div>
@@ -276,19 +343,69 @@ export default function SectionVersionsTab({ apiCall }) {
                     </td>
                     <td className="description-cell">{v.description || '-'}</td>
                     <td>
-                      <button
-                        className="btn-restore"
-                        onClick={() => handleShowRestore(v)}
-                        title="Restaurer cette version"
-                      >
-                        🔄 Restaurer
-                      </button>
+                      <div className="action-buttons">
+                        <button
+                          className="btn-preview"
+                          onClick={() => handleShowPreview(v)}
+                          title="Voir les données"
+                        >
+                          👁️
+                        </button>
+                        <button
+                          className="btn-restore"
+                          onClick={() => handleShowRestore(v)}
+                          title="Restaurer cette version"
+                        >
+                          🔄
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {/* Modal de preview des données */}
+      {showPreviewModal && selectedVersion && (
+        <div className="modal-overlay" onClick={() => setShowPreviewModal(false)}>
+          <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+            <h3>👁️ Aperçu des données - Version #{selectedVersion.version_number}</h3>
+            <div className="modal-body">
+              <div className="preview-header">
+                <p><strong>Projet:</strong> {selectedVersion.projet_nom} ({selectedVersion.id_projet})</p>
+                <p><strong>Section:</strong> {sectionLabels[selectedVersion.section_name]}</p>
+                <p><strong>Date:</strong> {formatDate(selectedVersion.snapshot_date)}</p>
+                <p><strong>Créée par:</strong> {selectedVersion.created_by?.nom_complet}</p>
+              </div>
+
+              <div className="preview-data">
+                <h4>📦 Contenu de la version:</h4>
+                <pre className="json-preview">
+                  {JSON.stringify(selectedVersion.section_data, null, 2)}
+                </pre>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                className="btn-cancel"
+                onClick={() => setShowPreviewModal(false)}
+              >
+                Fermer
+              </button>
+              <button
+                className="btn-confirm"
+                onClick={() => {
+                  setShowPreviewModal(false);
+                  handleShowRestore(selectedVersion);
+                }}
+              >
+                🔄 Restaurer cette version
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
