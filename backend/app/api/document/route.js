@@ -1,7 +1,8 @@
 //backend/app/api/document/route.js
 
 import { NextResponse } from 'next/server';
-import db from '@/backend/models'; 
+import db from '@/backend/models';
+import { saveCurrentSectionVersion, extractUserId } from '@/backend/lib/sectionVersionHelper';
 
 const { Document, Projet } = db;  
 
@@ -31,41 +32,61 @@ export async function GET() {
 }
 
 // POST → ajouter un document à un projet
-export async function POST(request) {  // ✅ 'request' au lieu de 'req'
+export async function POST(request) {
+  const transaction = await db.sequelize.transaction();
+
   try {
-    const { id_projet, lien_local, lien_web } = await request.json();
+    const data = await request.json();
+    const { id_projet, lien_local, lien_web } = data;
+    const userId = extractUserId(request, data);
 
     // Validation
     if (!id_projet) {
-      return NextResponse.json({ 
+      await transaction.rollback();
+      return NextResponse.json({
         success: false,
-        error: 'ID projet requis' 
+        error: 'ID projet requis'
       }, { status: 400 });
     }
 
     if (!lien_local && !lien_web) {
-      return NextResponse.json({ 
+      await transaction.rollback();
+      return NextResponse.json({
         success: false,
-        error: 'Un lien local ou web est requis' 
+        error: 'Un lien local ou web est requis'
       }, { status: 400 });
     }
 
     // Vérifie que le projet existe
-    const projet = await Projet.findByPk(id_projet);
+    const projet = await Projet.findByPk(id_projet, { transaction });
     if (!projet) {
-      return NextResponse.json({ 
+      await transaction.rollback();
+      return NextResponse.json({
         success: false,
-        error: 'Projet non trouvé' 
+        error: 'Projet non trouvé'
       }, { status: 404 });
+    }
+
+    // 📸 Sauvegarder la version actuelle avant ajout
+    if (userId && id_projet) {
+      await saveCurrentSectionVersion({
+        idProjet: id_projet,
+        userId,
+        sectionName: 'documents',
+        description: 'Ajout d\'un nouveau document',
+        transaction
+      });
     }
 
     const doc = await Document.create({
       id_projet,
       lien_local,
       lien_web
-    });
+    }, { transaction });
 
-    return NextResponse.json({ 
+    await transaction.commit();
+
+    return NextResponse.json({
       success: true,
       message: 'Document ajouté avec succès',
       data: {
@@ -76,8 +97,9 @@ export async function POST(request) {  // ✅ 'request' au lieu de 'req'
       }
     }, { status: 201 });
   } catch (error) {
+    await transaction.rollback();
     console.error('Erreur POST /api/document:', error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: false,
       error: 'Erreur serveur',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined

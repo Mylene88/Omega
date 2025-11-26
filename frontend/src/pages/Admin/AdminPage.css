@@ -789,3 +789,154 @@
   gap: 12px;
   align-items: center;
 }
+
+/* ===== SECTION VERSIONS - Nouveaux styles ===== */
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-preview {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-preview:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.btn-restore {
+  background: var(--success);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-restore:hover {
+  background: var(--success-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+/* Modal large pour la preview */
+.modal-large {
+  max-width: 800px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.preview-header {
+  background: var(--bg-secondary);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border-color);
+}
+
+.preview-header p {
+  margin: 0.5rem 0;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.preview-data {
+  margin-top: 1rem;
+}
+
+.preview-data h4 {
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.json-preview {
+  background: #282c34;
+  color: #abb2bf;
+  padding: 1.5rem;
+  border-radius: 8px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: auto;
+  max-height: 500px;
+  overflow-y: auto;
+  box-shadow: var(--shadow-md);
+  border: 1px solid #21252b;
+}
+
+.json-preview::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.json-preview::-webkit-scrollbar-track {
+  background: #21252b;
+  border-radius: 4px;
+}
+
+.json-preview::-webkit-scrollbar-thumb {
+  background: #4b5263;
+  border-radius: 4px;
+}
+
+.json-preview::-webkit-scrollbar-thumb:hover {
+  background: #5c6370;
+}
+
+/* Dropdowns avec emojis */
+.filter-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.filter-group select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: white;
+  color: var(--text-primary);
+  font-size: 14px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.filter-group select:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.filter-group select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.1);
+}
+
+.filter-group select:disabled {
+  background: var(--bg-secondary);
+  cursor: not-allowed;
+  opacity: 0.6;
+}

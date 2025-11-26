@@ -6,6 +6,7 @@ import { calculateSpatialData } from '@/backend/utils/spatial';
 import { validateId, validateGeometryData } from '@/backend/utils/validate';
 import { successResponse, errorResponse, validationErrorResponse } from '@/backend/utils/response';
 import { withTransaction, createCommuneLiaisons } from '@/backend/utils/database';
+import { saveCurrentSectionVersion, extractUserId } from '@/backend/lib/sectionVersionHelper';
 
 // Extraire les modèles et sequelize du module db
 const {
@@ -170,6 +171,7 @@ export async function PATCH(request, { params }) {
   try {
     const { id } = params;
     const updates = await request.json();
+    const userId = extractUserId(request, updates);
 
     console.log('🔄 PATCH géométrie:', {
       geometryId: id,
@@ -206,6 +208,17 @@ export async function PATCH(request, { params }) {
 
       if (!geometry) {
         throw new Error('Géométrie non trouvée');
+      }
+
+      // 📸 Sauvegarder la version actuelle avant modification
+      if (userId && geometry.id_projet) {
+        await saveCurrentSectionVersion({
+          idProjet: geometry.id_projet,
+          userId,
+          sectionName: 'geometrie',
+          description: 'Modification de la géométrie (PATCH)',
+          transaction
+        });
       }
 
       // Mise à jour des champs fournis
@@ -318,6 +331,7 @@ export async function PUT(request, { params }) {
   try {
     const { id } = params;
     const data = await request.json();
+    const userId = extractUserId(request, data);
 
     if (!validateId(id)) {
       return errorResponse('ID invalide', 400);
@@ -351,6 +365,17 @@ export async function PUT(request, { params }) {
 
       if (!geometry) {
         throw new Error('Géométrie non trouvée');
+      }
+
+      // 📸 Sauvegarder la version actuelle avant remplacement
+      if (userId && geometry.id_projet) {
+        await saveCurrentSectionVersion({
+          idProjet: geometry.id_projet,
+          userId,
+          sectionName: 'geometrie',
+          description: 'Remplacement complet de la géométrie (PUT)',
+          transaction
+        });
       }
 
       // Supprimer toutes les anciennes liaisons communes
@@ -479,6 +504,8 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     const { id } = params;
+    const url = new URL(request.url);
+    const userId = parseInt(url.searchParams.get('userId'), 10) || null;
 
     if (!validateId(id)) {
       return errorResponse('ID invalide', 400);
@@ -495,6 +522,17 @@ export async function DELETE(request, { params }) {
 
       if (!geometry) {
         throw new Error('Géométrie non trouvée');
+      }
+
+      // 📸 Sauvegarder la version actuelle avant suppression
+      if (userId && geometry.id_projet) {
+        await saveCurrentSectionVersion({
+          idProjet: geometry.id_projet,
+          userId,
+          sectionName: 'geometrie',
+          description: 'Suppression de la géométrie',
+          transaction
+        });
       }
 
       const projetNom = geometry.projet?.nom_projet || 'Inconnu';

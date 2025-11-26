@@ -1,9 +1,10 @@
 //backend/app/api/suivi/[id]/route.js
 
 import { NextResponse } from 'next/server';
-import db from '@/backend/models';  // ✅ Changé
+import db from '@/backend/models';
+import { saveCurrentSectionVersion, extractUserId } from '@/backend/lib/sectionVersionHelper';
 
-const { ProjetSuivi, User } = db;  // ✅ Changé
+const { ProjetSuivi, User } = db;
 
 // GET /api/suivi/[id]
 export async function GET(request, { params }) {  // ✅ Changé
@@ -36,22 +37,39 @@ export async function GET(request, { params }) {  // ✅ Changé
 }
 
 // PUT /api/suivi/[id]
-export async function PUT(request, { params }) {  // ✅ Changé
+export async function PUT(request, { params }) {
+  const transaction = await db.sequelize.transaction();
+
   try {
     const { id } = params;
     const data = await request.json();
-    
-    const suivi = await ProjetSuivi.findByPk(id);
+    const userId = extractUserId(request, data);
+
+    const suivi = await ProjetSuivi.findByPk(id, { transaction });
 
     if (!suivi) {
+      await transaction.rollback();
       return NextResponse.json({ error: 'Suivi non trouvé' }, { status: 404 });
+    }
+
+    // 📸 Sauvegarder la version actuelle avant modification
+    if (userId && suivi.id_projet) {
+      await saveCurrentSectionVersion({
+        idProjet: suivi.id_projet,
+        userId,
+        sectionName: 'suivis',
+        description: `Modification du suivi #${id}`,
+        transaction
+      });
     }
 
     await suivi.update({
       suivi: data.suivi ?? suivi.suivi,
-    });
+    }, { transaction });
 
-    const user = await User.findByPk(suivi.created_by);
+    const user = await User.findByPk(suivi.created_by, { transaction });
+
+    await transaction.commit();
 
     return NextResponse.json({
       id_suivi: suivi.id_suivi,
@@ -61,26 +79,46 @@ export async function PUT(request, { params }) {  // ✅ Changé
       created_by: user?.username || null,
     }, { status: 200 });
   } catch (error) {
+    await transaction.rollback();
     console.error(`Erreur PUT /api/suivi/${params?.id}:`, error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
 
 // DELETE /api/suivi/[id]
-export async function DELETE(request, { params }) {  // ✅ Changé
+export async function DELETE(request, { params }) {
+  const transaction = await db.sequelize.transaction();
+
   try {
     const { id } = params;
-    
-    const suivi = await ProjetSuivi.findByPk(id);
+    const url = new URL(request.url);
+    const userId = parseInt(url.searchParams.get('userId'), 10) || null;
+
+    const suivi = await ProjetSuivi.findByPk(id, { transaction });
 
     if (!suivi) {
+      await transaction.rollback();
       return NextResponse.json({ error: 'Suivi non trouvé' }, { status: 404 });
     }
 
-    await suivi.destroy();
+    // 📸 Sauvegarder la version actuelle avant suppression
+    if (userId && suivi.id_projet) {
+      await saveCurrentSectionVersion({
+        idProjet: suivi.id_projet,
+        userId,
+        sectionName: 'suivis',
+        description: `Suppression du suivi #${id}`,
+        transaction
+      });
+    }
+
+    await suivi.destroy({ transaction });
+
+    await transaction.commit();
 
     return NextResponse.json({ message: 'Suivi supprimé' }, { status: 200 });
   } catch (error) {
+    await transaction.rollback();
     console.error(`Erreur DELETE /api/suivi/${params?.id}:`, error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }

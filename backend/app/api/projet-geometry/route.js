@@ -6,6 +6,7 @@ import { calculateSpatialData } from '@/backend/utils/spatial';
 import { validateProjetData, validateGeometryData } from '@/backend/utils/validate';
 import { successResponse, errorResponse, validationErrorResponse } from '@/backend/utils/response';
 import { withTransaction, createCommuneLiaisons } from '@/backend/utils/database';
+import { saveCurrentSectionVersion, extractUserId } from '@/backend/lib/sectionVersionHelper';
 
 const {
   ProjetGeometry,
@@ -379,6 +380,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const data = await request.json();
+    const userId = extractUserId(request, data);
 
     const projetValidation = validateProjetData({
       nom_projet: 'temp',
@@ -403,6 +405,17 @@ export async function POST(request) {
     }
 
     const result = await withTransaction(async (transaction) => {
+      // 📸 Sauvegarder la version actuelle avant ajout
+      if (userId && data.id_projet) {
+        await saveCurrentSectionVersion({
+          idProjet: data.id_projet,
+          userId,
+          sectionName: 'geometrie',
+          description: 'Ajout d\'une nouvelle géométrie',
+          transaction
+        });
+      }
+
       const geometry = await ProjetGeometry.create({
         id_projet: data.id_projet,
         geom: data.geom,
