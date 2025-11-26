@@ -1,0 +1,56 @@
+/* src/components/suivi_ddt/Suivi_ddt/SuiviDDTSection.module.css */
+.feed {
+    display: grid;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.item {
+    background-color: #f8fafc;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.itemHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #1C3D5A;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.meta {
+    color: #1C3D5A;
+}
+
+.itemBody {
+    margin-top: 6px;
+    color: #4F4F4F;
+    font-size: 14px;
+    white-space: pre-wrap;
+}
+
+.scrollableFeed {
+  max-height: 500px; 
+  overflow-y: auto;
+}
+ 
+.suivi-supprimer {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: #dc3545;
+  transition: transform 0.2s;
+}
+
+.suivi-supprimer:hover {
+  transform: scale(1.2);
+}
+
+.suividdtContent {
+  overflow-y: auto; 
+  padding-right: 1em; 
+}
