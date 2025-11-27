@@ -89,16 +89,13 @@ export async function GET(request) {
       include: [
         {
           model: ProjetGeometry,
-          as: 'geometries',
+          as: 'geometry',
           attributes: [
             'id_geom', 'geom', 'geom_type', 'area_m2', 'length_m',
             'communes_traversees', 'codes_insee', 'epci', 'arrondissements',
             'deputes', 'maires', 'created_at', 'updated_at'
           ],
-          required: false, // LEFT JOIN pour inclure les projets sans géométrie
-          separate: true,
-          order: [['created_at', 'DESC']],
-          limit: 1 // On prend seulement la géométrie la plus récente
+          required: false // LEFT JOIN pour inclure les projets sans géométrie
         },
         {
           model: StatutProjetEnum,
@@ -214,8 +211,7 @@ export async function GET(request) {
       console.log('🔍 Premier projet:', {
         id_projet: firstProjet.id_projet,
         nom_projet: firstProjet.nom_projet,
-        has_geometries: !!firstProjet.geometries,
-        nb_geometries: firstProjet.geometries?.length || 0,
+        has_geometry: !!firstProjet.geometry,
         has_porteurs: !!firstProjet.porteurs,
         nb_porteurs: firstProjet.porteurs?.length || 0,
         has_suivis: !!firstProjet.suivis,
@@ -232,8 +228,8 @@ export async function GET(request) {
        const features = await Promise.all(projets
           .map(async (projet) => {
             const projetData = projet.toJSON();
-            // Récupérer la première géométrie si elle existe
-            const geomData = projetData.geometries?.[0] || null;
+            // Récupérer la géométrie si elle existe
+            const geomData = projetData.geometry || null;
 
             // ✅ Si pas de géométrie, créer un point par défaut au centre de l'Eure-et-Loir
             const DEFAULT_CENTER = {
