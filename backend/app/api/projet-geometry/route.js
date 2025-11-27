@@ -78,120 +78,128 @@ export async function GET(request) {
       console.log('🔍 Filtrage par projet:', projetId);
     }
 
-    const geometries = await ProjetGeometry.findAll({
+    // ✅ FIX: Récupérer TOUS les projets, même ceux sans géométrie
+    const projets = await Projet.findAll({
       where: whereClause,
+      attributes: [
+        'id_projet', 'nom_projet', 'description', 'date_ident_projet',
+        'projet_signale', 'charte_accueil', 'referent_ddt', 'service_id',
+        'statut_projet_id', 'created_at', 'updated_at', 'created_by'
+      ],
       include: [
         {
-          model: Projet,
+          model: ProjetGeometry,
+          as: 'geometries',
           attributes: [
-            'id_projet', 'nom_projet', 'description', 'date_ident_projet',
-            'projet_signale', 'charte_accueil', 'referent_ddt', 'service_id',
-            'statut_projet_id', 'created_at', 'updated_at', 'created_by'
+            'id_geom', 'geom', 'geom_type', 'area_m2', 'length_m',
+            'communes_traversees', 'codes_insee', 'epci', 'arrondissements',
+            'deputes', 'maires', 'created_at', 'updated_at'
+          ],
+          required: false, // LEFT JOIN pour inclure les projets sans géométrie
+          separate: true,
+          order: [['created_at', 'DESC']],
+          limit: 1 // On prend seulement la géométrie la plus récente
+        },
+        {
+          model: StatutProjetEnum,
+          as: 'statut_projet_enum',
+          attributes: ['id_statut', 'libelle'],
+          required: false
+        },
+        {
+          model: DdtServiceEnum,
+          as: 'ddt_service_enum',
+          attributes: ['id_service', 'libelle_service'],
+          required: false
+        },
+        {
+          model: ProjetPorteur,
+          as: 'porteurs',
+          attributes: [
+            'id_porteur', 'type_porteur_id', 'nom_structure',
+            'autre_type_porteur', 'referent_nom', 'referent_fonction',
+            'referent_email', 'referent_tel'
           ],
           include: [
             {
-              model: StatutProjetEnum,
-              as: 'statut_projet_enum',
-              attributes: ['id_statut', 'libelle'],
+              model: TypePorteurEnum,
+              as: 'type_porteur_enum',
+              attributes: ['id_type_porteur', 'libelle'],
               required: false
-            },
-            {
-              model: DdtServiceEnum,
-              as: 'ddt_service_enum',
-              attributes: ['id_service', 'libelle_service'],
-              required: false
-            },
-            {
-              model: ProjetPorteur,
-              as: 'porteurs',
-              attributes: [
-                'id_porteur', 'type_porteur_id', 'nom_structure',
-                'autre_type_porteur', 'referent_nom', 'referent_fonction',
-                'referent_email', 'referent_tel'
-              ],
-              include: [
-                {
-                  model: TypePorteurEnum,
-                  as: 'type_porteur_enum',
-                  attributes: ['id_type_porteur', 'libelle'],
-                  required: false
-                }
-              ],
-              required: false,
-              separate: true
-            },
-            {
-              model: ProjetSuivi,
-              as: 'suivis',
-              attributes: ['id_suivi', 'suivi', 'created_at', 'created_by'],
-              include: [
-                {
-                  model: User,
-                  as: 'auteur',
-                  attributes: ['id_user', 'username', 'prenom', 'nom'],
-                  required: false
-                }
-              ],
-              required: false,
-              separate: true,
-              limit: 50,
-              order: [['created_at', 'DESC']]
-            },
-            {
-              model: ProjetInThematique,
-              as: 'projet_in_thematiques',
-              attributes: ['id_thematique', 'date_ajout', 'ajoute_par'],
-              include: [
-                {
-                  model: Thematique,
-                  attributes: ['id_thematique', 'libelle', 'modele'],
-                  required: false
-                },
-                {
-                  model: User,
-                  as: 'ajouteParUser',
-                  attributes: ['id_user', 'username', 'prenom', 'nom'],
-                  required: false
-                }
-              ],
-              required: false,
-              separate: true
-            },
-            {
-              model: Document,
-              as: 'documents',
-              attributes: ['id_document', 'lien_local', 'lien_web'],
-              required: false,
-              separate: true
-            },
+            }
+          ],
+          required: false,
+          separate: true
+        },
+        {
+          model: ProjetSuivi,
+          as: 'suivis',
+          attributes: ['id_suivi', 'suivi', 'created_at', 'created_by'],
+          include: [
             {
               model: User,
-              as: 'creator',
-              attributes: ['id_user', 'username', 'prenom', 'nom'],
-              required: false
-            },
-            {
-              model: User,
-              as: 'updater',
+              as: 'auteur',
               attributes: ['id_user', 'username', 'prenom', 'nom'],
               required: false
             }
           ],
+          required: false,
+          separate: true,
+          limit: 50,
+          order: [['created_at', 'DESC']]
+        },
+        {
+          model: ProjetInThematique,
+          as: 'projet_in_thematiques',
+          attributes: ['id_thematique', 'date_ajout', 'ajoute_par'],
+          include: [
+            {
+              model: Thematique,
+              attributes: ['id_thematique', 'libelle', 'modele'],
+              required: false
+            },
+            {
+              model: User,
+              as: 'ajouteParUser',
+              attributes: ['id_user', 'username', 'prenom', 'nom'],
+              required: false
+            }
+          ],
+          required: false,
+          separate: true
+        },
+        {
+          model: Document,
+          as: 'documents',
+          attributes: ['id_document', 'lien_local', 'lien_web'],
+          required: false,
+          separate: true
+        },
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id_user', 'username', 'prenom', 'nom'],
+          required: false
+        },
+        {
+          model: User,
+          as: 'updater',
+          attributes: ['id_user', 'username', 'prenom', 'nom'],
           required: false
         }
       ],
       limit: projetId ? undefined : limit,
-      order: [['id_geom', 'DESC']]
+      order: [['id_projet', 'DESC']]
     });
 
-    console.log(`✅ ${geometries.length} géométries récupérées`);
+    console.log(`✅ ${projets.length} projets récupérés`);
 
     // ✅ FIX: Corrected the syntax error here
-    if (projetId && geometries.length === 0) {
-      console.warn(`⚠️ Aucune géométrie trouvée pour le projet ${projetId}`);
+    if (projetId && projets.length === 0) {
+      console.warn(`⚠️ Aucun projet trouvé pour l'ID ${projetId}`);
       return NextResponse.json({
         success: true,
-        message: `Aucune géométrie trouvée pour le projet ${projetId}`,
+        message: `Aucun projet trouvé pour l'ID ${projetId}`,
         data: [],  // ✅ FIXED: Added 'data' property
         pagination: {
           total: 0,
@@ -201,30 +209,40 @@ export async function GET(request) {
       }, { status: 200 });
     }
 
-    if (projetId && geometries.length > 0) {
-      const firstGeom = geometries[0].toJSON();
-      console.log('🔍 Première géométrie:', {
-        id_geom: firstGeom.id_geom,
-        id_projet: firstGeom.id_projet,
-        has_projet: !!firstGeom.projet,
-        has_porteurs: !!firstGeom.projet?.porteurs,
-        nb_porteurs: firstGeom.projet?.porteurs?.length || 0,
-        has_suivis: !!firstGeom.projet?.suivis,
-        nb_suivis: firstGeom.projet?.suivis?.length || 0,
-        has_thematiques: !!firstGeom.projet?.projet_in_thematiques,
-        nb_thematiques: firstGeom.projet?.projet_in_thematiques?.length || 0,
-        has_documents: !!firstGeom.projet?.documents,
-        nb_documents: firstGeom.projet?.documents?.length || 0
+    if (projetId && projets.length > 0) {
+      const firstProjet = projets[0].toJSON();
+      console.log('🔍 Premier projet:', {
+        id_projet: firstProjet.id_projet,
+        nom_projet: firstProjet.nom_projet,
+        has_geometries: !!firstProjet.geometries,
+        nb_geometries: firstProjet.geometries?.length || 0,
+        has_porteurs: !!firstProjet.porteurs,
+        nb_porteurs: firstProjet.porteurs?.length || 0,
+        has_suivis: !!firstProjet.suivis,
+        nb_suivis: firstProjet.suivis?.length || 0,
+        has_thematiques: !!firstProjet.projet_in_thematiques,
+        nb_thematiques: firstProjet.projet_in_thematiques?.length || 0,
+        has_documents: !!firstProjet.documents,
+        nb_documents: firstProjet.documents?.length || 0
       });
     }
 
 
     if (format === 'geojson') {
-       const features = await Promise.all(geometries
-          .filter(geom => geom.geom)
-          .map(async (geom) => {
-            const geomData = geom.toJSON();
-            const projetData = geomData.projet || {};
+       const features = await Promise.all(projets
+          .map(async (projet) => {
+            const projetData = projet.toJSON();
+            // Récupérer la première géométrie si elle existe
+            const geomData = projetData.geometries?.[0] || null;
+
+            // ✅ Si pas de géométrie, créer un point par défaut au centre de l'Eure-et-Loir
+            const DEFAULT_CENTER = {
+              type: 'Point',
+              coordinates: [1.4914, 48.4478] // Centre de l'Eure-et-Loir
+            };
+
+            const hasGeometry = geomData && geomData.geom;
+            const geometry = hasGeometry ? geomData.geom : DEFAULT_CENTER;
 
             const thematiqueCount = projetData.projet_in_thematiques?.length || 0;
 
@@ -322,11 +340,11 @@ export async function GET(request) {
 
             return {
               type: 'Feature',
-              geometry: geomData.geom,
+              geometry: geometry,
               properties: {
                 // IDs
-                id_geom: geomData.id_geom,
-                id_projet: geomData.id_projet,
+                id_geom: geomData?.id_geom || null,
+                id_projet: projetData.id_projet,
 
                 // Informations du projet
                 nom_projet: projetData.nom_projet || 'Sans nom',
@@ -346,7 +364,7 @@ export async function GET(request) {
 
                 //statut: projetData.statut_projet_enum?.libelle || 'Non défini',
 
-                // Service DDT (avec plusieurs clés pour compatibilité)
+                // Service Référent (avec plusieurs clés pour compatibilité)
                 service_id: projetData.service_id,
                 serviceid: projetData.service_id,
                 serviceddtid: projetData.service_id,
@@ -358,20 +376,23 @@ export async function GET(request) {
                 thematiques_count: thematiqueCount,
 
                 // ✅ DONNÉES GÉOGRAPHIQUES
-                geom_type: geomData.geom_type,
-                area_m2: geomData.area_m2,
-                length_m: geomData.length_m,
-                communes_traversees: geomData.communes_traversees || [],
-                codes_insee: geomData.codes_insee || [],
-                epci: geomData.epci || [],
-                arrondissements: geomData.arrondissements || [],
-                deputes: geomData.deputes || [],
-                maires: geomData.maires || [],
+                geom_type: geomData?.geom_type || 'Point',
+                area_m2: geomData?.area_m2 || null,
+                length_m: geomData?.length_m || null,
+                communes_traversees: geomData?.communes_traversees || [],
+                codes_insee: geomData?.codes_insee || [],
+                epci: geomData?.epci || [],
+                arrondissements: geomData?.arrondissements || [],
+                deputes: geomData?.deputes || [],
+                maires: geomData?.maires || [],
 
                 // Compteurs
                 nb_porteurs: projetData.porteurs?.length || 0,
                 nb_suivis: projetData.suivis?.length || 0,
                 nb_documents: projetData.documents?.length || 0,
+
+                // ✅ Indicateur de géométrie par défaut
+                has_geometry: hasGeometry,
 
                 // ✅ DATES ET UTILISATEURS
                 created_at: projetData.created_at,
