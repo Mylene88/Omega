@@ -93,7 +93,7 @@ export async function GET(request) {
           attributes: [
             'id_geom', 'geom', 'geom_type', 'area_m2', 'length_m',
             'communes_traversees', 'codes_insee', 'epci', 'arrondissements',
-            'deputes', 'maires', 'created_at', 'updated_at'
+            'deputes', 'maires'
           ],
           required: false // LEFT JOIN pour inclure les projets sans géométrie
         },
