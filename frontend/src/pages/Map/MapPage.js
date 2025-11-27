@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback} from 'react';
 import {debounce} from 'lodash'
+import { useNavigate } from 'react-router-dom';
 import Carte from '../../components/carte/carte-modele/Carte';
 import styles from '../../styles/CarteSection.module.css';
 import Search from '../../components/common/Search/Search';
@@ -16,6 +17,7 @@ const MapPage = ({
                      existingGeometry = null,
                      className = ""
                  }) => {
+    const navigate = useNavigate();
     const [geoEntities, setGeoEntities] = useState([])
     const [selectedLocation, setSelectedLocation] = useState(null);
     const [currentGeometry, setCurrentGeometry] = useState(existingGeometry);
@@ -270,7 +272,32 @@ const MapPage = ({
     return (
         <div className={`${styles.mapFormSection} ${className}`}>
             <div className={styles.mapHeader}>
-                <h3>Carte du projet</h3>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <h3>Carte du projet</h3>
+                    <button
+                        onClick={() => navigate(-1)}
+                        style={{
+                            backgroundColor: '#6B7280',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '36px',
+                            height: '36px',
+                            cursor: 'pointer',
+                            fontSize: '18px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'background-color 0.2s',
+                            flexShrink: 0
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#4B5563'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#6B7280'}
+                        title="Retour à la page précédente"
+                    >
+                        ←
+                    </button>
+                </div>
                 <p className={styles.mapDescription}>
                     Dessinez une zone pour définir l'emprise géographique de votre projet
                 </p>

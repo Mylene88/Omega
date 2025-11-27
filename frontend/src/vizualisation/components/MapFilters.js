@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Search from '../../components/common/Search/Search';
 import styles from '../styles/MapFilters.module.css';
 
@@ -8,6 +9,7 @@ export default function MapFilters({
     communes,
     viewToggleButton // 👈 Nouvelle prop pour le bouton de changement de vue
 }) {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState({
     searchText: '',
     searchCodeInsee: '',
@@ -101,12 +103,18 @@ export default function MapFilters({
 
   const toggleThematique = (value) => {
     console.log('🔧 Toggle thématique:', value, '(type:', typeof value + ')');
-    setFilters(prev => ({
-      ...prev,
-      thematiqueIds: prev.thematiqueIds.includes(value)
+    console.log('📋 Valeur complète:', value);
+    console.log('📋 Thématiques disponibles:', thematiques.find(t => t.value === value));
+    setFilters(prev => {
+      const newThematiqueIds = prev.thematiqueIds.includes(value)
           ? prev.thematiqueIds.filter(x => x !== value)
-          : [...prev.thematiqueIds, value]
-    }));
+          : [...prev.thematiqueIds, value];
+      console.log('✅ Filtres mis à jour - thematiqueIds:', newThematiqueIds);
+      return {
+        ...prev,
+        thematiqueIds: newThematiqueIds
+      };
+    });
   };
 
   const toggleStatut = (id) => {
@@ -328,6 +336,28 @@ export default function MapFilters({
                   disabled={activeFiltersCount === 0}
               >
                 🔄 Réinitialiser
+              </button>
+              <button
+                  className={styles.createButton}
+                  onClick={() => navigate('/projets/create')}
+                  style={{
+                    backgroundColor: '#10B981',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#059669'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#10B981'}
+              >
+                + Créer un projet
               </button>
             </div>
           </div>

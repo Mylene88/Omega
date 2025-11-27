@@ -28,10 +28,15 @@ export function useAccordion(initialState = {}) {
         });
     }, []);
 
+    const openSection = useCallback((key) => {
+        setExpandedSections((prev) => ({ ...prev, [key]: true }));
+    }, []);
+
     return {
         expandedSections,
         toggleSection,
         expandAll,
-        collapseAll
+        collapseAll,
+        openSection
     };
 }

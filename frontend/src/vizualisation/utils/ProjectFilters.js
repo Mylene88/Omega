@@ -81,33 +81,53 @@ export const filterProject = (feature, filters) => {
   // 3. Filtre par thématique
   if (filters.thematiqueIds && filters.thematiqueIds.length > 0) {
     const projetThematiques = props.thematiques || [];
-    
+
     let hasMatchingThematique = false;
-    
+
     if (Array.isArray(projetThematiques) && projetThematiques.length > 0) {
       const firstItem = projetThematiques[0];
-      
+
+      // 🔍 Debug AVANT le filtrage
+      console.log(`🔍 [AVANT FILTRAGE] Projet: ${props.nom_projet || props.name}`);
+      console.log(`   - Thématiques du projet:`, projetThematiques.map(t => t.value || t));
+      console.log(`   - Filtre appliqué:`, filters.thematiqueIds);
+
       // CAS 1: Format GeoJSON {value: "Risques-Bruit", label: "Risques - Bruit"}
       if (typeof firstItem === 'object' && firstItem !== null && firstItem.value) {
-        hasMatchingThematique = projetThematiques.some(t => 
-          filters.thematiqueIds.includes(t.value)
-        );
+        // 🔍 CORRESPONDANCE EXACTE - insensible à la casse pour éviter les problèmes
+        hasMatchingThematique = projetThematiques.some(t => {
+          const projectThemValue = (t.value || '').toLowerCase();
+          const match = filters.thematiqueIds.some(filterId => {
+            const filterIdLower = filterId.toLowerCase();
+            const isMatch = projectThemValue === filterIdLower;
+            console.log(`      Comparaison: "${projectThemValue}" === "${filterIdLower}" ? ${isMatch}`);
+            return isMatch;
+          });
+          return match;
+        });
       }
       // CAS 2: Format objet {categorie: "Risques", sous_categorie: "Bruit"}
       else if (typeof firstItem === 'object' && firstItem !== null && firstItem.categorie) {
         hasMatchingThematique = projetThematiques.some(t => {
-          const thematiqueValue = `${t.categorie}-${t.sous_categorie}`;
-          return filters.thematiqueIds.includes(thematiqueValue);
+          const thematiqueValue = `${t.categorie}-${t.sous_categorie}`.toLowerCase();
+          return filters.thematiqueIds.some(filterId =>
+            thematiqueValue === filterId.toLowerCase()
+          );
         });
       }
       // CAS 3: Format string direct ["Risques-Bruit", "Eau-Assainissement"]
       else if (typeof firstItem === 'string') {
-        hasMatchingThematique = projetThematiques.some(t => 
-          filters.thematiqueIds.includes(String(t))
-        );
+        hasMatchingThematique = projetThematiques.some(t => {
+          const thematiqueValue = String(t).toLowerCase();
+          return filters.thematiqueIds.some(filterId =>
+            thematiqueValue === filterId.toLowerCase()
+          );
+        });
       }
     }
-    
+
+    console.log(`   ➡️ Résultat: ${hasMatchingThematique ? '✅ ACCEPTÉ' : '❌ REJETÉ'}`);
+
     if (!hasMatchingThematique) return false;
   }
   
@@ -205,33 +225,42 @@ export const filterProjectsArray = (projects, filters, debug = false) => {
     // 3. Filtre par thématique
     if (filters.thematiqueIds && filters.thematiqueIds.length > 0) {
       const projectThematiques = project.thematiques || [];
-      
+
       let hasMatchingThematique = false;
-      
+
       if (Array.isArray(projectThematiques) && projectThematiques.length > 0) {
         const firstItem = projectThematiques[0];
-        
+
         // CAS 1: Format GeoJSON {value: "Risques-Bruit", label: "..."}
         if (typeof firstItem === 'object' && firstItem !== null && firstItem.value) {
-          hasMatchingThematique = projectThematiques.some(t => 
-            filters.thematiqueIds.includes(t.value)
-          );
+          // 🔍 CORRESPONDANCE EXACTE - insensible à la casse pour éviter les problèmes
+          hasMatchingThematique = projectThematiques.some(t => {
+            const projectThemValue = (t.value || '').toLowerCase();
+            return filters.thematiqueIds.some(filterId =>
+              projectThemValue === filterId.toLowerCase()
+            );
+          });
         }
         // CAS 2: Format {categorie, sous_categorie}
         else if (typeof firstItem === 'object' && firstItem !== null && firstItem.categorie) {
           hasMatchingThematique = projectThematiques.some(t => {
-            const thematiqueValue = `${t.categorie}-${t.sous_categorie}`;
-            return filters.thematiqueIds.includes(thematiqueValue);
+            const thematiqueValue = `${t.categorie}-${t.sous_categorie}`.toLowerCase();
+            return filters.thematiqueIds.some(filterId =>
+              thematiqueValue === filterId.toLowerCase()
+            );
           });
         }
         // CAS 3: Format string
         else if (typeof firstItem === 'string') {
-          hasMatchingThematique = projectThematiques.some(t => 
-            filters.thematiqueIds.includes(String(t))
-          );
+          hasMatchingThematique = projectThematiques.some(t => {
+            const thematiqueValue = String(t).toLowerCase();
+            return filters.thematiqueIds.some(filterId =>
+              thematiqueValue === filterId.toLowerCase()
+            );
+          });
         }
       }
-      
+
       if (!hasMatchingThematique) return false;
     }
     

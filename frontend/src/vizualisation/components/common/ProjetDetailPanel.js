@@ -236,7 +236,7 @@ export default function ProjetDetailPanel({
                         onClick={() => onToggleSection('suivis')}
                     >
                         <span className="accordion-icon">{expandedSections.suivis ? '▼' : '▶'}</span>
-                        <span className="accordion-title">📝 Suivi DDT</span>
+                        <span className="accordion-title">📝 Suivi Référent</span>
                         <span className="accordion-badge">{selectedProjectDetails.suivis?.length || 0}</span>
                     </button>
 
@@ -266,7 +266,7 @@ export default function ProjetDetailPanel({
                                 </div>
 
                                 <div className="info-item">
-                                    <span className="info-label">Service DDT</span>
+                                    <span className="info-label">Service Référent</span>
                                     <span className="info-value">
                                         {selectedProjectDetails.service ||
                                             selectedProjectDetails.serviceDdt?.libelle ||

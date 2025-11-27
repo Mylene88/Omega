@@ -383,8 +383,8 @@
 
 /* ==================== PANNEAU DÉTAIL ==================== */
 .liste-detail-pane {
-    width: 760px;
-    flex: 0 0 460px;
+    width: 900px;
+    flex: 0 0 900px;
     background: var(--bg-primary);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-xl);

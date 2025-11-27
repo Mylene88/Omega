@@ -58,8 +58,14 @@ export default function SectionVersionsTab({ apiCall }) {
       console.log('👤 Réponse users:', usersResponse);
 
       if (projetsResponse.success) {
-        setProjets(projetsResponse.data);
-        console.log(`✅ ${projetsResponse.data.length} projets chargés`);
+        // Vérifier et normaliser les projets
+        const projetsNormalises = projetsResponse.data.map(projet => ({
+          ...projet,
+          display_label: projet.display_label || `${projet.id_projet} - ${projet.nom_projet || 'Sans nom'}`
+        }));
+        setProjets(projetsNormalises);
+        console.log(`✅ ${projetsNormalises.length} projets chargés`);
+        console.log('📋 Projets disponibles:', projetsNormalises.map(p => ({ id: p.id_projet, label: p.display_label })));
       } else {
         console.error('❌ Erreur projets:', projetsResponse.message);
       }
@@ -89,16 +95,32 @@ export default function SectionVersionsTab({ apiCall }) {
       if (filters.sectionName) params.append('sectionName', filters.sectionName);
       params.append('limit', filters.limit);
 
+      console.log('🔍 Chargement des versions avec filtres:', {
+        idProjet: filters.idProjet || 'Tous',
+        userId: filters.userId || 'Tous',
+        sectionName: filters.sectionName || 'Toutes',
+        limit: filters.limit
+      });
+
       const response = await apiCall(`/admin/section-versions?${params.toString()}`);
+
+      console.log('📡 Réponse API versions:', response);
 
       if (response.success) {
         setVersions(response.data);
         setStats(response.stats);
+        console.log(`✅ ${response.data.length} versions chargées`);
+        if (filters.idProjet) {
+          const versionsForProject = response.data.filter(v => v.id_projet === filters.idProjet);
+          console.log(`📊 Versions pour le projet ${filters.idProjet}:`, versionsForProject.length);
+        }
       } else {
         setError(response.message || 'Erreur lors du chargement des versions');
+        console.error('❌ Erreur:', response.message);
       }
     } catch (err) {
       setError('Erreur réseau: ' + err.message);
+      console.error('❌ Erreur réseau:', err);
     } finally {
       setLoading(false);
     }
@@ -112,6 +134,7 @@ export default function SectionVersionsTab({ apiCall }) {
   // Charger quand les filtres changent
   useEffect(() => {
     if (!loadingDropdowns) {
+      console.log('🔄 Filtres changés, rechargement des versions...', filters);
       loadVersions();
     }
   }, [filters, loadingDropdowns]);
@@ -217,7 +240,11 @@ export default function SectionVersionsTab({ apiCall }) {
           <label>📁 Projet:</label>
           <select
             value={filters.idProjet}
-            onChange={(e) => setFilters({ ...filters, idProjet: e.target.value })}
+            onChange={(e) => {
+              const value = e.target.value;
+              console.log('🔄 Changement de projet sélectionné:', value);
+              setFilters({ ...filters, idProjet: value });
+            }}
             disabled={loadingDropdowns}
           >
             <option value="">Tous les projets</option>

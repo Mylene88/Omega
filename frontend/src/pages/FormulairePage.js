@@ -32,6 +32,7 @@ export default function FormulairePage() {
     const [isSaving, setIsSaving] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+    const [showExitModal, setShowExitModal] = useState(false);
 
     const [suiviData, setSuiviData] = useState({
         historique: [],
@@ -299,7 +300,7 @@ export default function FormulairePage() {
         }
     }, []);
 
-    // Protection contre la perte de données non sauvegardées
+    // Protection contre la perte de données non sauvegardées (fermeture/rechargement de page)
     useEffect(() => {
         const handleBeforeUnload = (e) => {
             if (hasUnsavedChanges) {
@@ -315,6 +316,26 @@ export default function FormulairePage() {
             window.removeEventListener('beforeunload', handleBeforeUnload);
         };
     }, [hasUnsavedChanges]);
+
+    // Protection contre la navigation arrière (bouton retour du navigateur)
+    useEffect(() => {
+        const handlePopState = (e) => {
+            if (hasUnsavedChanges && !showExitModal) {
+                // Empêcher la navigation en remettant l'état dans l'historique
+                window.history.pushState(null, '', window.location.href);
+                // Afficher le modal de confirmation
+                setShowExitModal(true);
+            }
+        };
+
+        // Ajouter un état dans l'historique pour détecter les popstate
+        window.history.pushState(null, '', window.location.href);
+        window.addEventListener('popstate', handlePopState);
+
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, [hasUnsavedChanges, showExitModal]);
 
 
     const suiviFormData = {
@@ -538,7 +559,102 @@ export default function FormulairePage() {
         setHasUnsavedChanges(true);
     };
 
+    // Gestion du modal de sortie
+    const handleSaveAndExit = async () => {
+        await handleSaveProject();
+        // La navigation se fait déjà dans handleSaveProject après la sauvegarde
+        setShowExitModal(false);
+    };
+
+    const handleExitWithoutSaving = () => {
+        setHasUnsavedChanges(false);
+        setShowExitModal(false);
+        navigate('/projets/liste');
+    };
+
+    const handleCancelExit = () => {
+        setShowExitModal(false);
+    };
+
     return (
+        <>
+        {/* Modal de confirmation de sortie */}
+        {showExitModal && (
+            <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 9999
+            }}>
+                <div style={{
+                    backgroundColor: 'white',
+                    padding: '2rem',
+                    borderRadius: '8px',
+                    maxWidth: '500px',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                }}>
+                    <h3 style={{ marginTop: 0, color: '#DC2626' }}>⚠️ Modifications non enregistrées</h3>
+                    <p style={{ marginBottom: '1.5rem', lineHeight: '1.6' }}>
+                        Vous êtes sur le point de fermer le formulaire de modification.<br />
+                        <strong>Vous avez des modifications non enregistrées.</strong><br />
+                        Si vous continuez sans enregistrer, toutes les modifications seront perdues.
+                    </p>
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                        <button
+                            onClick={handleCancelExit}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                backgroundColor: '#6B7280',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontWeight: '500'
+                            }}
+                        >
+                            Annuler
+                        </button>
+                        <button
+                            onClick={handleExitWithoutSaving}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                backgroundColor: '#DC2626',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontWeight: '500'
+                            }}
+                        >
+                            Quitter sans enregistrer
+                        </button>
+                        <button
+                            onClick={handleSaveAndExit}
+                            disabled={isSaving}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                backgroundColor: isSaving ? '#9CA3AF' : '#10B981',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: isSaving ? 'not-allowed' : 'pointer',
+                                fontWeight: '500'
+                            }}
+                        >
+                            {isSaving ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Contenu principal */}
         <div style={{ display: 'flex', gap: '2rem' }}>
             {/* Colonne gauche - Formulaire */}
             <div style={{ flex: '1' }}>
@@ -608,5 +724,6 @@ export default function FormulairePage() {
                 />
             </div>
         </div>
+        </>
     );
 }

@@ -269,7 +269,7 @@ export default function Sidebar({ projectId, onClose }) {
                                 onClick={() => toggleSection('suivis')}
                             >
                                 <span className="accordion-icon">{expandedSections.suivis ? '▼' : '▶'}</span>
-                                <span className="accordion-title">📝 Suivi DDT</span>
+                                <span className="accordion-title">📝 Suivi Référent</span>
                                 <span className="accordion-badge">{info.suivis?.length || 0}</span>
                             </button>
 
@@ -292,7 +292,7 @@ export default function Sidebar({ projectId, onClose }) {
                                         </div>
 
                                         <div className="info-item">
-                                            <span className="info-label">Service DDT</span>
+                                            <span className="info-label">Service Référent</span>
                                             <span className="info-value">{info.service || 'Aucun service renseigné'}</span>
                                         </div>
 

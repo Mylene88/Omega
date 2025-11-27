@@ -398,7 +398,7 @@ async function generateCSV(projet) {
     'Nom',
     'Description',
     'Statut',
-    'Service DDT',
+    'Service Référent',
     'Nb Porteurs',
     'Nb Suivis',
     'Nb Thématiques',
@@ -572,7 +572,7 @@ function generateHTML(projet) {
           <td class="field-value">${projet.charte_accueil ? 'Oui' : 'Non'}</td>
         </tr>
         <tr>
-          <td class="field-label">Service DDT</td>
+          <td class="field-label">Service Référent</td>
           <td class="field-value">${projet.ddt_service_enum?.libelle_service || 'Non renseigné'}</td>
         </tr>
         <tr>

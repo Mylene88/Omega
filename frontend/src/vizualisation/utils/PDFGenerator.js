@@ -99,7 +99,7 @@ export default function PDFGenerator({ projectId }) {
       addField('Description', projet?.description);
       addField('Statut du projet', statut?.libelle);
       addField('Date d\'identification du projet', formatDateTime(projet?.dateIdentification));
-      addField('Service DDT', serviceDdt?.libelle);
+      addField('Service Référent', serviceDdt?.libelle);
       addField('Référent DDT', projet?.referentDdt);
       addField('Créateur de la fiche projet', createur?.nomComplet);
       addField('Date Création de la fiche projet', formatDateTime(projet?.dateCreation));

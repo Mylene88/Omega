@@ -30,7 +30,7 @@ export default function ListeProjetPage() {
     const [selectedProjectDetails, setSelectedProjectDetails] = useState(null);
     const [loadingDetails, setLoadingDetails] = useState(false);
 
-    const { expandedSections, toggleSection } = useAccordion({
+    const { expandedSections, toggleSection, openSection } = useAccordion({
         infos: true,
         suivis: false,
         porteurs: false,
@@ -39,9 +39,14 @@ export default function ListeProjetPage() {
         geometries: false
     });
 
-    const handleProjectSelect = async (projectId) => {
+    const handleProjectSelect = async (projectId, sectionToOpen = null) => {
         setSelectedProjectId(projectId);
         setLoadingDetails(true);
+
+        // Si une section spécifique doit être ouverte, l'ouvrir
+        if (sectionToOpen && openSection) {
+            openSection(sectionToOpen);
+        }
         
         try {
             const response = await fetch(`http://localhost:3000/api/projets/${projectId}`);

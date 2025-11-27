@@ -296,7 +296,7 @@ export default function Map({ onSelect }) {
                         const nomProjet = props.nom_projet || props.nomprojet || 'Projet sans nom';
                         const description = props.description || 'Aucune description'
                         const statut = props.libelle_statut || props.statut_projet || props.statut || 'Aucun statut';
-                        const serviceDDT = props.service || props.service_ddt || 'Aucun service';
+                        const serviceReferent = props.service || props.service_ddt || 'Aucun service';
 
                         // Superficie ou longueur
                         let dimensionText = '';
@@ -518,12 +518,12 @@ export default function Map({ onSelect }) {
                                         </div>
                                     </div>
 
-                                    <!-- Service DDT -->
+                                    <!-- Service Référent -->
                                     <div style="display: flex; align-items: flex-start; gap: 8px;">
                                         <span style="font-size: 16px;">🏛️</span>
                                         <div style="flex: 1;">
-                                            <div style="font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 2px;">SERVICE DDT</div>
-                                            <div style="font-size: 13px; color: #1e293b; font-weight: 500;">${serviceDDT}</div>
+                                            <div style="font-size: 11px; color: #64748b; font-weight: 600; margin-bottom: 2px;">SERVICE RÉFÉRENT</div>
+                                            <div style="font-size: 13px; color: #1e293b; font-weight: 500;">${serviceReferent}</div>
                                         </div>
                                     </div>
 

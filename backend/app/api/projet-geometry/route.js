@@ -25,6 +25,44 @@ const {
   sequelize
 } = db;
 
+// Fonction utilitaire pour obtenir le nom du modèle Sequelize depuis le nom de table
+function getSequelizeModelName(tableName) {
+  const modelKeys = Object.keys(db).filter(k =>
+    !['sequelize', 'Sequelize', 'DataTypes'].includes(k)
+  );
+
+  // D'abord, chercher par correspondance exacte de tableName
+  for (const modelKey of modelKeys) {
+    const model = db[modelKey];
+    if (model && model.tableName === tableName) {
+      return modelKey;
+    }
+  }
+
+  // Fallback 1: Essayer avec PascalCase (sans underscores)
+  const pascalCase = tableName
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('');
+
+  if (db[pascalCase]) {
+    return pascalCase;
+  }
+
+  // Fallback 2: Essayer avec PascalCase + underscores
+  const pascalCaseWithUnderscore = tableName
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('_');
+
+  if (db[pascalCaseWithUnderscore]) {
+    return pascalCaseWithUnderscore;
+  }
+
+  console.warn(`⚠️ Aucun modèle trouvé pour table: ${tableName}`);
+  return pascalCase; // Retourner le PascalCase par défaut
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -182,9 +220,9 @@ export async function GET(request) {
 
 
     if (format === 'geojson') {
-       const features = geometries
+       const features = await Promise.all(geometries
           .filter(geom => geom.geom)
-          .map(geom => {
+          .map(async (geom) => {
             const geomData = geom.toJSON();
             const projetData = geomData.projet || {};
 
@@ -199,12 +237,14 @@ export async function GET(request) {
               libelle: statutLibelle
             });
 
-            // ✅ CORRECTION FINALE: Extraire les thématiques au format "Catégorie-Modèle"
+            // ✅ CORRECTION: Extraire les thématiques au format "Catégorie-Modèle" SEULEMENT si elles ont des données
             let thematiques = [];
 
             if (Array.isArray(projetData.projet_in_thematiques)) {
-              projetData.projet_in_thematiques.forEach(pit => {
-                if (!pit.thematique) return;
+              const { getModelByValue } = require('@/backend/lib/config');
+
+              for (const pit of projetData.projet_in_thematiques) {
+                if (!pit.thematique) continue;
 
                 try {
                   // pit.thematique.libelle = "Risques" (catégorie)
@@ -215,7 +255,7 @@ export async function GET(request) {
 
                   if (!modeleString) {
                     console.warn(`⚠️ Modèle vide pour thématique ${categorie}`);
-                    return;
+                    continue;
                   }
 
                   // Parser le JSON
@@ -223,21 +263,53 @@ export async function GET(request) {
 
                   if (!Array.isArray(modeles)) {
                     console.warn(`⚠️ Modèle n'est pas un array pour ${categorie}:`, modeles);
-                    return;
+                    continue;
                   }
 
-                  // Générer une entrée pour chaque modèle
-                  modeles.forEach(modele => {
-                    thematiques.push({
-                      value: `${categorie}-${modele}`,  // "Risques-Bruit"
-                      label: `${categorie} - ${modele}`  // "Risques - Bruit"
+                  // Normaliser le libellé pour la recherche de config
+                  const thematiqueNormalized = categorie === 'Enr' || categorie === 'enr' || categorie === 'ENR'
+                    ? 'EnR'
+                    : categorie;
+
+                  // Pour chaque modèle, vérifier s'il a des données
+                  for (const modele of modeles) {
+                    const fullModeleKey = `${thematiqueNormalized}-${modele}`;
+                    const modeleConfig = getModelByValue(fullModeleKey);
+
+                    if (!modeleConfig) {
+                      console.warn(`⚠️ Config non trouvée pour: ${fullModeleKey}`);
+                      continue;
+                    }
+
+                    const modelName = getSequelizeModelName(modeleConfig.tableName);
+                    const Model = db[modelName];
+
+                    if (!Model) {
+                      console.warn(`⚠️ Modèle Sequelize non trouvé: ${modelName}`);
+                      continue;
+                    }
+
+                    // ✅ VÉRIFIER SI CE MODÈLE A DES DONNÉES POUR CE PROJET
+                    const dataCount = await Model.count({
+                      where: {
+                        id_project: projetData.id_projet,
+                        id_thematique: pit.thematique.id_thematique
+                      }
                     });
-                  });
+
+                    // ✅ N'ajouter que si des données existent
+                    if (dataCount > 0) {
+                      thematiques.push({
+                        value: `${categorie}-${modele}`,  // "Risques-Bruit"
+                        label: `${categorie} - ${modele}`  // "Risques - Bruit"
+                      });
+                    }
+                  }
 
                 } catch (error) {
                   console.error(`❌ Erreur parsing thématique pour projet ${projetData.nom_projet}:`, error);
                 }
-              });
+              }
             }
 
             // 🔍 LOG pour vérifier (retirer en production)
@@ -318,7 +390,7 @@ export async function GET(request) {
                                    : projetData.updater?.username) || null
               }
             };
-          });
+          }));
 
       console.log(`✅ ${features.length} features GeoJSON générées`);
 

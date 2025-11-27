@@ -24,8 +24,13 @@ export default function VueListe({
     const navigate = useNavigate()
 
 
-    const handleClick = (p) => {
-        onProjectSelect?.(p.id_projet);
+    const handleClick = (p, sectionToOpen = null) => {
+        onProjectSelect?.(p.id_projet, sectionToOpen);
+    };
+
+    const handleSectionClick = (e, p, sectionName) => {
+        e.stopPropagation();
+        onProjectSelect?.(p.id_projet, sectionName);
     };
 
     const handleDownloadClick = (e, projectId) => {
@@ -196,7 +201,7 @@ export default function VueListe({
                     const communesArray = formatCommunes(p.communes_traversees);
                     const nombrePorteurs = p.nb_porteurs ?? 0;
 
-                    const serviceDDT = p.service_libelle || p.service || 'Non renseigné';
+                    const serviceReferent = p.service_libelle || p.service || 'Non renseigné';
                     const isDropdownOpen = openDropdownId === p.id_projet;
 
                     return (
@@ -291,16 +296,6 @@ export default function VueListe({
                                             </div>
                                         )}
                                     </div>
-
-                                    {/* Bouton de suppression */}
-                                    <button
-                                        className={`delete-btn-header ${p.demande_suppression ? 'disabled' : ''}`}
-                                        onClick={(e) => !p.demande_suppression && handleDeleteClick(e, p)}
-                                        title={p.demande_suppression ? "Une demande de suppression est déjà en attente" : "Demander la suppression du projet"}
-                                        disabled={p.demande_suppression}
-                                    >
-                                        🗑️
-                                    </button>
                                 </div>
                             </div>
 
@@ -352,19 +347,29 @@ export default function VueListe({
                                     </div>
 
 
-                                    {/* Service DDT */}
-                                    {serviceDDT && (
-                                        <div className="card-info-item">
+                                    {/* Service Référent */}
+                                    {serviceReferent && (
+                                        <div
+                                            className="card-info-item clickable-section"
+                                            onClick={(e) => handleSectionClick(e, p, 'suivis')}
+                                            style={{ cursor: 'pointer' }}
+                                            title="Cliquer pour voir les suivis"
+                                        >
                                             <span className="card-info-icon">🏛️</span>
                                             <div className="card-info-content">
-                                                <span className="card-info-label">Service DDT</span>
-                                                <span className="card-info-value">{serviceDDT}</span>
+                                                <span className="card-info-label">Service Référent</span>
+                                                <span className="card-info-value">{serviceReferent}</span>
                                             </div>
                                         </div>
                                     )}
 
                                     {/* Thématiques - Toujours affiché */}
-                                    <div className="card-info-item">
+                                    <div
+                                        className="card-info-item clickable-section"
+                                        onClick={(e) => handleSectionClick(e, p, 'thematiques')}
+                                        style={{ cursor: 'pointer' }}
+                                        title="Cliquer pour voir les thématiques"
+                                    >
                                         <span className="card-info-icon">🎯</span>
                                         <div className="card-info-content">
                                             <span className="card-info-label">Thématiques</span>
@@ -443,7 +448,7 @@ export default function VueListe({
                                 )}
                             </div>
 
-                            {/* ✅ FOOTER: Date de modification + Bouton Modifier */}
+                            {/* ✅ FOOTER: Date de modification + Boutons d'action */}
                             <div className="project-card-footer">
                                 <div className="footer-left">
                                     {p.date_maj || p.updated_at ? (
@@ -482,16 +487,40 @@ export default function VueListe({
                                     )}
                                 </div>
 
-                                <button
-                                    className="badge badge-edit edit-btn"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigate(`/projets/edit/${p.id_projet}`);
-                                    }}
-                                    title="Modifier le projet"
-                                >
-                                    <span className="icon-pencil" aria-hidden="true">✏️</span> Modifier
-                                </button>
+                                <div className="footer-actions" style={{ display: 'flex', gap: '8px' }}>
+                                    {/* Bouton modifier */}
+                                    <button
+                                        className="badge badge-edit edit-btn"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            navigate(`/projets/edit/${p.id_projet}`);
+                                        }}
+                                        title="Modifier le projet"
+                                    >
+                                        <span className="icon-pencil" aria-hidden="true">✏️</span> Modifier
+                                    </button>
+
+                                    {/* Bouton supprimer */}
+                                    <button
+                                        className={`badge badge-delete ${p.demande_suppression ? 'disabled' : ''}`}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            !p.demande_suppression && handleDeleteClick(e, p);
+                                        }}
+                                        title={p.demande_suppression ? "Une demande de suppression est déjà en attente" : "Supprimer le projet"}
+                                        disabled={p.demande_suppression}
+                                        style={{
+                                            backgroundColor: p.demande_suppression ? '#E5E7EB' : '#EF4444',
+                                            color: 'white',
+                                            cursor: p.demande_suppression ? 'not-allowed' : 'pointer',
+                                            opacity: p.demande_suppression ? 0.5 : 1,
+                                            minWidth: '40px',
+                                            padding: '0.5rem'
+                                        }}
+                                    >
+                                        🗑️
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     );
