@@ -186,7 +186,7 @@ export async function GET(request) {
         }
       ],
       limit: projetId ? undefined : limit,
-      order: [['id_projet', 'DESC']]
+      order: [['updated_at', 'DESC'], ['created_at', 'DESC']]
     });
 
     console.log(`✅ ${projets.length} projets récupérés`);

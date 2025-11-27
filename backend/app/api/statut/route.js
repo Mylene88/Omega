@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/backend/models';
 
-const { StatutProjetEnum } = db;
+const { StatutProjetEnum, sequelize } = db;
 
 const COLOR_BY_LIBELLE = {
     'phase amont':      { color: '#17a2b8', fillColor: '#17a2b8' }, // cyan
@@ -20,9 +20,25 @@ function normLabel(s) {
 
 export async function GET() {
     try {
+        // Ordre personnalisé : Phase amont, En cours, En contentieux, Finalisé, En exploitation, Abandonné
         const statuses = await StatutProjetEnum.findAll({
             attributes: ['id_statut', 'libelle'],
-            order: [['libelle', 'ASC']]
+            order: [
+                [
+                    sequelize.literal(`
+                        CASE LOWER(libelle)
+                            WHEN 'phase amont' THEN 1
+                            WHEN 'en cours' THEN 2
+                            WHEN 'en contentieux' THEN 3
+                            WHEN 'finalisé' THEN 4
+                            WHEN 'en exploitation' THEN 5
+                            WHEN 'abandonné' THEN 6
+                            ELSE 7
+                        END
+                    `),
+                    'ASC'
+                ]
+            ]
         });
         return NextResponse.json(statuses, { status: 200 });
     } catch (error) {
