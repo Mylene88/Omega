@@ -38,10 +38,6 @@ async function getCurrentSectionData(idProjet, sectionName, transaction = null) 
       case 'porteurs': {
         const porteurs = await db.ProjetPorteur.findAll({
           where: { id_projet: idProjet },
-          include: [{
-            model: db.TypePorteurEnum,
-            attributes: ['id_type_porteur', 'libelle']
-          }],
           ...options
         });
         return porteurs.map(p => p.toJSON());
@@ -68,11 +64,6 @@ async function getCurrentSectionData(idProjet, sectionName, transaction = null) 
             {
               model: db.Thematique,
               attributes: ['id_thematique', 'libelle', 'modele']
-            },
-            {
-              model: db.User,
-              foreignKey: 'ajoute_par',
-              attributes: ['id_user', 'username', 'prenom', 'nom']
             }
           ],
           ...options

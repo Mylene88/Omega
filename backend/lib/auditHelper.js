@@ -469,7 +469,7 @@ async function createSectionVersion({
 
     // Obtenir le prochain numéro de version pour cette section et cet utilisateur
     const versionNumber = await db.sequelize.query(
-      'SELECT principale.get_next_section_version_number(:idProjet, :userId, :sectionName) as version',
+      'SELECT principale.get_next_section_version_number(:idProjet, :userId, :sectionName::principale.section_name_enum) as version',
       {
         replacements: { idProjet, userId, sectionName },
         type: db.sequelize.QueryTypes.SELECT,

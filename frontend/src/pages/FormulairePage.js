@@ -10,6 +10,7 @@ import MapPage from './Map/MapPage';
 import Id from './Id/Id';
 import '../styles/globals.css';
 import Search from "../components/common/Search/Search";
+import { getCurrentUserId, getApiHeaders } from '../utils/userHelper';
 
 export default function FormulairePage() {
     const navigate = useNavigate();
@@ -453,13 +454,22 @@ export default function FormulairePage() {
                 } : null,
             };
 
+            // 🔐 Ajouter l'userId pour le système de versioning
+            const userId = getCurrentUserId();
+            if (userId) {
+                finalPayload.userId = userId;
+                console.log(`🔐 userId ajouté au payload: ${userId}`);
+            } else {
+                console.warn('⚠️ Aucun userId trouvé - versioning désactivé pour cette requête');
+            }
+
             console.log('10. 🚀 PAYLOAD FINAL À ENVOYER:', JSON.stringify(finalPayload, null, 2));
             console.log('================================================\n');
 
             // --- 3. Envoyer le payload complet en un seul appel API ---
             const response = await fetch('http://localhost:3000/api/projets', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getApiHeaders(),
                 body: JSON.stringify(finalPayload),
             });
 

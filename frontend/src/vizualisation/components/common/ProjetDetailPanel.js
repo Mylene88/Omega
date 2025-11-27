@@ -103,7 +103,7 @@ export default function ProjetDetailPanel({
                                     }}>
                                         {selectedProjectDetails.projet?.id ||
                                         selectedProjectDetails.id_projet ||
-                                        'N/A'}
+                                        'Aucun ID renseigné'}
                                     </span>
                                 </div>
 
@@ -112,22 +112,22 @@ export default function ProjetDetailPanel({
                                     <span className="info-value">
                                         {selectedProjectDetails.projet?.nom ||
                                         selectedProjectDetails.nom_projet ||
-                                        'N/A'}
+                                        'Aucun nom renseigné'}
                                     </span>
                                 </div>
 
                                 <div className="info-item">
                                     <span className="info-label">Statut du projet</span>
-                                    <span className={`info-badge ${getStatusBadgeClass(
-                                        selectedProjectDetails.statut?.libelle || 
+                                    <span className={`info-badge ${(
+                                        selectedProjectDetails.statut?.libelle ||
                                         selectedProjectDetails.projet?.statut?.libelle ||
                                         selectedProjectDetails.statut ||
-                                        'N/A'
+                                        'Aucun statut renseigné'
                                     )}`}>
                                         {selectedProjectDetails.statut?.libelle ||
                                         selectedProjectDetails.projet?.statut?.libelle ||
                                         selectedProjectDetails.statut ||
-                                        'N/A'}
+                                        'Aucun statut renseigné'}
                                     </span>
                                 </div>
 
@@ -142,14 +142,12 @@ export default function ProjetDetailPanel({
                                     </span>
                                 </div>
 
-                                {(selectedProjectDetails.projet?.description || selectedProjectDetails.description) && (
-                                    <div className="info-item full-width">
-                                        <span className="info-label">Description</span>
-                                        <p className="info-description">
-                                            {selectedProjectDetails.projet?.description || selectedProjectDetails.description}
-                                        </p>
-                                    </div>
-                                )}
+                                <div className="info-item full-width">
+                                    <span className="info-label">Description</span>
+                                    <p className="info-description">
+                                        {selectedProjectDetails.projet?.description || selectedProjectDetails.description || 'Aucune description renseignée'}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -283,7 +281,7 @@ export default function ProjetDetailPanel({
                                     <span className="info-value">
                                         {selectedProjectDetails.projet?.referentDdt ||
                                         selectedProjectDetails.referent_ddt ||
-                                        'Non renseigné'}
+                                        'Aucun contact renseigné'}
                                     </span>
                                 </div>
 
@@ -302,7 +300,7 @@ export default function ProjetDetailPanel({
                                         selectedProjectDetails.createur?.username ||
                                         selectedProjectDetails.creator?.nomComplet ||
                                         selectedProjectDetails.creator?.username ||
-                                        'N/A'}
+                                        'Aucun créateur renseigné'}
                                     </span>
                                 </div>
 

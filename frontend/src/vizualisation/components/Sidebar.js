@@ -226,19 +226,19 @@ export default function Sidebar({ projectId, onClose }) {
                                                 color: '#667eea',
                                                 fontWeight: '700'
                                             }}>
-                                                {info.id_projet || 'N/A'}
+                                                {info.id_projet || 'Aucun ID renseigné'}
                                             </span>
                                         </div>
 
                                         <div className="info-item">
                                             <span className="info-label">Nom du projet</span>
-                                            <span className="info-value">{info.nom_projet || 'N/A'}</span>
+                                            <span className="info-value">{info.nom_projet || 'Aucun nom renseigné'}</span>
                                         </div>
 
                                         <div className="info-item">
                                             <span className="info-label">Statut du projet</span>
                                             <span className="info-value">
-                                                {info.statut || 'N/A'}
+                                                {info.statut || 'Aucun statut renseigné'}
                                             </span>
                                         </div>
 
@@ -249,17 +249,14 @@ export default function Sidebar({ projectId, onClose }) {
                                             <span className="info-value">
                                                 {info.date_ident_projet
                                                     ? new Date(info.date_ident_projet).toLocaleDateString('fr-FR')
-                                                    : 'N/A'}
+                                                    : 'Aucune date renseignée'}
                                             </span>
                                         </div>
 
-
-                                        {info.description && (
-                                            <div className="info-item full-width">
-                                                <span className="info-label">Description</span>
-                                                <p className="info-description">{info.description}</p>
-                                            </div>
-                                        )}
+                                        <div className="info-item full-width">
+                                            <span className="info-label">Description</span>
+                                            <p className="info-description">{info.description || 'Aucune description renseignée'}</p>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -296,12 +293,12 @@ export default function Sidebar({ projectId, onClose }) {
 
                                         <div className="info-item">
                                             <span className="info-label">Service DDT</span>
-                                            <span className="info-value">{info.service || 'N/A'}</span>
+                                            <span className="info-value">{info.service || 'Aucun service renseigné'}</span>
                                         </div>
 
                                         <div className="info-item">
                                             <span className="info-label">Contact à la DDT</span>
-                                            <span className="info-value">{info.referent_ddt || 'N/A'}</span>
+                                            <span className="info-value">{info.referent_ddt || 'Aucun contact renseigné'}</span>
                                         </div>
 
                                         <div className="info-item">
@@ -311,7 +308,7 @@ export default function Sidebar({ projectId, onClose }) {
 
                                         <div className="info-item">
                                             <span className="info-label">Créateur de la fiche projet </span>
-                                            <span className="info-value">{info.createur || 'N/A'}</span>
+                                            <span className="info-value">{info.createur || 'Aucun créateur renseigné'}</span>
                                         </div>
 
                                         <div className="info-item">

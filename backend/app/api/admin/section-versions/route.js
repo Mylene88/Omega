@@ -100,6 +100,7 @@ export async function GET(request) {
       is_current: v.is_current,
       description: v.description,
       metadata: v.metadata,
+      section_data: v.section_data,
       created_by: v.user ? {
         id: v.user.id_user,
         username: v.user.username,

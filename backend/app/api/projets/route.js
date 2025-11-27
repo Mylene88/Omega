@@ -4,7 +4,8 @@
 import { NextResponse } from 'next/server';
 import db from '@/backend/models';  // ✅ Chemin corrigé
 import generateUniqueProjectId from '@/backend/utils/identifiant';  // ✅ Chemin corrigé
-import { logAudit, createSnapshot, extractRequestInfo } from '@/backend/lib/auditHelper';
+import { logAudit, createSnapshot, extractRequestInfo, createSectionVersion } from '@/backend/lib/auditHelper';
+import { saveCurrentSectionVersion } from '@/backend/lib/sectionVersionHelper';
 
 const {
   Projet,
@@ -290,6 +291,51 @@ export async function POST(request) {
           transaction
         });
         console.log('   ✅ Snapshot AVANT créé (sauvegarde de l\'état actuel)');
+      }
+
+      // 🆕 VERSIONING GRANULAIRE PAR SECTION
+      if (userId) {
+        console.log('\n📸 [VERSIONING] Sauvegarde des versions de sections AVANT modification...');
+
+        // Sauvegarder version de projet_info
+        await saveCurrentSectionVersion({
+          idProjet: projetExistant.id_projet,
+          userId: body.userId || userId,
+          sectionName: 'projet_info',
+          description: 'Sauvegarde avant modification du projet',
+          transaction
+        });
+
+        // Sauvegarder version des porteurs
+        await saveCurrentSectionVersion({
+          idProjet: projetExistant.id_projet,
+          userId: body.userId || userId,
+          sectionName: 'porteurs',
+          description: 'Sauvegarde avant modification des porteurs',
+          transaction
+        });
+
+        // Sauvegarder version des suivis
+        await saveCurrentSectionVersion({
+          idProjet: projetExistant.id_projet,
+          userId: body.userId || userId,
+          sectionName: 'suivis',
+          description: 'Sauvegarde avant modification des suivis',
+          transaction
+        });
+
+        // Sauvegarder version des thématiques
+        await saveCurrentSectionVersion({
+          idProjet: projetExistant.id_projet,
+          userId: body.userId || userId,
+          sectionName: 'thematiques',
+          description: 'Sauvegarde avant modification des thématiques',
+          transaction
+        });
+
+        console.log('✅ [VERSIONING] Versions de sections sauvegardées');
+      } else {
+        console.warn('⚠️ [VERSIONING] Aucun userId - versioning désactivé pour cette modification');
       }
 
       // Mettre à jour les champs du projet
@@ -690,4 +736,18 @@ export async function POST(request) {
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
   }
+}
+
+/**
+ * OPTIONS - Gestion des requêtes preflight CORS
+ */
+export async function OPTIONS() {
+  return NextResponse.json({}, {
+    headers: {
+      'Access-Control-Allow-Origin': 'http://localhost:3001',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-user-id',
+      'Access-Control-Allow-Credentials': 'true',
+    },
+  });
 }

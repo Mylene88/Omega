@@ -9,8 +9,8 @@ export function middleware(request) {
       status: 200,
       headers: {
         'Access-Control-Allow-Origin': 'http://localhost:3001',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS', // ✅ AJOUT de PATCH
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, x-user-id',
         'Access-Control-Max-Age': '86400',
       },
     });
@@ -19,9 +19,9 @@ export function middleware(request) {
   // Pour les autres requêtes, ajouter les headers CORS
   const response = NextResponse.next();
   response.headers.set('Access-Control-Allow-Origin', 'http://localhost:3001');
-  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS'); // ✅ AJOUT de PATCH
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
-  
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, x-user-id');
+
   return response;
 }
 

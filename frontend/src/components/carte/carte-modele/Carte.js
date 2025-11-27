@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState, useCallback, useImperativeHandle, f
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import styles from '../../../styles/CarteSection.module.css';
-import { TILE_CONFIG, MAP_CENTER, MAP_BOUNDS } from '../../../vizualisation/config/mapConfig';
+import { TILE_CONFIG, MAP_CENTER, MAP_BOUNDS } from '../../../config/mapConfig';
 
 // Configuration pour Eure-et-Loir
 const EURE_ET_LOIR_CENTER = MAP_CENTER;

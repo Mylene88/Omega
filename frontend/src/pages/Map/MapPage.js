@@ -5,6 +5,7 @@ import {debounce} from 'lodash'
 import Carte from '../../components/carte/carte-modele/Carte';
 import styles from '../../styles/CarteSection.module.css';
 import Search from '../../components/common/Search/Search';
+import { getCurrentUserId, getApiHeaders } from '../../utils/userHelper';
 
 
 const MapPage = ({
@@ -112,6 +113,12 @@ const MapPage = ({
         try {
             const isNewProject = !projetData?.id_geom;
 
+            // 🔐 Récupérer l'userId pour le système de versioning
+            const userId = getCurrentUserId();
+            if (!userId) {
+                console.warn('⚠️ Aucun userId trouvé - versioning désactivé pour cette requête');
+            }
+
             let endpoint, method, requestData;
 
             if (isNewProject) {
@@ -123,6 +130,7 @@ const MapPage = ({
                     geom: geometryData.geom,
                     geom_type: geometryData.geom_type,
                 };
+                if (userId) requestData.userId = userId;
             } else {
                 console.log('🔄 Projet existant - mise à jour');
                 endpoint = `http://localhost:3000/api/projet-geometry/${projetData.id_geom}`;
@@ -131,16 +139,18 @@ const MapPage = ({
                     geom: geometryData.geom,
                     geom_type: geometryData.geom_type,
                 };
+                if (userId) requestData.userId = userId;
+            }
+
+            if (userId) {
+                console.log(`🔐 userId ajouté: ${userId}`);
             }
 
             console.log('📤 Requête API:', { endpoint, method, requestData });
 
             const response = await fetch(endpoint, {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
+                headers: getApiHeaders({ 'Accept': 'application/json' }),
                 body: JSON.stringify(requestData),
             });
 
