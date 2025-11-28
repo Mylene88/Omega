@@ -80,6 +80,19 @@ export async function PATCH(request, { params }) {
       });
 
       console.log(`✅ Projet #${deletionRequest.id_projet} supprimé`);
+    } else {
+      // Si rejeté, remettre demande_suppression à false
+      console.log(`❌ Rejet de la demande - Remise à zéro de demande_suppression pour #${deletionRequest.id_projet}`);
+
+      await Projet.update(
+        { demande_suppression: false },
+        {
+          where: { id_projet: deletionRequest.id_projet },
+          transaction
+        }
+      );
+
+      console.log(`✅ Projet #${deletionRequest.id_projet} - demande_suppression remis à false`);
     }
 
     await transaction.commit();

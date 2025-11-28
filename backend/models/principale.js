@@ -77,7 +77,9 @@ module.exports = (sequelize, DataTypes) => {
     schema,
     tableName: 'projet',
     createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    updatedAt: 'updated_at',
+    deletedAt: 'deleted_at',
+    paranoid: true  // Active le soft delete
   });
 
   // --- Porteur de projet ---

@@ -84,7 +84,7 @@ export async function GET(request) {
       attributes: [
         'id_projet', 'nom_projet', 'description', 'date_ident_projet',
         'projet_signale', 'charte_accueil', 'referent_ddt', 'service_id',
-        'statut_projet_id', 'created_at', 'updated_at', 'created_by'
+        'statut_projet_id', 'demande_suppression', 'created_at', 'updated_at', 'created_by'
       ],
       include: [
         {
@@ -351,6 +351,7 @@ export async function GET(request) {
                 // Statuts
                 projet_signale: projetData.projet_signale || false,
                 charte_accueil: projetData.charte_accueil || false,
+                demande_suppression: projetData.demande_suppression || false,
 
                 // ✅ STATUTS - TOUTES LES VARIANTES
                 statut_projet_id: projetData.statut_projet_id,
