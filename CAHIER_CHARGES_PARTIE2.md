@@ -11,9 +11,570 @@
 
 ---
 
-## 6. FONCTIONNALITÉS DÉTAILLÉES DE L'APPLICATION
+## 6. HOMOLOGATION DE SÉCURITÉ ANSSI : ÉTAPES 5 À 9
 
-### 6.1 Système de versioning multi-niveaux
+### 6.1 Étape 5 : Analyse de risques (méthode EBIOS 2010)
+
+#### 6.1.1 Présentation de la méthode EBIOS 2010
+
+L'analyse de risques de l'application OMEGA est conduite selon la **méthode EBIOS 2010** (Expression des Besoins et Identification des Objectifs de Sécurité), méthode officielle de l'ANSSI pour l'analyse de risques en sécurité des systèmes d'information.
+
+La méthode EBIOS 2010 se déroule en **5 phases** :
+
+1. **Phase 1 - Étude du contexte** : Identifier les biens essentiels, les biens supports, les événements redoutés et leurs impacts
+2. **Phase 2 - Étude des événements redoutés** : Apprécier les événements redoutés en fonction de leur gravité et de leur vraisemblance
+3. **Phase 3 - Étude des scénarios de menaces** : Identifier les sources de menaces et les scénarios d'attaque
+4. **Phase 4 - Étude des risques** : Estimer les risques en croisant menaces et vulnérabilités
+5. **Phase 5 - Étude des mesures de sécurité** : Définir les mesures de sécurité pour traiter les risques
+
+Pour OMEGA (approche **Mezzo Piano**), les **phases 1 et 2** sont obligatoires. Les phases 3 à 5 peuvent être réalisées de manière simplifiée ou complète selon la complexité identifiée.
+
+#### 6.1.2 Phase 1 : Étude du contexte
+
+**Biens essentiels** (actifs métier) :
+
+| Bien essentiel | Description | Critères de sécurité impactés |
+|----------------|-------------|-------------------------------|
+| **Données des projets territoriaux** | Ensemble des informations sur les projets gérés par la DDT : identification, description, statuts, suivis | Intégrité (I2), Disponibilité (D3), Confidentialité (C2) |
+| **Données personnelles** | Coordonnées des agents DDT et des porteurs de projets | Confidentialité (C2), Intégrité (I2), Conformité RGPD |
+| **Historique et traçabilité** | Journaux d'audit permettant de reconstituer l'historique des modifications | Intégrité (I1 - critique), Disponibilité (D3) |
+| **Géométries spatiales** | Emprises géographiques des projets | Intégrité (I2), Disponibilité (D3) |
+| **Capacité opérationnelle de la DDT** | Capacité à gérer efficacement les projets territoriaux | Disponibilité (D3) |
+
+**Biens supports** (actifs techniques et organisationnels) :
+
+| Bien support | Type | Importance | Justification |
+|--------------|------|------------|---------------|
+| **Base de données PostgreSQL** | Logiciel | Critique | Contient toutes les données métier |
+| **Serveur backend Next.js** | Logiciel | Critique | Expose l'API et implémente la logique métier |
+| **Serveur frontend React** | Logiciel | Important | Interface utilisateur |
+| **Serveur web Nginx** | Logiciel | Important | Point d'entrée du système |
+| **Serveur d'hébergement** | Matériel | Critique | Héberge tous les composants logiciels |
+| **Réseau interne DDT** | Infrastructure | Critique | Permet l'accès au système |
+| **Comptes utilisateurs** | Organisationnel | Critique | Authentification et traçabilité |
+| **Sauvegardes** | Organisationnel | Critique | Permet la restauration en cas de sinistre |
+| **Administrateurs système** | Humain | Critique | Exploitent et maintiennent le système |
+| **Utilisateurs agents DDT** | Humain | Important | Utilisent le système quotidiennement |
+| **Documentation technique** | Organisationnel | Important | Nécessaire pour l'exploitation et la maintenance |
+
+**Événements redoutés** :
+
+| ID | Événement redouté | Bien essentiel impacté | Critère | Impact métier | Gravité |
+|----|------------------|------------------------|---------|---------------|---------|
+| **ER1** | Divulgation de données personnelles à des tiers non autorisés | Données personnelles | Confidentialité | Atteinte à la vie privée, non-conformité RGPD, sanctions CNIL | **Grave** |
+| **ER2** | Corruption ou altération des données de projets | Données des projets | Intégrité | Perte de confiance, décisions erronées, conflits juridiques | **Grave** |
+| **ER3** | Perte définitive de données (sans possibilité de restauration) | Données des projets, historique | Disponibilité, Intégrité | Impossibilité de poursuivre les missions, perte d'historique irréversible | **Très grave** |
+| **ER4** | Indisponibilité prolongée du système (> 4h) | Capacité opérationnelle | Disponibilité | Ralentissement des missions, impossibilité de consulter les dossiers | **Modéré** |
+| **ER5** | Altération ou suppression des journaux d'audit | Historique et traçabilité | Intégrité | Impossibilité de prouver la conformité, investigation impossible en cas d'incident | **Grave** |
+| **ER6** | Usurpation d'identité d'un utilisateur (accès frauduleux) | Données des projets, données personnelles | Confidentialité, Intégrité | Actions malveillantes non détectées, compromission de données | **Grave** |
+| **ER7** | Défaillance du système de versioning (impossibilité de restaurer) | Données des projets | Intégrité, Disponibilité | Perte définitive de versions antérieures en cas d'erreur | **Modéré** |
+
+**Échelle de gravité** :
+- **Très grave** : Impact majeur sur les missions, préjudice important, sanctions réglementaires lourdes
+- **Grave** : Impact significatif, préjudice notable, sanctions possibles
+- **Modéré** : Gêne dans les missions, préjudice limité
+- **Faible** : Impact négligeable
+
+#### 6.1.3 Phase 2 : Appréciation des événements redoutés
+
+Pour chaque événement redouté, on évalue :
+- **Gravité** (déjà identifiée ci-dessus)
+- **Vraisemblance** (probabilité que l'événement se produise)
+- **Niveau de risque** = Gravité × Vraisemblance
+
+| Événement redouté | Gravité | Vraisemblance | Justification vraisemblance | Niveau de risque |
+|------------------|---------|---------------|----------------------------|------------------|
+| **ER1** - Divulgation données personnelles | Grave | Faible | Environnement cloisonné, pas d'exposition Internet, authentification robuste | **Moyen** |
+| **ER2** - Corruption données projets | Grave | Moyenne | Erreurs de manipulation possibles, bugs logiciels possibles | **Élevé** |
+| **ER3** - Perte définitive de données | Très grave | Très faible | Sauvegardes quotidiennes, infrastructure fiable, tests de restauration | **Moyen** |
+| **ER4** - Indisponibilité prolongée | Modéré | Faible | Redémarrage automatique, monitoring, mais défaillance matérielle possible | **Faible à Moyen** |
+| **ER5** - Altération journaux d'audit | Grave | Très faible | Journal append-only, protections techniques fortes | **Faible à Moyen** |
+| **ER6** - Usurpation d'identité | Grave | Faible | Mots de passe hachés, JWT, mais menace interne possible | **Moyen** |
+| **ER7** - Défaillance versioning | Modéré | Faible | Système testé, mais complexité technique | **Faible** |
+
+**Risques prioritaires nécessitant une attention particulière** :
+1. **ER2 - Corruption données projets** (risque élevé) → Mesures : versioning multi-niveaux, journal d'audit, validations techniques
+2. **ER1 - Divulgation données personnelles** (risque moyen mais impact RGPD) → Mesures : contrôle d'accès strict, cloisonnement réseau
+3. **ER3 - Perte définitive de données** (risque moyen mais impact très grave) → Mesures : sauvegardes robustes, tests de restauration
+4. **ER6 - Usurpation d'identité** (risque moyen) → Mesures : authentification forte, surveillance des accès
+
+#### 6.1.4 Phases 3 à 5 : Scénarios de menaces et mesures de sécurité (synthèse)
+
+**Principales sources de menaces identifiées** :
+- **Menaces internes** : Erreur humaine (utilisateur ou administrateur), malveillance interne (faible probabilité mais possible)
+- **Menaces sur l'infrastructure** : Défaillance matérielle, bug logiciel, vulnérabilité non corrigée
+- **Menaces externes** (limitées par le cloisonnement) : Attaque depuis le réseau interne (si compromis), exploitation de vulnérabilité
+
+**Principales vulnérabilités à surveiller** :
+- Vulnérabilités dans les dépendances npm (bibliothèques JavaScript tierces)
+- Configuration incorrecte des serveurs ou de la base de données
+- Failles de sécurité applicatives (injection SQL, XSS) → mitigées par l'utilisation d'ORM et de React
+- Gestion insuffisante des droits d'accès
+
+**Mesures de sécurité mises en œuvre** (voir section 6.3 pour le détail complet) :
+- **Mesures techniques** : authentification JWT, hachage bcrypt, RBAC, journal d'audit immuable, versioning multi-niveaux, sauvegardes automatiques, cloisonnement réseau, utilisation d'ORM
+- **Mesures organisationnelles** : PSSI, processus de gestion des changements, gestion des incidents, veille de sécurité, audits réguliers, formation des utilisateurs
+- **Mesures physiques** : Hébergement sécurisé dans les locaux de la DDT, contrôle d'accès physique aux serveurs
+
+#### 6.1.5 Risques résiduels acceptés
+
+Après mise en œuvre des mesures de sécurité, les **risques résiduels** suivants subsistent et devront être **acceptés formellement par l'autorité d'homologation** :
+
+| Risque résiduel | Niveau | Justification acceptation |
+|-----------------|--------|---------------------------|
+| Erreur humaine d'un administrateur entraînant une corruption partielle | Faible | Système de versioning permet la restauration, journal d'audit permet l'investigation |
+| Vulnérabilité zero-day dans une dépendance (non encore découverte) | Faible | Veille active, mises à jour trimestrielles, environnement cloisonné limite l'exploitation |
+| Défaillance matérielle simultanée du serveur principal ET du serveur de sauvegarde | Très faible | Probabilité extrêmement faible, infrastructure DDT robuste |
+| Malveillance d'un administrateur disposant de tous les privilèges | Très faible | Contrôles organisationnels, séparation des fonctions, audit a posteriori possible |
+
+**Décision d'acceptation** : Ces risques résiduels sont considérés comme acceptables au regard :
+- De leur très faible niveau résiduel après mesures de sécurité
+- Des mesures compensatoires en place (détection, restauration, investigation)
+- Du contexte d'usage (réseau interne, données sensibles mais non classifiées)
+
+### 6.2 Étape 6 : Contrôle de la réalité (audits de sécurité)
+
+#### 6.2.1 Types d'audits requis pour l'homologation
+
+Dans le cadre de l'approche **Mezzo Piano**, les audits de sécurité suivants sont **fortement recommandés** :
+
+**Audit organisationnel** :
+- **Objectif** : Vérifier que l'organisation de la sécurité est conforme aux exigences (PSSI, procédures, responsabilités)
+- **Contenu** :
+  - Revue de la PSSI et des procédures de sécurité
+  - Vérification que les rôles et responsabilités sont bien définis et assumés
+  - Contrôle de l'existence et de la mise à jour de la documentation (PES, PCA/PRA)
+  - Vérification de la sensibilisation et formation des utilisateurs
+  - Contrôle du processus de gestion des changements et des incidents
+- **Réalisation** : Audit documentaire + entretiens avec les acteurs (RSSI, MOA, MOE, exploitant)
+- **Fréquence** : Avant l'homologation initiale, puis tous les 3 ans ou lors de changements organisationnels majeurs
+
+**Audit technique** :
+- **Objectif** : Vérifier que les mesures de sécurité techniques sont effectivement implémentées et efficaces
+- **Contenu** :
+  - **Tests de configuration** : vérification de la configuration sécurisée des serveurs, base de données, services
+  - **Tests de vulnérabilité** : scan automatisé des vulnérabilités connues (OpenVAS, Nessus, ou équivalent)
+  - **Revue de code sécurité** (optionnelle pour Mezzo Piano mais recommandée) : analyse statique du code pour identifier les failles (injection SQL, XSS, etc.)
+  - **Tests de cloisonnement** : vérification qu'aucune connexion externe n'est possible
+  - **Tests d'authentification et contrôle d'accès** : tentatives d'accès non autorisés, bypass de droits
+  - **Tests du journal d'audit** : vérification de l'exhaustivité et de l'immuabilité des logs
+  - **Tests de sauvegarde/restauration** : validation de la procédure de restauration
+- **Réalisation** : Tests techniques automatisés + tests manuels par auditeur qualifié
+- **Fréquence** : Avant l'homologation initiale, puis annuellement
+
+**Tests d'intrusion (optionnels pour Mezzo Piano, recommandés pour Mezzo Forte)** :
+- **Objectif** : Simuler une attaque réelle pour identifier les vulnérabilités exploitables
+- **Contenu** : Tentatives d'exploitation de vulnérabilités, tests de contournement des mesures de sécurité, élévation de privilèges
+- **Réalisation** : Prestataire qualifié PASSI
+- **Fréquence** : Avant l'homologation initiale si budget disponible, sinon tous les 3 ans
+
+#### 6.2.2 Résultats attendus des audits
+
+Chaque audit doit produire un **rapport d'audit** contenant :
+
+1. **Synthèse exécutive** : constats principaux, niveau de conformité global, recommandations prioritaires
+2. **Méthodologie** : périmètre audité, outils utilisés, référentiels appliqués
+3. **Constats détaillés** : Pour chaque exigence testée, résultat (conforme / non conforme / partiellement conforme)
+4. **Vulnérabilités identifiées** : Liste des vulnérabilités découvertes avec leur criticité (CVSS score si applicable)
+5. **Recommandations** : Plan d'action pour corriger les non-conformités et vulnérabilités, avec priorisation
+6. **Conclusion** : Avis de l'auditeur sur l'acceptabilité du niveau de sécurité
+
+**Criticité des vulnérabilités** (échelle CVSS adaptée) :
+- **Critique** (9.0-10.0) : Exploitation facile, impact majeur → correction immédiate obligatoire avant homologation
+- **Élevée** (7.0-8.9) : Exploitation possible, impact significatif → correction sous 30 jours
+- **Moyenne** (4.0-6.9) : Exploitation complexe ou impact modéré → correction sous 90 jours
+- **Faible** (0.1-3.9) : Exploitation difficile, impact mineur → correction lors de maintenance de routine
+
+**Critères d'acceptabilité pour l'homologation** :
+- **Aucune vulnérabilité critique** non corrigée
+- **Les vulnérabilités élevées** doivent faire l'objet d'un plan d'action avec échéance < 30 jours
+- **Conformité organisationnelle** : au moins 80% des exigences organisationnelles conformes
+- **Conformité technique** : au moins 85% des exigences techniques conformes
+
+#### 6.2.3 Plan d'action de mise en conformité
+
+Suite aux audits, un **plan d'action de mise en conformité** doit être établi :
+
+| ID | Non-conformité / Vulnérabilité | Criticité | Mesure corrective | Responsable | Échéance | Statut |
+|----|-------------------------------|-----------|-------------------|-------------|----------|--------|
+| [À compléter après audits réels] | | | | | | |
+
+**Suivi du plan d'action** :
+- Revue mensuelle par le comité de pilotage sécurité pendant la phase de correction
+- Validation par le RSSI de chaque mesure corrective implémentée
+- Clôture formelle du plan d'action avant la décision d'homologation
+
+### 6.3 Étape 7 : Mesures de sécurité complémentaires
+
+#### 6.3.1 Catalogue des mesures de sécurité mises en œuvre
+
+Le tableau ci-dessous récapitule l'ensemble des mesures de sécurité implémentées dans OMEGA, en référence aux exigences du RGS et des 40 règles d'hygiène ANSSI.
+
+**Mesures organisationnelles** :
+
+| ID | Mesure | Description | Référence |
+|----|--------|-------------|-----------|
+| **MO-01** | PSSI applicable | Politique de Sécurité des SI de la DDT appliquée à OMEGA | §5.4.1 |
+| **MO-02** | Rôles et responsabilités définis | Autorité d'homologation, RSSI, MOA, MOE, exploitant clairement identifiés | §5.3 |
+| **MO-03** | Comité de pilotage sécurité | Suivi trimestriel de la sécurité par comité dédié | §5.4.2 |
+| **MO-04** | Gestion des changements | Validation RSSI obligatoire avant tout changement en production | §5.4.3 |
+| **MO-05** | Gestion des incidents de sécurité | Procédure d'escalade, contacts d'urgence, rapport d'incident | §5.4.3 |
+| **MO-06** | Veille de sécurité | Sources : CERT-FR, npm audit, bulletins éditeurs | §5.4.3 |
+| **MO-07** | Formation et sensibilisation | Plan de formation annuel, sensibilisation aux 40 règles ANSSI | §5.4.6 |
+| **MO-08** | Revue annuelle des droits d'accès | Contrôle annuel des comptes utilisateurs et de leurs droits | §5.3 |
+| **MO-09** | Documentation complète | PES, PCA/PRA, manuels utilisateurs et administrateurs | §5.4.4 |
+| **MO-10** | Audits de sécurité réguliers | Audit organisationnel et technique avant homologation puis annuel | §6.2 |
+
+**Mesures techniques - Authentification et contrôle d'accès** :
+
+| ID | Mesure | Description | Référence |
+|----|--------|-------------|-----------|
+| **MT-01** | Authentification obligatoire | Aucun accès sans authentification | §4.1 |
+| **MT-02** | Mots de passe robustes | Min 8 caractères (12 recommandés), hachage bcrypt facteur 10 | §4.1 |
+| **MT-03** | Changement mot de passe à la 1ère connexion | Obligation de changer le mot de passe temporaire | §7.2 |
+| **MT-04** | Tokens JWT | Authentification stateless, durée de validité 24h | §4.1 |
+| **MT-05** | Contrôle d'accès basé sur les rôles (RBAC) | Administrateurs vs utilisateurs standard, principe du moindre privilège | §7.1 |
+| **MT-06** | Vérification côté serveur | Tous les endpoints API vérifient les droits avant exécution | §7.1 |
+| **MT-07** | Protection contre les tentatives de force brute | Surveillance des échecs de connexion répétés | §4.1 |
+
+**Mesures techniques - Traçabilité et intégrité** :
+
+| ID | Mesure | Description | Référence |
+|----|--------|-------------|-----------|
+| **MT-08** | Journal d'audit immuable | Table append-only enregistrant toutes les modifications | §4.2 |
+| **MT-09** | Traçabilité exhaustive | User ID, timestamp, action, anciennes/nouvelles valeurs, IP, user-agent | §4.2 |
+| **MT-10** | Conservation des logs 3 ans | Respect des obligations légales d'archivage | §4.2 |
+| **MT-11** | Soft delete | Suppression logique, données conservées pour archivage | §2.3.4 |
+| **MT-12** | Versioning multi-niveaux | Snapshots + versions par section + audit log | §6.1 (Partie 2) |
+| **MT-13** | Protection en écriture des journaux | Pas de suppression ni modification possible des logs d'audit | §4.2 |
+
+**Mesures techniques - Disponibilité et continuité** :
+
+| ID | Mesure | Description | Référence |
+|----|--------|-------------|-----------|
+| **MT-14** | Sauvegardes automatiques quotidiennes | pg_dump à 2h du matin, stockage serveur distinct | §6.2 (Partie 1) |
+| **MT-15** | Rétention des sauvegardes | 7 quotidiennes + 4 hebdo + 12 mensuelles | §6.2 (Partie 1) |
+| **MT-16** | Tests de restauration trimestriels | Validation de la procédure de restauration | §6.2 (Partie 1) |
+| **MT-17** | Redémarrage automatique (systemd) | Restart=on-failure, RestartSec=10s | §8.1 (Partie 2) |
+| **MT-18** | Monitoring et alertes | Supervision Nagios/Zabbix, endpoint /api/health | §8.3 (Partie 2) |
+| **MT-19** | PCA/PRA documentés | RTO 4h, RPO 24h | §5.4.3 |
+
+**Mesures techniques - Sécurité du code et des données** :
+
+| ID | Mesure | Description | Référence |
+|----|--------|-------------|-----------|
+| **MT-20** | Utilisation d'ORM (Sequelize) | Protection contre les injections SQL | §3.2 |
+| **MT-21** | Échappement automatique React | Protection contre les attaques XSS | §3.2 |
+| **MT-22** | Validation des entrées côté serveur | Vérification types, longueurs, formats avant enregistrement | §4.1 |
+| **MT-23** | Audit npm trimestriel | Détection vulnérabilités dans les dépendances | §5.4.3 |
+| **MT-24** | Mises à jour de sécurité | Correctifs critiques sous 30 jours, importants sous 90 jours | §5.4.3 |
+| **MT-25** | Cloisonnement réseau complet | Aucune connexion HTTP/HTTPS sortante, tuiles locales | §4.4 |
+| **MT-26** | Segmentation des privilèges BDD | Compte applicatif avec privilèges minimums, pas d'admin | §4.2 |
+
+**Mesures techniques - Conformité RGPD** :
+
+| ID | Mesure | Description | Référence |
+|----|--------|-------------|-----------|
+| **MT-27** | Minimisation des données | Collecte uniquement des données strictement nécessaires | §4.3 |
+| **MT-28** | Registre des traitements | Documentation des traitements, finalités, durées | §4.3 |
+| **MT-29** | Gestion des droits des personnes | Processus pour droit d'accès, rectification, effacement | §4.3 |
+| **MT-30** | Pseudonymisation partielle | Hachage irréversible des mots de passe | §4.1 |
+
+#### 6.3.2 Mesures complémentaires recommandées
+
+Les mesures suivantes ne sont **pas implémentées dans la version 1.0** mais sont recommandées pour les versions futures ou dans le cadre d'une approche Mezzo Forte :
+
+| ID | Mesure | Description | Priorité | Complexité |
+|----|--------|-------------|----------|------------|
+| **MC-01** | Authentification multi-facteurs (MFA) | Ajout d'un second facteur (SMS, TOTP) pour les administrateurs | Moyenne | Moyenne |
+| **MC-02** | Chiffrement de la base de données au repos | Chiffrement transparent des données (TDE PostgreSQL) | Moyenne | Faible |
+| **MC-03** | HTTPS systématique | Mise en place de certificats TLS pour chiffrer les communications | Élevée | Faible |
+| **MC-04** | WAF (Web Application Firewall) | Filtrage applicatif en amont de Nginx | Faible | Moyenne |
+| **MC-05** | SIEM (Security Information and Event Management) | Centralisation et corrélation des logs de sécurité | Faible | Élevée |
+| **MC-06** | Tests d'intrusion annuels | Pentest par prestataire PASSI | Moyenne | Faible (coût) |
+| **MC-07** | Signature de code | Signature des releases pour garantir l'authenticité | Faible | Moyenne |
+| **MC-08** | Durcissement (hardening) des serveurs | Application des guides de durcissement ANSSI Linux | Moyenne | Moyenne |
+
+### 6.4 Étape 8 : Décision d'homologation
+
+#### 6.4.1 Dossier d'homologation
+
+Le **dossier d'homologation** constitue la synthèse de l'ensemble des travaux menés. Il doit contenir :
+
+**Table des matières du dossier d'homologation OMEGA** :
+
+1. **Résumé exécutif** (2-3 pages)
+   - Présentation synthétique du système
+   - Approche d'homologation retenue (Mezzo Piano)
+   - Principaux risques identifiés et traités
+   - Risques résiduels et recommandation d'acceptation
+   - Conclusion et proposition de décision
+
+2. **Description du système** (référence au CAHIER_CHARGES_PARTIE1, sections 1 à 4)
+   - Périmètre, architecture, technologies
+   - Utilisateurs et volumétries
+   - Contexte et besoins métier
+
+3. **Stratégie d'homologation** (section 5 du CAHIER_CHARGES_PARTIE1)
+   - FEROS (Fiche d'Expression Rationnelle des Objectifs de Sécurité)
+   - Classification des données
+   - Choix de l'approche Mezzo Piano et justification
+
+4. **Acteurs et organisation** (section 5.3 et 5.4 du CAHIER_CHARGES_PARTIE1)
+   - Identification des rôles et responsabilités
+   - Structure de gouvernance sécurité
+   - PSSI applicable et procédures de sécurité
+
+5. **Analyse de risques** (section 6.1 ci-dessus)
+   - Biens essentiels et supports
+   - Événements redoutés et leur appréciation
+   - Scénarios de menaces et vulnérabilités
+   - Risques résiduels et leur acceptabilité
+
+6. **Mesures de sécurité** (section 6.3 ci-dessus)
+   - Catalogue complet des mesures techniques et organisationnelles
+   - Correspondance mesures ↔ risques
+   - Mesures complémentaires recommandées
+
+7. **Audits de sécurité** (section 6.2 ci-dessus + rapports d'audit en annexe)
+   - Synthèse des audits organisationnels et techniques
+   - Principales vulnérabilités identifiées
+   - Plan d'action de mise en conformité et son avancement
+
+8. **Documentation d'exploitation** (section 8 du CAHIER_CHARGES_PARTIE2)
+   - Procédures d'Exploitation de Sécurité (PES)
+   - Plan de Continuité/Reprise d'Activité (PCA/PRA)
+   - Procédures de sauvegarde et restauration
+
+9. **Annexes**
+   - Rapports d'audit complets
+   - Cartographie détaillée du réseau et des flux
+   - Liste exhaustive des dépendances logicielles
+   - Registre des traitements RGPD
+
+#### 6.4.2 Décision d'homologation
+
+La **décision d'homologation** est un document officiel signé par **l'Autorité d'Homologation** (Directeur de la DDT), sur proposition du **RSSI**.
+
+**Contenu de la décision d'homologation** :
+
+```
+DÉCISION D'HOMOLOGATION DE SÉCURITÉ
+Application OMEGA - Gestion de projets territoriaux
+
+Je soussigné(e), [Nom Prénom], Directeur/Directrice de la Direction Départementale
+des Territoires d'Eure-et-Loir, agissant en qualité d'Autorité d'Homologation,
+
+Vu le Référentiel Général de Sécurité (RGS) version 2.0,
+Vu la Politique de Sécurité des Systèmes d'Information (PSSI) de la DDT d'Eure-et-Loir,
+Vu le dossier d'homologation de l'application OMEGA version 1.0 daté du [Date],
+Vu l'analyse de risques selon la méthode EBIOS 2010,
+Vu les rapports d'audit de sécurité organisationnel et technique datés du [Date],
+Vu l'avis favorable du RSSI de la DDT,
+
+Après avoir pris connaissance :
+- Des enjeux de sécurité et des objectifs de sécurité définis (FEROS)
+- Des risques résiduels identifiés et des mesures de sécurité mises en œuvre
+- Des résultats des audits et du plan d'action de mise en conformité
+
+DÉCIDE :
+
+Article 1 : L'application OMEGA est homologuée pour une durée de 3 ans à compter
+du [Date de mise en production], soit jusqu'au [Date + 3 ans].
+
+Article 2 : Les risques résiduels suivants sont explicitement acceptés :
+- [Liste des risques résiduels identifiés en section 6.1.5]
+
+Article 3 : L'homologation est conditionnée à :
+- La mise en œuvre complète des mesures de sécurité décrites dans le dossier d'homologation
+- L'application du plan d'action de mise en conformité selon l'échéancier défini
+- Le respect des Procédures d'Exploitation de Sécurité (PES)
+
+Article 4 : Une revue annuelle de l'homologation sera effectuée par le RSSI et présentée
+à l'Autorité d'Homologation. Cette revue vérifiera :
+- Le maintien de l'efficacité des mesures de sécurité
+- L'absence de changement majeur du contexte ou des risques
+- La réalisation des audits et maintenances prévus
+
+Article 5 : L'homologation sera révisée en cas de :
+- Évolution majeure du système (nouvelle version modifiant l'architecture ou les fonctionnalités)
+- Incident de sécurité majeur
+- Changement significatif du contexte de menace ou réglementaire
+- Identification de vulnérabilité critique
+
+Article 6 : Le RSSI de la DDT est chargé du suivi de la mise en œuvre de cette décision.
+
+Fait à [Ville], le [Date]
+
+[Signature]
+[Nom Prénom]
+Directeur/Directrice de la DDT d'Eure-et-Loir
+Autorité d'Homologation
+```
+
+#### 6.4.3 Conditions de mise en exploitation
+
+L'autorisation de mise en exploitation est accordée **sous réserve** de la complétude des conditions suivantes :
+
+**Conditions préalables obligatoires** :
+- [ ] Décision d'homologation signée par l'Autorité d'Homologation
+- [ ] Toutes les vulnérabilités **critiques** identifiées lors des audits sont corrigées
+- [ ] Le plan d'action pour les vulnérabilités **élevées** est validé avec échéances < 30 jours
+- [ ] Les Procédures d'Exploitation de Sécurité (PES) sont rédigées et validées
+- [ ] Le Plan de Continuité/Reprise d'Activité (PCA/PRA) est rédigé et validé
+- [ ] La formation des administrateurs système est réalisée
+- [ ] Le système de sauvegarde automatique est opérationnel et testé
+- [ ] Le monitoring et les alertes sont configurés et fonctionnels
+
+**Conditions post-mise en exploitation** (à réaliser dans les 90 jours) :
+- [ ] Formation de l'ensemble des utilisateurs agents DDT
+- [ ] Correction des vulnérabilités de criticité **moyenne** selon le plan d'action
+- [ ] Documentation utilisateur finalisée et diffusée
+- [ ] Premier rapport de revue d'exploitation (1 mois après MEP)
+
+### 6.5 Étape 9 : Amélioration continue de la sécurité
+
+#### 6.5.1 Suivi en vie courante
+
+L'homologation n'est pas un état figé mais un **processus continu** nécessitant un suivi régulier pendant toute la durée de vie du système.
+
+**Activités de suivi quotidien/hebdomadaire** :
+- **Monitoring** : Surveillance continue de la disponibilité et des performances (§8.3 Partie 2)
+- **Veille de sécurité** : Consultation des bulletins CERT-FR, npm audit, bulletins éditeurs
+- **Analyse des logs d'audit** : Recherche d'anomalies ou de comportements suspects
+- **Gestion des incidents** : Traitement des incidents de sécurité selon la procédure
+
+**Activités de suivi mensuel** :
+- **Revue des logs d'administration** : Analyse des actions administratives (admin_access_log)
+- **Vérification des sauvegardes** : Contrôle de l'exécution correcte des sauvegardes quotidiennes
+- **Revue des demandes de suppression** : Traitement des demandes en attente
+- **Statistiques d'utilisation** : Analyse des métriques d'usage et détection d'anomalies
+
+**Activités de suivi trimestriel** :
+- **Comité de pilotage sécurité** : Réunion trimestrielle, suivi du plan d'action, décisions majeures
+- **Audit npm des dépendances** : npm audit + application des correctifs de sécurité
+- **Test de restauration** : Test complet de restauration d'une sauvegarde
+- **Maintenance préventive** : VACUUM ANALYZE PostgreSQL, rotation des logs
+
+**Activités de suivi annuel** :
+- **Revue d'homologation** : Bilan annuel présenté à l'Autorité d'Homologation (voir §6.5.2)
+- **Audit de sécurité** : Audit organisationnel et/ou technique annuel
+- **Revue des droits d'accès** : Vérification des comptes utilisateurs et de leurs rôles
+- **Test PCA/PRA** : Exercice de reprise après sinistre simulé
+- **Mise à jour du dossier d'homologation** : Actualisation de la documentation si nécessaire
+
+#### 6.5.2 Revue annuelle d'homologation
+
+Chaque année, le **RSSI** doit produire un **rapport de revue d'homologation** destiné à l'Autorité d'Homologation.
+
+**Contenu du rapport de revue annuelle** :
+
+1. **Rappel du contexte**
+   - Décision d'homologation initiale (référence, date, durée de validité)
+   - Périmètre du système homologué
+   - Année de revue concernée
+
+2. **Évolution du système**
+   - Changements effectués durant l'année (nouvelles versions, évolutions fonctionnelles)
+   - Impact de ces changements sur la sécurité
+   - Modifications du périmètre ou de l'architecture
+
+3. **Maintien en condition de sécurité**
+   - Disponibilité effective du système (% de disponibilité, incidents majeurs)
+   - Sauvegardes : taux de succès, tests de restauration réalisés
+   - Mises à jour de sécurité appliquées (nombre, criticité, délais de déploiement)
+   - Incidents de sécurité survenus (nombre, nature, traitement)
+
+4. **Audits et contrôles**
+   - Synthèse des audits réalisés durant l'année
+   - Principales vulnérabilités identifiées et corrigées
+   - État d'avancement du plan d'action de conformité
+
+5. **Analyse des risques actualisée**
+   - Évolution du contexte de menace
+   - Nouveaux risques identifiés
+   - Risques résiduels toujours acceptables ?
+
+6. **Conformité réglementaire**
+   - Conformité RGPD : registre à jour, respect des droits des personnes
+   - Conformité RGS : niveau de sécurité maintenu
+   - Autres obligations légales
+
+7. **Recommandations**
+   - Mesures de sécurité supplémentaires à envisager
+   - Ajustements des procédures
+   - Besoins de formation ou sensibilisation
+
+8. **Conclusion et proposition**
+   - **Maintien de l'homologation** : l'homologation peut être maintenue sans modification
+   - **Maintien sous réserve** : maintien conditionné à la réalisation d'actions correctives sous X mois
+   - **Révision nécessaire** : changements majeurs nécessitant une nouvelle analyse de risques et une nouvelle décision
+
+**Décision de l'Autorité d'Homologation** :
+Suite à ce rapport, l'Autorité d'Homologation prend une décision formelle :
+- Maintien de l'homologation pour une année supplémentaire
+- Maintien sous réserve avec plan d'action
+- Suspension de l'homologation (cas exceptionnel)
+
+#### 6.5.3 Renouvellement de l'homologation (tous les 3 ans)
+
+À l'échéance de la période d'homologation (3 ans), un **renouvellement complet** doit être effectué.
+
+**Processus de renouvellement** :
+
+1. **Actualisation complète du dossier d'homologation** (6 mois avant échéance)
+   - Mise à jour de tous les documents (DAT, DSF, DST, FEROS)
+   - Nouvelle analyse de risques EBIOS tenant compte des évolutions du système et du contexte
+   - Actualisation du catalogue des mesures de sécurité
+
+2. **Audits de sécurité complets** (3-4 mois avant échéance)
+   - Audit organisationnel complet
+   - Audit technique complet
+   - Tests d'intrusion (si budget disponible)
+
+3. **Traitement des non-conformités** (2-3 mois avant échéance)
+   - Plan d'action de mise en conformité
+   - Correction des vulnérabilités critiques et élevées
+
+4. **Nouvelle décision d'homologation** (avant échéance)
+   - Présentation du dossier actualisé au comité de pilotage
+   - Avis du RSSI
+   - Décision de l'Autorité d'Homologation pour 3 nouvelles années
+
+**IMPORTANT** : Si le renouvellement n'est pas effectué avant l'échéance, le système n'est plus homologué et doit théoriquement être arrêté jusqu'à obtention d'une nouvelle homologation.
+
+#### 6.5.4 Révision d'homologation en cas de changement majeur
+
+Une **révision de l'homologation** (avant l'échéance des 3 ans) est obligatoire en cas de :
+
+**Changements techniques majeurs** :
+- Migration vers une nouvelle version avec changement d'architecture significatif
+- Ajout de nouvelles fonctionnalités exposant de nouveaux risques
+- Changement de technologie (par exemple, migration PostgreSQL → autre SGBD)
+- Exposition du système à Internet ou à un réseau externe (changement fondamental du contexte)
+
+**Changements organisationnels majeurs** :
+- Changement d'hébergeur (externalisation par exemple)
+- Changement de Maîtrise d'Œuvre
+- Réorganisation majeure de la DSI affectant l'exploitation
+
+**Événements de sécurité majeurs** :
+- Incident de sécurité grave (compromission, fuite de données)
+- Découverte d'une vulnérabilité critique dans une brique technologique sans correctif disponible
+- Changement majeur du contexte réglementaire
+
+**Processus de révision** :
+1. Analyse d'impact du changement sur la sécurité (par le RSSI)
+2. Actualisation partielle ou complète de l'analyse de risques
+3. Définition de mesures de sécurité additionnelles si nécessaire
+4. Audits ciblés sur les éléments modifiés
+5. Nouvelle décision d'homologation (ou avenant à la décision initiale)
+
+---
+
+## 7. FONCTIONNALITÉS DÉTAILLÉES DE L'APPLICATION
+
+### 7.1 Système de versioning multi-niveaux
 
 L'une des fonctionnalités les plus sophistiquées d'OMEGA est son système de versioning à trois niveaux, conçu pour offrir une protection maximale contre les erreurs de manipulation tout en permettant une traçabilité fine des évolutions. Cette architecture répond au besoin exprimé par les utilisateurs de pouvoir "revenir en arrière" en cas de modification malencontreuse, tout en conservant un historique détaillé de toutes les transformations qu'a connues un projet.
 

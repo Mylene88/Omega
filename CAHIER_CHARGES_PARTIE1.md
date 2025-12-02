@@ -103,11 +103,45 @@ Enfin, l'application doit être compatible avec les navigateurs web modernes uti
 
 ### 2.3 Contraintes réglementaires et organisationnelles
 
-Le développement et l'exploitation de l'application OMEGA sont soumis à un ensemble de contraintes réglementaires et organisationnelles qu'il est impératif de respecter.
+Le développement et l'exploitation de l'application OMEGA sont soumis à un ensemble de contraintes réglementaires et organisationnelles qu'il est impératif de respecter, notamment dans le cadre du **processus d'homologation de sécurité en 9 étapes** défini par l'ANSSI (Agence Nationale de la Sécurité des Systèmes d'Information).
+
+#### 2.3.1 Cadre d'homologation de sécurité ANSSI
+
+L'application OMEGA doit faire l'objet d'une **homologation de sécurité** conformément aux recommandations de l'ANSSI. Ce processus vise à s'assurer que le système offre un niveau de sécurité adapté aux enjeux et risques identifiés, et que l'autorité d'homologation accepte formellement les risques résiduels après la mise en place des mesures de sécurité.
+
+Le processus d'homologation comprend **9 étapes obligatoires** :
+
+1. **Définition de la stratégie d'homologation** : identification du système, de son périmètre, du cadre réglementaire applicable, et des objectifs de sécurité
+2. **Choix du type d'approche** : sélection du niveau d'exigence (Pianissimo, Mezzo Piano, Mezzo Forte, ou Forte) selon la sensibilité des données
+3. **Identification des acteurs** : désignation de l'autorité d'homologation, du RSSI, de la MOA, de la MOE, et des autres parties prenantes
+4. **Organisation de la sécurité** : mise en place de la gouvernance, des processus, et de la documentation de sécurité
+5. **Analyse de risques** : réalisation d'une étude EBIOS 2010 ou équivalent pour identifier les menaces et vulnérabilités
+6. **Contrôle de la réalité** : audits organisationnels et techniques pour vérifier la conformité de l'implémentation
+7. **Définition des mesures complémentaires** : identification et planification des mesures de sécurité supplémentaires nécessaires
+8. **Décision d'homologation** : acceptation formelle par l'autorité d'homologation des risques résiduels et autorisation de mise en exploitation
+9. **Amélioration continue** : suivi régulier de la sécurité et actualisation de l'homologation
+
+Pour OMEGA, l'approche recommandée est **Mezzo Piano** à **Mezzo Forte**, compte tenu de la nature des données traitées (informations sur des projets territoriaux, données personnelles des agents et porteurs de projets, mais pas de données classifiées de défense).
+
+#### 2.3.2 Conformité au RGPD
 
 Sur le plan réglementaire, l'application traite des données à caractère personnel au sens du Règlement Général sur la Protection des Données. En effet, le système enregistre les noms, prénoms, adresses email et numéros de téléphone des agents de la DDT ainsi que des référents des porteurs de projets. La conformité au RGPD impose plusieurs obligations : la minimisation des données collectées (on ne doit collecter que les informations strictement nécessaires à la finalité du traitement), l'information des personnes concernées sur l'utilisation de leurs données, la sécurisation des données par des mesures techniques et organisationnelles appropriées, et la garantie des droits des personnes (droit d'accès, de rectification, d'effacement). Un registre des activités de traitement a été établi et le Délégué à la Protection des Données de la DDT a été consulté pour valider les choix effectués.
 
-L'application doit également respecter le Référentiel Général de Sécurité, qui définit les règles de sécurité applicables aux systèmes d'information de l'administration. Cela se traduit notamment par l'obligation d'authentification forte des utilisateurs (mot de passe robuste avec changement obligatoire à la première connexion), la traçabilité de toutes les actions effectuées dans le système, la protection des communications (même si l'application fonctionne uniquement sur le réseau interne, l'utilisation du protocole HTTPS est recommandée), et la mise en place de procédures de sauvegarde et de continuité d'activité.
+#### 2.3.3 Conformité au Référentiel Général de Sécurité (RGS)
+
+L'application doit également respecter le Référentiel Général de Sécurité, qui définit les règles de sécurité applicables aux systèmes d'information de l'administration. Le **niveau de sécurité RGS requis** est **Standard**, compte tenu de la sensibilité modérée des données traitées. Cela se traduit notamment par l'obligation d'authentification forte des utilisateurs (mot de passe robuste avec changement obligatoire à la première connexion), la traçabilité de toutes les actions effectuées dans le système, la protection des communications (même si l'application fonctionne uniquement sur le réseau interne, l'utilisation du protocole HTTPS est recommandée), et la mise en place de procédures de sauvegarde et de continuité d'activité.
+
+#### 2.3.4 Application des 40 règles d'hygiène informatique de l'ANSSI
+
+Le système OMEGA respecte les **40 règles d'hygiène informatique** recommandées par l'ANSSI, notamment :
+
+- **Règle 1** : Utilisation de mots de passe robustes avec politique de renouvellement
+- **Règle 5** : Mise à jour régulière des logiciels et dépendances (npm audit trimestriel)
+- **Règle 8** : Cloisonnement réseau strict (aucune connexion externe autorisée)
+- **Règle 12** : Traçabilité complète via journal d'audit immuable
+- **Règle 15** : Sauvegardes automatiques quotidiennes avec tests de restauration
+- **Règle 20** : Authentification forte et contrôle d'accès basé sur les rôles
+- **Règle 25** : Sensibilisation et formation des utilisateurs à la sécurité
 
 Les obligations d'archivage légal constituent une autre contrainte importante. Les données relatives aux projets territoriaux doivent être conservées pendant des durées minimales définies par la réglementation applicable aux archives publiques. Pour cette raison, l'application implémente un mécanisme de "soft delete" (suppression logique) plutôt qu'une suppression physique : lorsqu'un projet est supprimé, il est simplement marqué comme supprimé dans la base de données mais ses données restent présentes et consultables par les administrateurs, conformément aux obligations légales de conservation.
 
@@ -269,9 +303,405 @@ Un test de conformité peut être effectué en bloquant temporairement tout traf
 
 ---
 
-## 5. GESTION DES RISQUES
+## 5. HOMOLOGATION DE SÉCURITÉ ANSSI : ÉTAPES 1 À 4
 
-### 5.1 Identification et analyse des risques
+### 5.1 Étape 1 : Stratégie d'homologation et définition du système
+
+#### 5.1.1 Périmètre du système à homologuer
+
+Le système à homologuer est constitué de l'ensemble des composants techniques et organisationnels de l'application OMEGA :
+
+- **Application frontend** : interface web React accessible via navigateur
+- **API backend** : serveur Next.js exposant les endpoints REST
+- **Base de données** : PostgreSQL 14 contenant l'ensemble des données métier
+- **Serveur web** : Nginx agissant comme reverse proxy
+- **Infrastructure d'hébergement** : serveurs virtuels de la DDT
+- **Système de sauvegarde** : scripts automatisés et serveur de stockage des backups
+- **Tuiles cartographiques locales** : fonds de carte IGN stockés localement
+- **Documentation** : procédures d'exploitation, manuels utilisateurs, guides administrateurs
+
+**Hors périmètre** : Les postes de travail des agents et le réseau de la DDT font l'objet d'une homologation distincte.
+
+#### 5.1.2 Expression rationnelle des objectifs de sécurité (FEROS)
+
+La **Fiche d'Expression Rationnelle des Objectifs de Sécurité** d'OMEGA définit les critères de sécurité suivants :
+
+**CONFIDENTIALITÉ (niveau C2 - sensible)** :
+- Les données personnelles des agents et porteurs de projets doivent être protégées contre tout accès non autorisé
+- Les informations sur les projets en cours ne doivent être accessibles qu'aux agents de la DDT dûment authentifiés
+- Les identifiants et mots de passe ne doivent jamais être stockés en clair
+
+**INTÉGRITÉ (niveau I2 - sensible)** :
+- Toute modification des données doit être tracée et attribuée à un utilisateur identifié
+- Les données ne doivent pas pouvoir être altérées ou corrompues sans détection
+- Le système de versioning doit permettre de restaurer des états cohérents
+
+**DISPONIBILITÉ (niveau D3 - important)** :
+- L'application doit être disponible 99% du temps hors maintenance programmée
+- Le RTO (Recovery Time Objective) est fixé à 4 heures maximum
+- Le RPO (Recovery Point Objective) est fixé à 24 heures (fréquence des sauvegardes)
+
+**PREUVE/TRAÇABILITÉ (niveau P2 - sensible)** :
+- Toutes les actions de création, modification et suppression doivent être enregistrées dans un journal d'audit immuable
+- Le journal doit permettre de reconstituer précisément l'historique d'un projet
+- Les entrées d'audit doivent être conservées pendant au moins 3 ans
+
+**CONFORMITÉ RÉGLEMENTAIRE** :
+- Respect du RGPD pour le traitement des données personnelles
+- Conformité au RGS niveau Standard
+- Application des 40 règles d'hygiène informatique de l'ANSSI
+
+#### 5.1.3 Classification des données
+
+| Type de données | Disponibilité | Intégrité | Confidentialité | Impact |
+|-----------------|---------------|-----------|-----------------|---------|
+| Données personnelles (agents, porteurs) | D3 | I2 | C2 | Sensible |
+| Informations projets (en cours) | D3 | I2 | C2 | Sensible |
+| Informations projets (terminés, publics) | D3 | I3 | C3 | Standard |
+| Géométries et données cartographiques | D3 | I2 | C3 | Standard |
+| Journaux d'audit | D3 | I1 | C2 | Critique (intégrité) |
+| Mots de passe hachés | D2 | I1 | C1 | Très sensible |
+| Identifiants de connexion | D3 | I2 | C2 | Sensible |
+
+**Échelle** :
+- D1 (critique) à D4 (faible) pour la Disponibilité
+- I1 (critique) à I4 (faible) pour l'Intégrité
+- C1 (très sensible) à C4 (publique) pour la Confidentialité
+
+### 5.2 Étape 2 : Choix du type d'approche d'homologation
+
+#### 5.2.1 Analyse des critères de choix
+
+L'ANSSI définit quatre niveaux d'approche pour l'homologation de sécurité :
+
+| Critère d'évaluation | Analyse pour OMEGA | Impact sur l'approche |
+|---------------------|-------------------|----------------------|
+| **Sensibilité des données** | Données personnelles, informations projets sensibles mais non classifiées | Mezzo Piano à Mezzo Forte |
+| **Impact d'une compromission** | Atteinte à la vie privée, perte de confiance, gêne pour les missions de la DDT, mais pas d'impact sur la sécurité nationale | Mezzo Piano |
+| **Exigences réglementaires** | RGPD, RGS niveau Standard | Mezzo Piano |
+| **Complexité du système** | Architecture 3-tiers moderne, technologies matures et connues, périmètre bien défini | Mezzo Piano |
+| **Environnement de menace** | Réseau interne cloisonné, pas d'exposition Internet, menaces internes possibles | Mezzo Piano |
+| **Nombre d'utilisateurs** | 20 à 50 agents | Pianissimo à Mezzo Piano |
+| **Volumétrie de données** | 1000-2000 projets à 5 ans, plusieurs dizaines de milliers d'enregistrements | Mezzo Piano |
+
+#### 5.2.2 Approche retenue : MEZZO PIANO
+
+**Décision** : L'approche **MEZZO PIANO** est retenue pour l'homologation d'OMEGA.
+
+**Justification** :
+- Les données traitées sont sensibles (données personnelles, informations projets) mais ne sont pas classifiées au sens de la défense nationale
+- L'impact d'une compromission serait significatif mais non catastrophique (pas d'impact sur la sécurité nationale ou la sûreté)
+- Le système est hébergé dans un environnement cloisonné, réduisant considérablement la surface d'attaque
+- La complexité technique reste maîtrisable avec une approche standard de l'ANSSI
+
+**Conséquences de cette approche** :
+- **Documentation requise** : Standard (dossier d'architecture, spécifications, analyse de risques, procédures d'exploitation)
+- **Analyse de risques** : Méthode EBIOS 2010 (phases 1 et 2 minimum recommandées, phase complète si nécessaire)
+- **Audits** : Audits de sécurité organisationnels et techniques fortement recommandés
+- **Produits de sécurité** : Pas d'obligation de produits certifiés/qualifiés, mais utilisation de technologies éprouvées recommandée
+- **Durée de validité de l'homologation** : 3 ans avec revue annuelle
+
+### 5.3 Étape 3 : Identification des acteurs et responsabilités
+
+#### 5.3.1 Autorité d'Homologation
+
+**Rôle** : Responsable ultime de la décision d'homologation
+
+- **Fonction** : Directeur de la DDT d'Eure-et-Loir (ou Directeur Adjoint selon délégation)
+- **Responsabilités** :
+  - Valide la stratégie d'homologation
+  - Fixe les objectifs de sécurité
+  - Décide de l'acceptation ou du refus des risques résiduels
+  - Autorise ou refuse la mise en exploitation
+  - Décide des renouvellements d'homologation
+  - Arbitre les décisions de sécurité majeures
+
+**Contact** : [À compléter par la DDT]
+
+#### 5.3.2 Responsable de la Sécurité des Systèmes d'Information (RSSI)
+
+**Rôle** : Conseiller de l'autorité d'homologation, pilote du processus
+
+- **Fonction** : RSSI de la DDT d'Eure-et-Loir
+- **Responsabilités** :
+  - Conseille l'autorité d'homologation sur tous les aspects de sécurité
+  - Pilote l'analyse de risques EBIOS
+  - Définit les mesures de sécurité à mettre en œuvre
+  - Rédige le dossier d'homologation complet
+  - Organise et supervise les audits de sécurité
+  - Assure le suivi des mesures compensatoires et du plan d'action
+  - Propose le renouvellement ou la révision de l'homologation
+
+**Contact** : [À compléter par la DDT]
+
+#### 5.3.3 Maîtrise d'Ouvrage (MOA)
+
+**Rôle** : Porteur du besoin métier
+
+- **Fonction** : Chef de service / Responsable métier DDT
+- **Responsabilités** :
+  - Définit les besoins fonctionnels et les exigences métier
+  - Valide les spécifications de sécurité et leur adéquation aux besoins
+  - Finance le projet et les mesures de sécurité
+  - Participe à l'analyse de risques (identification des biens essentiels, des impacts métier)
+  - Valide les livrables et la recette fonctionnelle
+  - Décide des évolutions fonctionnelles
+
+**Contact** : [À compléter par la DDT]
+
+#### 5.3.4 Maîtrise d'Œuvre (MOE)
+
+**Rôle** : Réalisation technique du système
+
+- **Fonction** : Équipe de développement / DSI DDT ou prestataire externe
+- **Responsabilités** :
+  - Développe ou intègre les composants du système
+  - Implémente les mesures de sécurité définies par le RSSI
+  - Documente les choix techniques et l'architecture
+  - Réalise les tests de sécurité unitaires et d'intégration
+  - Corrige les vulnérabilités identifiées lors des audits
+  - Assure le support technique de niveau 3
+
+**Contact** : [À compléter par la DDT]
+
+#### 5.3.5 Exploitant / Hébergeur
+
+**Rôle** : Exploitation et maintien en conditions opérationnelles
+
+- **Fonction** : DSI de la DDT d'Eure-et-Loir
+- **Type** : Hébergement interne sur infrastructure DDT
+- **Responsabilités** :
+  - Assure la disponibilité quotidienne du système (objectif 99%)
+  - Applique les correctifs de sécurité dans les délais définis
+  - Surveille les événements de sécurité via les logs
+  - Gère les incidents de sécurité selon les procédures
+  - Maintient les Procédures d'Exploitation de Sécurité (PES) à jour
+  - Réalise les sauvegardes quotidiennes et teste les restaurations
+  - Assure l'application des mesures de sécurité organisationnelles
+
+**Contact** : [À compléter par la DDT]
+
+#### 5.3.6 Responsable du traitement des données (RGPD)
+
+**Rôle** : Responsabilité juridique du traitement des données personnelles
+
+- **Fonction** : Directeur de la DDT
+- **Responsabilités** :
+  - Responsable légal du traitement des données personnelles
+  - Garantit la conformité RGPD du système
+  - Répond aux demandes d'exercice des droits des personnes
+
+**Contact** : [À compléter par la DDT]
+
+#### 5.3.7 Délégué à la Protection des Données (DPO)
+
+**Rôle** : Conseil et contrôle RGPD
+
+- **Fonction** : DPO mutualisé des services de l'État du département
+- **Responsabilités** :
+  - Conseille sur la conformité RGPD
+  - Valide le registre des activités de traitement
+  - Point de contact avec la CNIL si nécessaire
+  - Sensibilise les équipes aux enjeux de protection des données
+
+**Contact** : [À compléter par la DDT]
+
+#### 5.3.8 Auditeurs de sécurité
+
+**Rôle** : Vérification indépendante de la sécurité
+
+- **Fonction** : Prestataire qualifié PASSI ou équipe d'audit interne
+- **Responsabilités** :
+  - Réalise les audits de sécurité organisationnels et techniques
+  - Teste les vulnérabilités et la conformité aux exigences
+  - Produit un rapport d'audit indépendant
+  - Formule des recommandations de sécurité
+
+**Qualification recommandée** : PASSI (Prestataires d'Audit de la Sécurité des Systèmes d'Information) ou équivalent
+
+**Contact** : [À compléter selon le prestataire retenu]
+
+### 5.4 Étape 4 : Organisation de la sécurité
+
+#### 5.4.1 Politique de Sécurité des Systèmes d'Information (PSSI)
+
+L'application OMEGA s'inscrit dans le cadre de la **PSSI de la DDT d'Eure-et-Loir**.
+
+**Référence PSSI** : [Référence du document PSSI / Version / Date]
+**Statut** : [Approuvée / En cours / À créer]
+
+**Chapitres de la PSSI applicables à OMEGA** :
+
+1. **Politique de contrôle d'accès** :
+   - Authentification obligatoire par identifiant/mot de passe
+   - Contrôle d'accès basé sur les rôles (RBAC) : administrateurs vs utilisateurs standard
+   - Principe du moindre privilège appliqué
+
+2. **Politique de gestion des identités** :
+   - Création des comptes uniquement par les administrateurs
+   - Désactivation des comptes lors des départs
+   - Revue annuelle des droits d'accès
+
+3. **Politique des mots de passe** :
+   - Longueur minimale : 8 caractères (12 recommandés)
+   - Complexité recommandée : mélange de lettres, chiffres et caractères spéciaux
+   - Changement obligatoire à la première connexion
+   - Hachage bcrypt avec facteur de coût 10
+   - Pas de stockage en clair ni réversible
+
+4. **Politique de journalisation** :
+   - Journalisation exhaustive dans un journal d'audit immuable (append-only)
+   - Conservation des logs : 3 ans minimum
+   - Protection des logs contre la modification et la suppression
+   - Logs incluant : utilisateur, date/heure, action, anciennes/nouvelles valeurs, IP, user-agent
+
+5. **Politique de sauvegarde** :
+   - Sauvegarde automatique quotidienne de la base de données (2h du matin)
+   - Stockage sur serveur distinct (séparation physique)
+   - Rétention : 7 quotidiennes + 4 hebdomadaires + 12 mensuelles
+   - Tests de restauration trimestriels
+   - RPO : 24 heures, RTO : 4 heures
+
+6. **Politique de gestion des vulnérabilités** :
+   - Audit de sécurité npm (npm audit) trimestriel
+   - Application des correctifs de sécurité critiques sous 30 jours
+   - Veille de sécurité : CERT-FR, bulletins éditeurs, CVE/NVD
+   - Tests de non-régression après chaque mise à jour
+
+7. **Politique de gestion des incidents de sécurité** :
+   - Procédure de signalement et d'escalade
+   - Contacts d'urgence : RSSI DDT, DSI, CERT-FR
+   - Investigation via les journaux d'audit
+   - Rapport d'incident et mesures correctives
+
+8. **Politique de continuité d'activité** :
+   - Plan de Continuité d'Activité (PCA) : procédures de fonctionnement en mode dégradé
+   - Plan de Reprise d'Activité (PRA) : procédures de restauration après sinistre
+   - RTO : 4 heures
+   - RPO : 24 heures
+   - Test annuel du PRA
+
+#### 5.4.2 Structure organisationnelle de la sécurité
+
+**Comité de pilotage sécurité OMEGA** :
+- **Composition** :
+  - Autorité d'homologation (ou son représentant)
+  - RSSI DDT
+  - Chef de projet MOA
+  - Responsable technique MOE
+  - Représentant DSI/exploitant
+  - DPO (en tant qu'invité selon les sujets)
+
+- **Fréquence des réunions** : Trimestrielle (ou mensuelle en phase de déploiement)
+
+- **Responsabilités** :
+  - Suit l'avancement du processus d'homologation
+  - Arbitre les décisions de sécurité majeures
+  - Valide les jalons du projet (analyse de risques, audits, décision d'homologation)
+  - Assure le suivi du plan d'action sécurité
+  - Prépare les revues annuelles d'homologation
+
+**Équipe projet sécurité** :
+- **Chef de projet** : [Nom / Fonction]
+- **Expert sécurité / RSSI** : [Nom / Fonction]
+- **Administrateur système** : [Nom / Fonction]
+- **Développeur référent** : [Nom / Fonction]
+
+#### 5.4.3 Processus de sécurité
+
+**Gestion des changements** :
+- **Procédure** : Tout changement sur le système OMEGA doit faire l'objet d'une demande de changement
+- **Points de contrôle sécurité** :
+  - Analyse d'impact sécurité systématique par le RSSI
+  - Validation RSSI obligatoire avant déploiement en production
+  - Tests de sécurité post-changement
+  - Mise à jour de la documentation (dossiers d'homologation si nécessaire)
+
+**Gestion des incidents de sécurité** :
+- **Procédure** : [Référence à la procédure de gestion des incidents de la DDT]
+- **Niveaux de criticité** :
+  - **Critique** : compromission de données, indisponibilité totale → traitement immédiat
+  - **Majeure** : vulnérabilité exploitable, dégradation significative → traitement sous 24h
+  - **Mineure** : anomalie sans impact immédiat → traitement sous 1 semaine
+
+- **Contacts d'urgence** :
+  - RSSI DDT : [téléphone / email]
+  - Astreinte DSI : [téléphone]
+  - CERT-FR : cert-fr.cossi@ssi.gouv.fr / +33 1 71 75 84 68
+
+**Gestion des vulnérabilités** :
+- **Sources de veille** :
+  - Bulletins CERT-FR
+  - npm audit (dépendances JavaScript)
+  - Bulletins de sécurité des éditeurs (PostgreSQL, Node.js, React, etc.)
+  - CVE / National Vulnerability Database
+
+- **Délais d'application des correctifs** :
+  - Vulnérabilité critique : 30 jours maximum
+  - Vulnérabilité importante : 90 jours maximum
+  - Vulnérabilité moyenne/faible : lors de la maintenance trimestrielle
+
+**Plan de continuité et de reprise d'activité** :
+- **PCA** : [Référence au PCA de la DDT]
+- **PRA** : [Référence au PRA spécifique OMEGA]
+- **RTO** : 4 heures
+- **RPO** : 24 heures
+- **Tests** : Test annuel complet + test de restauration trimestriel
+
+#### 5.4.4 Documentation de sécurité requise pour l'homologation
+
+Liste des documents à produire dans le cadre de l'approche Mezzo Piano :
+
+**Documents obligatoires** :
+- [ ] **Dossier d'Architecture Technique (DAT)** : description détaillée de l'architecture technique, des flux, des composants
+- [ ] **Dossier de Spécifications Fonctionnelles (DSF)** : spécifications des fonctionnalités, incluant les aspects sécurité
+- [ ] **Dossier de Spécifications Techniques (DST)** : spécifications techniques détaillées
+- [ ] **FEROS** (Fiche d'Expression Rationnelle des Objectifs de Sécurité) : déjà complétée en section 5.1.2
+- [ ] **Analyse de risques EBIOS** : étude complète des risques (voir section 6.1 du CAHIER_CHARGES_PARTIE2)
+- [ ] **Liste des mesures de sécurité** : catalogue complet des mesures techniques et organisationnelles mises en œuvre
+- [ ] **Procédures d'Exploitation de Sécurité (PES)** : procédures de démarrage, arrêt, sauvegarde, restauration, gestion des incidents
+- [ ] **Plan d'Assurance Sécurité (PAS)** : plan qualité pour garantir la sécurité tout au long du cycle de vie
+- [ ] **Rapports d'audit de sécurité** : audits organisationnels et techniques (voir section 6.2)
+- [ ] **Dossier d'homologation complet** : synthèse de tous les documents ci-dessus
+- [ ] **Décision d'homologation** : document signé par l'autorité d'homologation acceptant les risques résiduels
+
+**Documents recommandés** :
+- [ ] **Plan de formation sécurité** : formation des utilisateurs et des administrateurs
+- [ ] **Cartographie des données personnelles** : pour conformité RGPD
+- [ ] **Analyse d'impact RGPD (PIA)** : si nécessaire selon l'évaluation du DPO
+- [ ] **Procédures de tests de sécurité** : tests d'intrusion, tests de vulnérabilité
+
+#### 5.4.5 Gestion documentaire
+
+- **Outil de gestion** : [GED de la DDT / SharePoint / autre]
+- **Versioning** : Tous les documents d'homologation sont versionnés (V1.0, V1.1, etc.)
+- **Classification** : Les documents d'homologation sont classifiés **"Diffusion Restreinte"** minimum
+- **Conservation** : Les documents d'homologation sont conservés pendant toute la durée de vie du système + 5 ans après décommissionnement
+- **Revue** : Les documents sont revus et mis à jour annuellement ou lors de changements majeurs
+
+#### 5.4.6 Formation et sensibilisation à la sécurité
+
+**Plan de formation** :
+
+| Public cible | Formation | Durée | Fréquence | Responsable |
+|--------------|-----------|-------|-----------|-------------|
+| **Tous les utilisateurs** | Sensibilisation sécurité générale + 40 règles d'hygiène ANSSI | 2h | Annuelle | RSSI DDT |
+| **Tous les utilisateurs** | Formation OMEGA : utilisation sécurisée | 4h | À l'arrivée + recyclage tous les 2 ans | Chef de projet MOA |
+| **Administrateurs OMEGA** | Formation administration avancée + sécurité | 1 jour | À la prise de fonction + annuelle | MOE + RSSI |
+| **Administrateurs système** | Exploitation sécurisée, gestion des incidents | 1 jour | À la prise de fonction + annuelle | MOE + RSSI |
+| **Développeurs** | Développement sécurisé (OWASP Top 10, bonnes pratiques) | 2 jours | Biennale | RSSI ou prestataire externe |
+
+**Campagnes de sensibilisation** :
+- **40 règles d'hygiène informatique ANSSI** : diffusion du guide, affichettes, rappels emails
+- **Phishing** : exercices de simulation 2 fois par an, sensibilisation aux techniques d'hameçonnage
+- **Mots de passe** : bonnes pratiques, utilisation de gestionnaires de mots de passe
+- **Ingénierie sociale** : sensibilisation aux risques de manipulation
+
+---
+
+## 6. GESTION DES RISQUES
+
+### 6.1 Identification et analyse des risques
 
 Le déploiement et l'exploitation de l'application OMEGA comportent plusieurs risques qu'il convient d'identifier, d'évaluer et de traiter. L'analyse de risques a été conduite selon une méthodologie classique évaluant pour chaque risque sa probabilité d'occurrence et son impact potentiel, permettant d'en déduire un niveau de criticité global.
 
