@@ -299,22 +299,16 @@ export default function VueListe({
                                 </div>
                             </div>
 
-                            {/* AVERTISSEMENT SUPPRESSION */}
-                            {p.demande_suppression && (
-                                <div className="deletion-warning-banner" onClick={(e) => e.stopPropagation()}>
-                                    <div className="warning-icon">⚠️</div>
-                                    <div className="warning-content">
-                                        <strong>ATTENTION !</strong>
-                                        <span>Ce projet est en attente de suppression</span>
-                                    </div>
-                                </div>
-                            )}
-
                             {/* BODY */}
                             <div className="project-card-body">
                                 <div className="card-info-grid">
                                     {/* Nom du projet */}
-                                    <div className="card-info-item full-width">
+                                    <div
+                                        className="card-info-item full-width clickable-section"
+                                        onClick={(e) => handleSectionClick(e, p, 'infos')}
+                                        style={{ cursor: 'pointer' }}
+                                        title="Cliquer pour voir les informations générales"
+                                    >
                                         <span className="card-info-icon">📝</span>
                                         <div className="card-info-content">
                                             <span className="card-info-label">Nom du projet</span>
@@ -325,7 +319,12 @@ export default function VueListe({
                                     </div>
 
                                     {/* Description */}
-                                    <div className="card-info-item full-width">
+                                    <div
+                                        className="card-info-item full-width clickable-section"
+                                        onClick={(e) => handleSectionClick(e, p, 'infos')}
+                                        style={{ cursor: 'pointer' }}
+                                        title="Cliquer pour voir les informations générales"
+                                    >
                                         <span className="card-info-icon">📄</span>
                                         <div className="card-info-content">
                                             <span className="card-info-label">Description</span>
@@ -336,7 +335,12 @@ export default function VueListe({
                                     </div>
 
                                     {/* Type de porteur */}
-                                    <div className="card-info-item">
+                                    <div
+                                        className="card-info-item clickable-section"
+                                        onClick={(e) => handleSectionClick(e, p, 'porteurs')}
+                                        style={{ cursor: 'pointer' }}
+                                        title="Cliquer pour voir les porteurs du projet"
+                                    >
                                         <span className="card-info-icon">👥</span>
                                         <div className="card-info-content">
                                             <span className="card-info-label">Porteur</span>
@@ -383,7 +387,12 @@ export default function VueListe({
                                     </div>
 
                                     {/* Communes - Toujours affiché */}
-                                    <div className="card-info-item full-width">
+                                    <div
+                                        className="card-info-item full-width clickable-section"
+                                        onClick={(e) => handleSectionClick(e, p, 'geometries')}
+                                        style={{ cursor: 'pointer' }}
+                                        title="Cliquer pour voir les géométries"
+                                    >
                                         <span className="card-info-icon">📍</span>
                                         <div className="card-info-content">
                                             <span className="card-info-label">

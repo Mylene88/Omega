@@ -8,7 +8,8 @@ export default function ProjetDetailPanel({
                                               loadingDetails,
                                               expandedSections,
                                               onToggleSection,
-                                              onClose
+                                              onClose,
+                                              sectionToScroll
                                           }) {
 
     // 🔍 LOG: Afficher les données du projet pour debug
@@ -18,6 +19,22 @@ export default function ProjetDetailPanel({
             console.log('📋 [ProjetDetailPanel] Thématiques:', selectedProjectDetails.thematiques);
         }
     }, [selectedProjectDetails]);
+
+    // ✅ Scroll automatique vers la section ouverte
+    React.useEffect(() => {
+        if (sectionToScroll && expandedSections[sectionToScroll]) {
+            // Attendre que le DOM soit mis à jour et que l'animation d'ouverture soit terminée
+            setTimeout(() => {
+                const sectionElement = document.getElementById(`section-${sectionToScroll}`);
+                if (sectionElement) {
+                    sectionElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            }, 150); // Petit délai pour laisser l'animation de déroulement se terminer
+        }
+    }, [sectionToScroll, expandedSections]);
 
     const formatFieldLabel = (fieldName) => {
         return fieldName
@@ -82,7 +99,7 @@ export default function ProjetDetailPanel({
 
             <div className="liste-detail-content">
                 {/* 1. Informations générales */}
-                <div className="accordion-section">
+                <div className="accordion-section" id="section-infos">
                     <button
                         className={`accordion-header ${expandedSections.infos ? 'active' : ''}`}
                         onClick={() => onToggleSection('infos')}
@@ -154,7 +171,7 @@ export default function ProjetDetailPanel({
                 </div>
 
                 {/* 3. PORTEURS DU PROJET */}
-                <div className="accordion-section">
+                <div className="accordion-section" id="section-porteurs">
                     <button
                         className={`accordion-header ${expandedSections.porteurs ? 'active' : ''}`}
                         onClick={() => onToggleSection('porteurs')}
@@ -230,13 +247,13 @@ export default function ProjetDetailPanel({
 
 
                 {/* 2. SUIVI DDT */}
-                <div className="accordion-section">
+                <div className="accordion-section" id="section-suivis">
                     <button
                         className={`accordion-header ${expandedSections.suivis ? 'active' : ''}`}
                         onClick={() => onToggleSection('suivis')}
                     >
                         <span className="accordion-icon">{expandedSections.suivis ? '▼' : '▶'}</span>
-                        <span className="accordion-title">📝 Suivi Référent</span>
+                        <span className="accordion-title">📝 Suivi DDT</span>
                         <span className="accordion-badge">{selectedProjectDetails.suivis?.length || 0}</span>
                     </button>
 
@@ -357,7 +374,7 @@ export default function ProjetDetailPanel({
 
 
                 {/* 4. THÉMATIQUES */}
-                <div className="accordion-section">
+                <div className="accordion-section" id="section-thematiques">
                     <button
                         className={`accordion-header ${expandedSections.thematiques ? 'active' : ''}`}
                         onClick={() => onToggleSection('thematiques')}
@@ -598,7 +615,7 @@ export default function ProjetDetailPanel({
                 </div>
 
                 {/* 5. DOCUMENTS */}
-                <div className="accordion-section">
+                <div className="accordion-section" id="section-documents">
                     <button
                         className={`accordion-header ${expandedSections.documents ? 'active' : ''}`}
                         onClick={() => onToggleSection('documents')}
@@ -656,7 +673,7 @@ export default function ProjetDetailPanel({
 
 
                 {/* 6. GÉOMÉTRIES */}
-                <div className="accordion-section">
+                <div className="accordion-section" id="section-geometries">
                     <button
                         className={`accordion-header ${expandedSections.geometries ? 'active' : ''}`}
                         onClick={() => onToggleSection('geometries')}

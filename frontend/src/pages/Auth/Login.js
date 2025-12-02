@@ -60,23 +60,11 @@ const Login = () => {
 
   return (
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8 relative">
-        {/* Bouton Admin en haut à droite */}
-        <button
-          onClick={handleAdminAccess}
-          className="absolute top-6 right-6 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow-lg transition-all duration-300 flex items-center gap-2 z-10"
-          title="Accès administration"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-          </svg>
-          Admin
-        </button>
-
         <div className="max-w-md w-full space-y-6 mx-auto flex-grow flex flex-col justify-center">
           {/* En-tête */}
           <AuthHeader
-              title={<span>Bienvenue sur <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">OMEGA</span></span>}
-              subtitle="Connectez-vous pour accéder à votre espace projet"
+              title="Portail de gestion de projets"
+              subtitle="Connectez-vous pour accéder à votre espace"
           />
 
           {/* Formulaire */}
@@ -90,7 +78,17 @@ const Login = () => {
           </AuthInfoBox>
         </div>
 
-        {/* Pied de page décalé en bas */}
+        {/* Bouton Admin en bas à gauche */}
+        <button
+          onClick={handleAdminAccess}
+          className="absolute bottom-6 left-6 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow-lg transition-all duration-300 flex items-center gap-2 z-10"
+          title="Accès administration"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+          </svg>
+          Admin
+        </button>
 
       </div>
   );

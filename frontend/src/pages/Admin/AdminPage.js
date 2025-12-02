@@ -17,6 +17,8 @@ const AdminPage = () => {
   const [stats, setStats] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
   const [snapshots, setSnapshots] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [filters, setFilters] = useState({
     limit: 100,
     tableName: '',
@@ -24,6 +26,35 @@ const AdminPage = () => {
     dateFrom: '',
     dateTo: ''
   });
+
+  // État pour le formulaire de création d'utilisateur
+  const [showCreateUserForm, setShowCreateUserForm] = useState(false);
+  const [newUserData, setNewUserData] = useState({
+    username: '',
+    password: '',
+    prenom: '',
+    nom: '',
+    role_id: ''
+  });
+
+  // État pour la sélection des utilisateurs à supprimer
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
+
+  // État pour la modification d'un utilisateur
+  const [editingUser, setEditingUser] = useState(null);
+  const [editUserData, setEditUserData] = useState({
+    username: '',
+    password: '',
+    prenom: '',
+    nom: '',
+    role_id: ''
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewUserPassword, setShowNewUserPassword] = useState(false);
+
+  // États pour la pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
 
   // Vérifier l'authentification admin
   useEffect(() => {
@@ -67,6 +98,9 @@ const AdminPage = () => {
       fetchAuditLogs();
     } else if (activeTab === 'snapshots') {
       fetchSnapshots();
+    } else if (activeTab === 'users') {
+      fetchUsers();
+      fetchRoles();
     }
   }, [activeTab]);
 
@@ -170,6 +204,288 @@ const AdminPage = () => {
     } catch (err) {
       console.error('❌ [ADMIN] Erreur lors du chargement des snapshots:', err);
       setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    console.log('👥 [ADMIN] Début du chargement des utilisateurs');
+    setIsLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:3000/api/admin/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      console.log('📥 [ADMIN] Réponse reçue, status:', response.status);
+
+      if (!response.ok) throw new Error('Erreur lors du chargement des utilisateurs');
+
+      const data = await response.json();
+      console.log('📋 [ADMIN] Utilisateurs reçus:', data.data);
+
+      setUsers(data.data || []);
+      console.log('✅ [ADMIN] Utilisateurs chargés avec succès');
+    } catch (err) {
+      console.error('❌ [ADMIN] Erreur lors du chargement des utilisateurs:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchRoles = async () => {
+    console.log('🎭 [ADMIN] Chargement des rôles disponibles');
+    try {
+      // Pour l'instant, utiliser des rôles statiques
+      // Vous pouvez créer un endpoint API pour récupérer les rôles depuis la base de données
+      setRoles([
+        { id_role: 1, libelle: 'Admin' },
+        { id_role: 2, libelle: 'Utilisateur' }
+      ]);
+      console.log('✅ [ADMIN] Rôles chargés');
+    } catch (err) {
+      console.error('❌ [ADMIN] Erreur lors du chargement des rôles:', err);
+    }
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    console.log('➕ [ADMIN] Début de création d\'utilisateur');
+    console.log('📝 [ADMIN] Données:', newUserData);
+
+    try {
+      setIsLoading(true);
+
+      // Validation côté client
+      if (!newUserData.username || !newUserData.password) {
+        alert('❌ Username et mot de passe requis');
+        return;
+      }
+
+      if (newUserData.username.length < 3) {
+        alert('❌ Le username doit contenir au moins 3 caractères');
+        return;
+      }
+
+      if (newUserData.password.length < 8) {
+        alert('❌ Le mot de passe doit contenir au moins 8 caractères');
+        return;
+      }
+
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:3000/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          username: newUserData.username,
+          password: newUserData.password,
+          prenom: newUserData.prenom || null,
+          nom: newUserData.nom || null,
+          role_id: newUserData.role_id || null
+        })
+      });
+
+      console.log('📥 [ADMIN] Réponse reçue, status:', response.status);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Erreur lors de la création de l\'utilisateur');
+      }
+
+      console.log('✅ [ADMIN] Utilisateur créé avec succès!');
+      alert('✅ Utilisateur créé avec succès !');
+
+      // Réinitialiser le formulaire
+      setNewUserData({
+        username: '',
+        password: '',
+        prenom: '',
+        nom: '',
+        role_id: ''
+      });
+      setShowCreateUserForm(false);
+
+      // Recharger la liste des utilisateurs
+      fetchUsers();
+
+    } catch (err) {
+      console.error('❌ [ADMIN] Erreur lors de la création:', err);
+      alert(`❌ Erreur: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Gérer la sélection de tous les utilisateurs
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id_user;
+      const selectableUsers = users.filter(u => u.id_user !== currentUserId).map(u => u.id_user);
+      setSelectedUserIds(selectableUsers);
+    } else {
+      setSelectedUserIds([]);
+    }
+  };
+
+  // Gérer la sélection d'un utilisateur
+  const handleSelectUser = (userId) => {
+    setSelectedUserIds(prev => {
+      if (prev.includes(userId)) {
+        return prev.filter(id => id !== userId);
+      } else {
+        return [...prev, userId];
+      }
+    });
+  };
+
+  // Supprimer les utilisateurs sélectionnés
+  const handleDeleteUsers = async (userIdsToDelete = null) => {
+    const idsToDelete = userIdsToDelete || selectedUserIds;
+
+    if (!idsToDelete || idsToDelete.length === 0) {
+      alert('❌ Veuillez sélectionner au moins un utilisateur à supprimer');
+      return;
+    }
+
+    const confirmMessage = `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} utilisateur(s) ?\n\nCette action est irréversible.`;
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    console.log('🗑️ [ADMIN] Début de suppression des utilisateurs');
+    console.log('📝 [ADMIN] IDs:', idsToDelete);
+
+    try {
+      setIsLoading(true);
+
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:3000/api/admin/users', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userIds: idsToDelete
+        })
+      });
+
+      console.log('📥 [ADMIN] Réponse reçue, status:', response.status);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Erreur lors de la suppression des utilisateurs');
+      }
+
+      console.log('✅ [ADMIN] Utilisateurs supprimés avec succès!');
+      alert(`✅ ${data.data.deletedCount} utilisateur(s) supprimé(s) avec succès !`);
+
+      // Réinitialiser la sélection
+      setSelectedUserIds([]);
+
+      // Recharger la liste des utilisateurs
+      fetchUsers();
+
+    } catch (err) {
+      console.error('❌ [ADMIN] Erreur lors de la suppression:', err);
+      alert(`❌ Erreur: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Ouvrir le formulaire de modification
+  const handleOpenEditUser = (user) => {
+    setEditingUser(user);
+    setEditUserData({
+      username: user.username,
+      password: '', // Laisser vide, sera rempli seulement si changement
+      prenom: user.prenom || '',
+      nom: user.nom || '',
+      role_id: user.role_id || ''
+    });
+    setShowCreateUserForm(false); // Fermer le formulaire de création si ouvert
+  };
+
+  // Modifier un utilisateur
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+    console.log('✏️ [ADMIN] Début de modification d\'utilisateur');
+    console.log('📝 [ADMIN] Données:', editUserData);
+
+    try {
+      setIsLoading(true);
+
+      // Validation côté client
+      if (editUserData.password && editUserData.password.length < 8) {
+        alert('❌ Le mot de passe doit contenir au moins 8 caractères');
+        return;
+      }
+
+      const token = localStorage.getItem('token');
+      const updateData = {
+        prenom: editUserData.prenom || null,
+        nom: editUserData.nom || null,
+        role_id: editUserData.role_id || null
+      };
+
+      // Ajouter le mot de passe seulement s'il a été renseigné
+      if (editUserData.password) {
+        updateData.password = editUserData.password;
+        updateData.first_login = true; // Forcer le changement de mot de passe à la prochaine connexion
+      }
+
+      const response = await fetch(`http://localhost:3000/api/admin/users/${editingUser.id_user}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      console.log('📥 [ADMIN] Réponse reçue, status:', response.status);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Erreur lors de la modification de l\'utilisateur');
+      }
+
+      console.log('✅ [ADMIN] Utilisateur modifié avec succès!');
+
+      let successMessage = '✅ Utilisateur modifié avec succès !';
+      if (editUserData.password) {
+        successMessage += '\n\n⚠️ Un mot de passe provisoire a été défini. L\'utilisateur devra le changer à sa prochaine connexion.';
+      }
+      alert(successMessage);
+
+      // Réinitialiser le formulaire
+      setEditingUser(null);
+      setEditUserData({
+        username: '',
+        password: '',
+        prenom: '',
+        nom: '',
+        role_id: ''
+      });
+
+      // Recharger la liste des utilisateurs
+      fetchUsers();
+
+    } catch (err) {
+      console.error('❌ [ADMIN] Erreur lors de la modification:', err);
+      alert(`❌ Erreur: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -325,6 +641,12 @@ const AdminPage = () => {
             📊 Statistiques
           </button>
           <button
+              className={`tab ${activeTab === 'users' ? 'active' : ''}`}
+              onClick={() => setActiveTab('users')}
+          >
+            👥 Utilisateurs
+          </button>
+          <button
               className={`tab ${activeTab === 'audit' ? 'active' : ''}`}
               onClick={() => setActiveTab('audit')}
           >
@@ -402,6 +724,493 @@ const AdminPage = () => {
                         <span className="user-count">{user.activityCount} actions</span>
                       </div>
                   ))}
+                </div>
+              </div>
+          )}
+
+          {/* Tab: Utilisateurs */}
+          {activeTab === 'users' && !isLoading && (
+              <div className="users-container">
+                <div className="stats-section">
+                  <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <h2>Gestion des utilisateurs</h2>
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                      {selectedUserIds.length > 0 && (
+                          <button
+                              className="btn-restore"
+                              onClick={handleDeleteUsers}
+                              style={{ background: '#c89090' }}
+                          >
+                            🗑️ Supprimer ({selectedUserIds.length})
+                          </button>
+                      )}
+                      <button
+                          className="btn-filter"
+                          onClick={() => {
+                            setShowCreateUserForm(!showCreateUserForm);
+                            setEditingUser(null); // Fermer le formulaire d'édition
+                          }}
+                      >
+                        {showCreateUserForm ? 'Annuler' : '+ Créer un utilisateur'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Modal de modification d'utilisateur */}
+                  {editingUser && (
+                      <div className="modal-overlay" onClick={() => {
+                        setEditingUser(null);
+                        setShowPassword(false);
+                      }}>
+                        <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', background: '#fff4e6', borderLeft: '4px solid #d4a574' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <h3 style={{ margin: 0, color: '#d4a574' }}>✏️ Modifier l'utilisateur: {editingUser.username}</h3>
+                            <button
+                                onClick={() => {
+                                  setEditingUser(null);
+                                  setShowPassword(false);
+                                }}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  fontSize: '1.5rem',
+                                  cursor: 'pointer',
+                                  color: '#78716c'
+                                }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <form onSubmit={handleUpdateUser}>
+                            <div className="form-grid">
+                              <div className="form-group">
+                                <label htmlFor="edit-username">Username</label>
+                                <input
+                                    type="text"
+                                    id="edit-username"
+                                    value={editUserData.username}
+                                    disabled
+                                    style={{ background: '#f5f5f4', cursor: 'not-allowed' }}
+                                />
+                                <small style={{ color: '#78716c', fontSize: '0.8rem' }}>Le username ne peut pas être modifié</small>
+                              </div>
+
+                              <div className="form-group">
+                                <label htmlFor="edit-password">Nouveau mot de passe (optionnel)</label>
+                                <div style={{ position: 'relative' }}>
+                                  <input
+                                      type={showPassword ? "text" : "password"}
+                                      id="edit-password"
+                                      value={editUserData.password}
+                                      onChange={(e) => setEditUserData({ ...editUserData, password: e.target.value })}
+                                      placeholder="Laisser vide pour ne pas changer"
+                                      minLength={8}
+                                      style={{ paddingRight: '2.5rem' }}
+                                  />
+                                  {editUserData.password && (
+                                      <button
+                                          type="button"
+                                          onClick={() => setShowPassword(!showPassword)}
+                                          style={{
+                                            position: 'absolute',
+                                            right: '0.5rem',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            background: 'transparent',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            fontSize: '1.2rem'
+                                          }}
+                                      >
+                                        {showPassword ? '👁️' : '👁️‍🗨️'}
+                                      </button>
+                                  )}
+                                </div>
+                                <small style={{ color: '#78716c', fontSize: '0.8rem' }}>
+                                  Si changé, sera défini comme mot de passe provisoire (min. 8 car.)
+                                </small>
+                              </div>
+
+                              <div className="form-group">
+                                <label htmlFor="edit-prenom">Prénom</label>
+                                <input
+                                    type="text"
+                                    id="edit-prenom"
+                                    value={editUserData.prenom}
+                                    onChange={(e) => setEditUserData({ ...editUserData, prenom: e.target.value })}
+                                    placeholder="Prénom"
+                                />
+                              </div>
+
+                              <div className="form-group">
+                                <label htmlFor="edit-nom">Nom</label>
+                                <input
+                                    type="text"
+                                    id="edit-nom"
+                                    value={editUserData.nom}
+                                    onChange={(e) => setEditUserData({ ...editUserData, nom: e.target.value })}
+                                    placeholder="Nom"
+                                />
+                              </div>
+
+                              <div className="form-group">
+                                <label htmlFor="edit-role_id">Rôle</label>
+                                <select
+                                    id="edit-role_id"
+                                    value={editUserData.role_id}
+                                    onChange={(e) => setEditUserData({ ...editUserData, role_id: e.target.value })}
+                                >
+                                  <option value="">Sélectionner un rôle</option>
+                                  {roles.map(role => (
+                                      <option key={role.id_role} value={role.id_role}>
+                                        {role.libelle}
+                                      </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            <div className="form-actions">
+                              <button type="submit" className="btn-primary" disabled={isLoading}>
+                                {isLoading ? 'Modification...' : 'Enregistrer les modifications'}
+                              </button>
+                              <button
+                                  type="button"
+                                  className="btn-secondary"
+                                  onClick={() => {
+                                    setEditingUser(null);
+                                    setShowPassword(false);
+                                    setEditUserData({
+                                      username: '',
+                                      password: '',
+                                      prenom: '',
+                                      nom: '',
+                                      role_id: ''
+                                    });
+                                  }}
+                              >
+                                Annuler
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                  )}
+
+                  {/* Formulaire de création d'utilisateur */}
+                  {showCreateUserForm && (
+                      <div className="create-user-form">
+                        <form onSubmit={handleCreateUser}>
+                          <div className="form-grid">
+                            <div className="form-group">
+                              <label htmlFor="username">Username *</label>
+                              <input
+                                  type="text"
+                                  id="username"
+                                  value={newUserData.username}
+                                  onChange={(e) => setNewUserData({ ...newUserData, username: e.target.value })}
+                                  placeholder="Username (min. 3 caractères)"
+                                  required
+                                  minLength={3}
+                              />
+                            </div>
+
+                            <div className="form-group">
+                              <label htmlFor="password">Mot de passe *</label>
+                              <div style={{ position: 'relative' }}>
+                                <input
+                                    type={showNewUserPassword ? "text" : "password"}
+                                    id="password"
+                                    value={newUserData.password}
+                                    onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
+                                    placeholder="Mot de passe (min. 8 caractères)"
+                                    required
+                                    minLength={8}
+                                    style={{ paddingRight: '2.5rem' }}
+                                />
+                                {newUserData.password && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowNewUserPassword(!showNewUserPassword)}
+                                        style={{
+                                          position: 'absolute',
+                                          right: '0.5rem',
+                                          top: '50%',
+                                          transform: 'translateY(-50%)',
+                                          background: 'transparent',
+                                          border: 'none',
+                                          cursor: 'pointer',
+                                          fontSize: '1.2rem'
+                                        }}
+                                    >
+                                      {showNewUserPassword ? '👁️' : '👁️‍🗨️'}
+                                    </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="form-group">
+                              <label htmlFor="prenom">Prénom</label>
+                              <input
+                                  type="text"
+                                  id="prenom"
+                                  value={newUserData.prenom}
+                                  onChange={(e) => setNewUserData({ ...newUserData, prenom: e.target.value })}
+                                  placeholder="Prénom"
+                              />
+                            </div>
+
+                            <div className="form-group">
+                              <label htmlFor="nom">Nom</label>
+                              <input
+                                  type="text"
+                                  id="nom"
+                                  value={newUserData.nom}
+                                  onChange={(e) => setNewUserData({ ...newUserData, nom: e.target.value })}
+                                  placeholder="Nom"
+                              />
+                            </div>
+
+                            <div className="form-group">
+                              <label htmlFor="role_id">Rôle</label>
+                              <select
+                                  id="role_id"
+                                  value={newUserData.role_id}
+                                  onChange={(e) => setNewUserData({ ...newUserData, role_id: e.target.value })}
+                              >
+                                <option value="">Sélectionner un rôle</option>
+                                {roles.map(role => (
+                                    <option key={role.id_role} value={role.id_role}>
+                                      {role.libelle}
+                                    </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="form-actions">
+                            <button type="submit" className="btn-primary" disabled={isLoading}>
+                              {isLoading ? 'Création...' : 'Créer l\'utilisateur'}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={() => {
+                                  setShowCreateUserForm(false);
+                                  setNewUserData({
+                                    username: '',
+                                    password: '',
+                                    prenom: '',
+                                    nom: '',
+                                    role_id: ''
+                                  });
+                                }}
+                            >
+                              Annuler
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                  )}
+
+                  {/* Liste des utilisateurs */}
+                  <div className="users-list">
+                    {users.length > 0 ? (
+                        <>
+                          {/* Contrôles de pagination */}
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '1rem',
+                            padding: '1rem',
+                            background: 'white',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-color)'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                Afficher:
+                              </span>
+                              <select
+                                  value={itemsPerPage}
+                                  onChange={(e) => {
+                                    setItemsPerPage(Number(e.target.value));
+                                    setCurrentPage(1); // Retour à la première page
+                                  }}
+                                  style={{
+                                    padding: '0.5rem',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--border-color)',
+                                    fontSize: '0.9rem'
+                                  }}
+                              >
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                                <option value={150}>150</option>
+                                <option value={users.length}>Tous ({users.length})</option>
+                              </select>
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                éléments par page
+                              </span>
+                            </div>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                              {users.length === 0 ? 'Aucun' : `${((currentPage - 1) * itemsPerPage) + 1}-${Math.min(currentPage * itemsPerPage, users.length)}`} sur {users.length} utilisateur(s)
+                            </div>
+                          </div>
+
+                          {/* Table avec scroll horizontal */}
+                          <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+                            <table className="users-table">
+                              <thead>
+                              <tr>
+                                <th className="th-checkbox">
+                                  <input
+                                      type="checkbox"
+                                      onChange={handleSelectAll}
+                                      checked={selectedUserIds.length > 0 && selectedUserIds.length === users.filter(u => u.id_user !== JSON.parse(localStorage.getItem('user') || '{}').id_user).length}
+                                  />
+                                </th>
+                                <th className="th-id">ID</th>
+                                <th className="th-username">Username</th>
+                                <th className="th-nom">Nom complet</th>
+                                <th className="th-role">Rôle</th>
+                                <th className="th-date">Créé le</th>
+                                <th className="th-actions">Actions</th>
+                              </tr>
+                              </thead>
+                              <tbody>
+                              {users
+                                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                                  .map(user => {
+                                    const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id_user;
+                                    const isCurrentUser = user.id_user === currentUserId;
+
+                                    return (
+                                        <tr key={user.id_user} style={{ opacity: isCurrentUser ? 0.6 : 1 }}>
+                                          <td className="td-checkbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedUserIds.includes(user.id_user)}
+                                                onChange={() => handleSelectUser(user.id_user)}
+                                                disabled={isCurrentUser}
+                                            />
+                                          </td>
+                                          <td className="td-id">{user.id_user}</td>
+                                          <td className="td-username">
+                                            {user.username}
+                                            {isCurrentUser && <span style={{ marginLeft: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>(Vous)</span>}
+                                          </td>
+                                          <td className="td-nom">{user.nom_complet}</td>
+                                          <td className="td-role">
+                                            <span className="role-badge">{user.role_libelle}</span>
+                                          </td>
+                                          <td className="td-date">{formatDateTimeFr(user.created_at)}</td>
+                                          <td className="td-actions">
+                                            <button
+                                                className="btn-filter"
+                                                onClick={() => handleOpenEditUser(user)}
+                                                style={{
+                                                  background: '#94a3b8',
+                                                  color: 'white',
+                                                  padding: '0.4rem 0.8rem',
+                                                  fontSize: '0.85rem'
+                                                }}
+                                                title="Modifier cet utilisateur"
+                                            >
+                                              ✏️
+                                            </button>
+                                          </td>
+                                        </tr>
+                                    );
+                                  })}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Boutons de pagination */}
+                          {users.length > itemsPerPage && (
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                padding: '1rem',
+                                background: 'white',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border-color)'
+                              }}>
+                                <button
+                                    onClick={() => setCurrentPage(1)}
+                                    disabled={currentPage === 1}
+                                    className="btn-filter"
+                                    style={{
+                                      padding: '0.5rem 0.75rem',
+                                      fontSize: '0.85rem',
+                                      opacity: currentPage === 1 ? 0.5 : 1,
+                                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                  ⏮️ Premier
+                                </button>
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="btn-filter"
+                                    style={{
+                                      padding: '0.5rem 0.75rem',
+                                      fontSize: '0.85rem',
+                                      opacity: currentPage === 1 ? 0.5 : 1,
+                                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                  ◀️ Précédent
+                                </button>
+
+                                <span style={{
+                                  padding: '0.5rem 1rem',
+                                  color: 'var(--text-secondary)',
+                                  fontSize: '0.9rem',
+                                  fontWeight: '600'
+                                }}>
+                                  Page {currentPage} / {Math.ceil(users.length / itemsPerPage)}
+                                </span>
+
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(users.length / itemsPerPage), prev + 1))}
+                                    disabled={currentPage >= Math.ceil(users.length / itemsPerPage)}
+                                    className="btn-filter"
+                                    style={{
+                                      padding: '0.5rem 0.75rem',
+                                      fontSize: '0.85rem',
+                                      opacity: currentPage >= Math.ceil(users.length / itemsPerPage) ? 0.5 : 1,
+                                      cursor: currentPage >= Math.ceil(users.length / itemsPerPage) ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                  Suivant ▶️
+                                </button>
+                                <button
+                                    onClick={() => setCurrentPage(Math.ceil(users.length / itemsPerPage))}
+                                    disabled={currentPage >= Math.ceil(users.length / itemsPerPage)}
+                                    className="btn-filter"
+                                    style={{
+                                      padding: '0.5rem 0.75rem',
+                                      fontSize: '0.85rem',
+                                      opacity: currentPage >= Math.ceil(users.length / itemsPerPage) ? 0.5 : 1,
+                                      cursor: currentPage >= Math.ceil(users.length / itemsPerPage) ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                  Dernier ⏭️
+                                </button>
+                              </div>
+                          )}
+                        </>
+                    ) : (
+                        <div className="empty-state">Aucun utilisateur trouvé</div>
+                    )}
+                  </div>
                 </div>
               </div>
           )}

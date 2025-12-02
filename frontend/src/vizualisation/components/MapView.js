@@ -728,6 +728,7 @@ export default function Map({ onSelect }) {
                 onLocationSelect={handleLocationSelect}
                 communes={geoEntities}
                 viewToggleButton={viewToggleButton}
+                projectCount={filteredProjects.features?.length || 0}
             />
 
             <div className="map-with-sidebar" style={{ height: '100%', position: 'relative' }}>

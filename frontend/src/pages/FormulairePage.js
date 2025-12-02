@@ -319,9 +319,12 @@ export default function FormulairePage() {
 
     // Protection contre la navigation arrière (bouton retour du navigateur)
     useEffect(() => {
+        if (!hasUnsavedChanges) return;
+
         const handlePopState = (e) => {
-            if (hasUnsavedChanges && !showExitModal) {
+            if (!showExitModal) {
                 // Empêcher la navigation en remettant l'état dans l'historique
+                e.preventDefault();
                 window.history.pushState(null, '', window.location.href);
                 // Afficher le modal de confirmation
                 setShowExitModal(true);

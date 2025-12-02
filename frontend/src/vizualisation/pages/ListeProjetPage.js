@@ -29,6 +29,7 @@ export default function ListeProjetPage() {
     // Hooks personnalisés
     const [selectedProjectDetails, setSelectedProjectDetails] = useState(null);
     const [loadingDetails, setLoadingDetails] = useState(false);
+    const [sectionToScroll, setSectionToScroll] = useState(null);
 
     const { expandedSections, toggleSection, openSection } = useAccordion({
         infos: true,
@@ -43,9 +44,12 @@ export default function ListeProjetPage() {
         setSelectedProjectId(projectId);
         setLoadingDetails(true);
 
-        // Si une section spécifique doit être ouverte, l'ouvrir
+        // Si une section spécifique doit être ouverte, l'ouvrir et la scroller
         if (sectionToOpen && openSection) {
             openSection(sectionToOpen);
+            setSectionToScroll(sectionToOpen);
+        } else {
+            setSectionToScroll(null);
         }
         
         try {
@@ -191,11 +195,12 @@ export default function ListeProjetPage() {
 
                 {selectedProjectId && (
                     <ProjetDetailPanel
-                        selectedProjectDetails={selectedProjectDetails} 
+                        selectedProjectDetails={selectedProjectDetails}
                         loadingDetails={loadingDetails}
                         expandedSections={expandedSections}
                         onToggleSection={toggleSection}
                         onClose={() => setSelectedProjectId(null)}
+                        sectionToScroll={sectionToScroll}
                     />
                 )}
             </div>

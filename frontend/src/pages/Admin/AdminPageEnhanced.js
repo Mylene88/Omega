@@ -37,6 +37,8 @@ const AdminPageEnhanced = () => {
   const [auditLogs, setAuditLogs] = useState([]);
   const [snapshots, setSnapshots] = useState([]);
   const [accessLogs, setAccessLogs] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
 
   // Modal de confirmation
   const [confirmModal, setConfirmModal] = useState({
@@ -69,6 +71,16 @@ const AdminPageEnhanced = () => {
     type: ''
   });
 
+  // État pour le formulaire de création d'utilisateur
+  const [showCreateUserForm, setShowCreateUserForm] = useState(false);
+  const [newUserData, setNewUserData] = useState({
+    username: '',
+    password: '',
+    prenom: '',
+    nom: '',
+    role_id: ''
+  });
+
   // Vérifier l'authentification admin
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -87,7 +99,10 @@ const AdminPageEnhanced = () => {
     }
 
     info('Bienvenue dans l\'interface d\'administration', 'Connexion réussie');
-  }, [navigate, errorToast, info]);
+
+    // Charger les rôles disponibles
+    fetchRoles();
+  }, [navigate, errorToast, info, fetchRoles]);
 
   // Fonction générique pour les appels API
   const apiCall = useCallback(async (endpoint, options = {}) => {
@@ -192,6 +207,94 @@ const AdminPageEnhanced = () => {
     }
   }, [apiCall, accessFilters, errorToast]);
 
+  // Charger les utilisateurs
+  const fetchUsers = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await apiCall('/admin/users');
+      setUsers(data.data || []);
+      lastRefreshRef.current = new Date();
+    } catch (err) {
+      console.error('Erreur users:', err);
+      setError(err.message);
+      errorToast(err.message, 'Erreur de chargement');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [apiCall, errorToast]);
+
+  // Charger les rôles disponibles
+  const fetchRoles = useCallback(async () => {
+    try {
+      const data = await apiCall('/service');
+      // Note: Adapter l'endpoint selon votre API pour récupérer les rôles
+      // Pour l'instant, on peut créer une liste statique ou récupérer depuis une autre route
+      setRoles([
+        { id_role: 1, libelle: 'Admin' },
+        { id_role: 2, libelle: 'Utilisateur' }
+      ]);
+    } catch (err) {
+      console.error('Erreur roles:', err);
+    }
+  }, [apiCall]);
+
+  // Créer un nouvel utilisateur
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+
+    try {
+      setIsLoading(true);
+
+      // Validation côté client
+      if (!newUserData.username || !newUserData.password) {
+        errorToast('Username et mot de passe requis', 'Erreur');
+        return;
+      }
+
+      if (newUserData.username.length < 3) {
+        errorToast('Le username doit contenir au moins 3 caractères', 'Erreur');
+        return;
+      }
+
+      if (newUserData.password.length < 8) {
+        errorToast('Le mot de passe doit contenir au moins 8 caractères', 'Erreur');
+        return;
+      }
+
+      const response = await apiCall('/admin/users', {
+        method: 'POST',
+        body: JSON.stringify({
+          username: newUserData.username,
+          password: newUserData.password,
+          prenom: newUserData.prenom || null,
+          nom: newUserData.nom || null,
+          role_id: newUserData.role_id || null
+        })
+      });
+
+      success('Utilisateur créé avec succès', 'Succès');
+
+      // Réinitialiser le formulaire
+      setNewUserData({
+        username: '',
+        password: '',
+        prenom: '',
+        nom: '',
+        role_id: ''
+      });
+      setShowCreateUserForm(false);
+
+      // Recharger la liste des utilisateurs
+      fetchUsers();
+
+    } catch (err) {
+      errorToast(err.message, 'Erreur de création');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Restaurer un snapshot
   const handleRestoreSnapshot = async (snapshotId, projetId) => {
     setConfirmModal({
@@ -279,6 +382,9 @@ const AdminPageEnhanced = () => {
         case 'access':
           fetchAccessLogs();
           break;
+        case 'users':
+          fetchUsers();
+          break;
         default:
           break;
       }
@@ -295,7 +401,7 @@ const AdminPageEnhanced = () => {
         clearInterval(refreshTimerRef.current);
       }
     };
-  }, [autoRefresh, refreshInterval, activeTab, fetchStats, fetchAuditLogs, fetchSnapshots, fetchAccessLogs]);
+  }, [autoRefresh, refreshInterval, activeTab, fetchStats, fetchAuditLogs, fetchSnapshots, fetchAccessLogs, fetchUsers]);
 
 <<<<<<< HEAD
   // Formater la date (utilise la fonction utilitaire avec gestion timezone correcte)
@@ -331,6 +437,152 @@ const AdminPageEnhanced = () => {
     if (hours > 0) return `il y a ${hours} heure${hours > 1 ? 's' : ''}`;
     if (minutes > 0) return `il y a ${minutes} minute${minutes > 1 ? 's' : ''}`;
     return `il y a ${seconds} seconde${seconds > 1 ? 's' : ''}`;
+  };
+
+  // Rendre l'onglet Utilisateurs
+  const renderUsersTab = () => {
+    return (
+      <div className="users-container">
+        <div className="stats-section">
+          <div className="section-header">
+            <h3>Gestion des utilisateurs</h3>
+            <button
+              className="btn-export"
+              onClick={() => setShowCreateUserForm(!showCreateUserForm)}
+            >
+              {showCreateUserForm ? 'Annuler' : '+ Créer un utilisateur'}
+            </button>
+          </div>
+
+          {/* Formulaire de création d'utilisateur */}
+          {showCreateUserForm && (
+            <div className="create-user-form">
+              <form onSubmit={handleCreateUser}>
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label htmlFor="username">Username *</label>
+                    <input
+                      type="text"
+                      id="username"
+                      value={newUserData.username}
+                      onChange={(e) => setNewUserData({ ...newUserData, username: e.target.value })}
+                      placeholder="Username (min. 3 caractères)"
+                      required
+                      minLength={3}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="password">Mot de passe *</label>
+                    <input
+                      type="password"
+                      id="password"
+                      value={newUserData.password}
+                      onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
+                      placeholder="Mot de passe (min. 8 caractères)"
+                      required
+                      minLength={8}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="prenom">Prénom</label>
+                    <input
+                      type="text"
+                      id="prenom"
+                      value={newUserData.prenom}
+                      onChange={(e) => setNewUserData({ ...newUserData, prenom: e.target.value })}
+                      placeholder="Prénom"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="nom">Nom</label>
+                    <input
+                      type="text"
+                      id="nom"
+                      value={newUserData.nom}
+                      onChange={(e) => setNewUserData({ ...newUserData, nom: e.target.value })}
+                      placeholder="Nom"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="role_id">Rôle</label>
+                    <select
+                      id="role_id"
+                      value={newUserData.role_id}
+                      onChange={(e) => setNewUserData({ ...newUserData, role_id: e.target.value })}
+                    >
+                      <option value="">Sélectionner un rôle</option>
+                      {roles.map(role => (
+                        <option key={role.id_role} value={role.id_role}>
+                          {role.libelle}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-actions">
+                  <button type="submit" className="btn-primary" disabled={isLoading}>
+                    {isLoading ? 'Création...' : 'Créer l\'utilisateur'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      setShowCreateUserForm(false);
+                      setNewUserData({
+                        username: '',
+                        password: '',
+                        prenom: '',
+                        nom: '',
+                        role_id: ''
+                      });
+                    }}
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Liste des utilisateurs */}
+          <div className="users-list">
+            {users.length > 0 ? (
+              <table className="users-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Nom complet</th>
+                    <th>Rôle</th>
+                    <th>Créé le</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map(user => (
+                    <tr key={user.id_user}>
+                      <td>{user.id_user}</td>
+                      <td>{user.username}</td>
+                      <td>{user.nom_complet}</td>
+                      <td>
+                        <span className="role-badge">{user.role_libelle}</span>
+                      </td>
+                      <td>{formatDate(user.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="empty-state">Aucun utilisateur trouvé</div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Rendre l'onglet Statistiques
@@ -532,6 +784,12 @@ const AdminPageEnhanced = () => {
           📊 Statistiques
         </button>
         <button
+          className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`}
+          onClick={() => setActiveTab('users')}
+        >
+          👥 Utilisateurs
+        </button>
+        <button
           className={`tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
           onClick={() => setActiveTab('audit')}
         >
@@ -568,6 +826,7 @@ const AdminPageEnhanced = () => {
         )}
 
         {activeTab === 'stats' && renderStatsTab()}
+        {activeTab === 'users' && renderUsersTab()}
         {activeTab === 'deletion-requests' && (
           <DeletionRequestsTab
             apiCall={apiCall}
