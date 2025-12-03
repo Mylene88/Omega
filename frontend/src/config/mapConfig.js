@@ -7,21 +7,26 @@
 // Pour la DDT, utiliser 'local' après avoir téléchargé les tuiles
 const TILE_MODE = process.env.REACT_APP_TILE_MODE || 'online';
 
-// Configuration des tuiles en ligne (IGN Géoportail)
+// Configuration des tuiles en ligne
+// ⚠️ ATTENTION: En production DDT, utiliser le mode 'local' pour environnement cloisonné (ANSSI)
 const ONLINE_TILES = {
     plan: {
-        url: 'https://data.geopf.fr/wmts?&REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/png&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+        // OpenStreetMap France (fonctionne sans clé API)
+        url: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
         format: 'png',
         minZoom: 0,
         maxZoom: 19,
-        attribution: 'IGN-F/Geoportail'
+        attribution: '© OpenStreetMap France | Données © OpenStreetMap',
+        subdomains: ['a', 'b', 'c']
     },
     ortho: {
-        url: 'https://data.geopf.fr/wmts?&REQUEST=GetTile&SERVICE=WMTS&VERSION=1.0.0&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
-        format: 'jpg',
+        // Fallback vers plan pour ortho si pas de tuiles IGN disponibles
+        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        format: 'png',
         minZoom: 0,
         maxZoom: 19,
-        attribution: 'IGN-F/Geoportail'
+        attribution: '© OpenStreetMap contributors',
+        subdomains: ['a', 'b', 'c']
     }
 };
 

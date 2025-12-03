@@ -4,6 +4,9 @@ import { NextResponse } from 'next/server';
 import db from '@/backend/models';
 import bcrypt from 'bcryptjs';
 import { checkAdminAccess } from '@/backend/lib/adminAuthHelper';
+import { validatePassword } from '@/backend/lib/passwordPolicy';
+import { validateUsername } from '@/backend/lib/inputValidation';
+import { logSecurityEvent, SecurityEventType } from '@/backend/lib/securityLogger';
 
 const { User, RoleEnum, sequelize } = db;
 
@@ -115,19 +118,22 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    // Validation du format du username
-    if (username.length < 3) {
+    // Validation du format du username avec politique stricte
+    const usernameValidation = validateUsername(username);
+    if (!usernameValidation.valid) {
       return NextResponse.json({
         success: false,
-        message: 'Le username doit contenir au moins 3 caractères'
+        message: usernameValidation.error
       }, { status: 400 });
     }
 
-    // Validation du format du mot de passe
-    if (password.length < 8) {
+    // Validation du mot de passe avec politique de sécurité renforcée
+    const passwordValidation = validatePassword(password, { username, prenom, nom });
+    if (!passwordValidation.valid) {
       return NextResponse.json({
         success: false,
-        message: 'Le mot de passe doit contenir au moins 8 caractères'
+        message: 'Le mot de passe ne respecte pas la politique de sécurité',
+        errors: passwordValidation.errors
       }, { status: 400 });
     }
 
@@ -173,6 +179,19 @@ export async function POST(request) {
     const rolesMap = {};
     roles.forEach(role => {
       rolesMap[role.id_role] = role.libelle;
+    });
+
+    // Logger la création d'utilisateur
+    await logSecurityEvent({
+      eventType: SecurityEventType.USER_CREATED,
+      userId: adminCheck.userId,
+      username: adminCheck.username,
+      request,
+      details: {
+        newUserId: newUser.id_user,
+        newUsername: newUser.username,
+        roleId: newUser.role_id
+      }
     });
 
     // Formater la réponse

@@ -446,6 +446,36 @@ module.exports = (sequelize, DataTypes) => {
   User.hasMany(SectionVersion, { foreignKey: 'user_id', as: 'section_versions' });
 
 
+  // --- Table des logs de sécurité (ANSSI conformité) ---
+  const SecurityLog = sequelize.define('security_log', {
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    event_type: { type: DataTypes.STRING(50), allowNull: false },
+    severity: { type: DataTypes.STRING(20), allowNull: false }, // INFO, WARNING, ERROR, CRITICAL
+    user_id: { type: DataTypes.INTEGER, references: { model: User, key: 'id_user' } },
+    username: { type: DataTypes.STRING(255) },
+    ip_address: { type: DataTypes.STRING(45) }, // Support IPv4 et IPv6
+    user_agent: { type: DataTypes.TEXT },
+    resource: { type: DataTypes.STRING(255) }, // Ressource accédée
+    action: { type: DataTypes.STRING(50) }, // Action effectuée
+    status: { type: DataTypes.STRING(20) }, // SUCCESS, FAILURE
+    details: { type: DataTypes.JSONB }, // Détails additionnels
+    timestamp: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+  }, {
+    schema,
+    tableName: 'security_log',
+    timestamps: false,
+    indexes: [
+      { fields: ['event_type'] },
+      { fields: ['user_id'] },
+      { fields: ['timestamp'] },
+      { fields: ['severity'] },
+      { fields: ['ip_address'] }
+    ]
+  });
+
+  // Association avec User
+  SecurityLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
 // Return all models as an object
   return {
     RoleEnum,
@@ -467,5 +497,6 @@ module.exports = (sequelize, DataTypes) => {
     AdminAccessLog,
     ProjetDeletionRequest,
     SectionVersion,
+    SecurityLog,
   };
 };
