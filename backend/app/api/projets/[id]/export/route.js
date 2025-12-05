@@ -354,6 +354,7 @@ async function generateGeoJSON(projet) {
             statut: projet.statut_projet_enum?.libelle,
             geom_type: geom.geom_type,
             area_m2: geom.area_m2,
+            area_ha: geom.area_m2 ? (parseFloat(geom.area_m2) / 10000).toFixed(2) : null,
             length_m: geom.length_m,
             communes: geom.communes_traversees,
             codes_insee: geom.codes_insee,
@@ -368,17 +369,69 @@ async function generateGeoJSON(projet) {
     });
   }
 
+  // Construire les données complètes du projet
+  const projetComplet = {
+    // Informations générales
+    informations_generales: {
+      id_projet: projet.id_projet,
+      nom_projet: projet.nom_projet,
+      description: projet.description,
+      statut: projet.statut_projet_enum?.libelle || null,
+      date_prise_connaissance_ddt: projet.date_ident_projet || null,  // ✅ Utiliser date_ident_projet au lieu de created_at
+      projet_signale: projet.projet_signale,
+      charte_accueil: projet.charte_accueil,
+      service_referent: projet.ddt_service_enum?.libelle_service || null,
+      contact_ddt: projet.referent_ddt,
+      date_creation_fiche: projet.created_at,
+      createur_fiche: projet.creator ? `${projet.creator.prenom} ${projet.creator.nom}` : null,
+      date_derniere_maj: projet.updated_at
+    },
+
+    // Porteurs
+    porteurs: projet.porteurs && projet.porteurs.length > 0 ? projet.porteurs.map(p => ({
+      type_porteur: p.type_porteur_enum?.libelle || null,
+      nom_structure: p.nom_structure,
+      referent_nom: p.referent_nom,
+      referent_fonction: p.referent_fonction,
+      referent_email: p.referent_email,
+      referent_tel: p.referent_tel
+    })) : [],
+
+    // Suivis DDT
+    suivis_ddt: projet.suivis && projet.suivis.length > 0 ? projet.suivis.map(s => ({
+      date: s.created_at,
+      auteur: s.auteur ? `${s.auteur.prenom} ${s.auteur.nom}` : null,
+      commentaire: s.suivi
+    })) : [],
+
+    // Thématiques
+    thematiques: projet.thematiques && projet.thematiques.length > 0 ? projet.thematiques.map(t => ({
+      libelle: t.libelle,
+      modele: t.modeleDisplayName,
+      donnees: t.data || []
+    })) : [],
+
+    // Documents
+    documents: projet.documents && projet.documents.length > 0 ? projet.documents.map(d => ({
+      lien_local: d.lien_local || d.lienLocal,
+      lien_web: d.lien_web || d.lienWeb
+    })) : [],
+
+    // Statistiques
+    statistiques: {
+      nb_porteurs: projet.porteurs?.length || 0,
+      nb_suivis: projet.suivis?.length || 0,
+      nb_thematiques: projet.thematiques?.length || 0,
+      nb_documents: projet.documents?.length || 0,
+      nb_geometries: projet.geometry?.length || 0
+    }
+  };
+
   const geoJSON = {
     type: 'FeatureCollection',
     features: features,
-    properties: {
-      projet: {
-        id: projet.id_projet,
-        nom: projet.nom_projet,
-        description: projet.description,
-        statut: projet.statut_projet_enum?.libelle
-      }
-    }
+    // Toutes les propriétés du projet dans la FeatureCollection
+    properties: projetComplet
   };
 
   const jsonBuffer = Buffer.from(JSON.stringify(geoJSON, null, 2), 'utf-8');
@@ -386,7 +439,7 @@ async function generateGeoJSON(projet) {
   return new NextResponse(jsonBuffer, {
     headers: {
       'Content-Type': 'application/geo+json',
-      'Content-Disposition': `attachment; filename="projet_${projet.id_projet}.geojson"`,
+      'Content-Disposition': `attachment; filename="projet_${projet.id_projet}_complet.geojson"`,
       'Cache-Control': 'no-cache'
     }
   });
@@ -396,35 +449,130 @@ async function generateGeoJSON(projet) {
 async function generateCSV(projet) {
   const rows = [];
 
-  // En-tête
-  rows.push([
-    'ID Projet',
-    'Nom',
-    'Description',
-    'Statut',
-    'Service Référent',
-    'Nb Porteurs',
-    'Nb Suivis',
-    'Nb Thématiques',
-    'Nb Documents',
-    'Date Création',
-    'Date Modification'
-  ]);
+  // ========== INFORMATIONS GÉNÉRALES ==========
+  rows.push(['=== INFORMATIONS GÉNÉRALES ===']);
+  rows.push(['ID Projet', projet.id_projet]);
+  rows.push(['Nom du projet', projet.nom_projet || 'Non renseigné']);
+  rows.push(['Description', projet.description || 'Non renseigné']);
+  rows.push(['Statut', projet.statut_projet_enum?.libelle || 'Non renseigné']);
+  rows.push(['Date de prise de connaissance par la DDT', projet.date_ident_projet ? new Date(projet.date_ident_projet).toLocaleDateString('fr-FR') : 'Non renseignée']);  // ✅ Utiliser date_ident_projet
+  rows.push(['Projet signalé', projet.projet_signale ? 'Oui' : 'Non']);
+  rows.push(['Charte d\'Accueil', projet.charte_accueil ? 'Oui' : 'Non']);
+  rows.push(['Service Référent', projet.ddt_service_enum?.libelle_service || 'Non renseigné']);
+  rows.push(['Contact à la DDT', projet.referent_ddt || 'Non renseigné']);
+  rows.push(['Date de création de la fiche', projet.created_at ? new Date(projet.created_at).toLocaleString('fr-FR') : 'Non renseignée']);
+  rows.push(['Créateur de la fiche', projet.creator ? `${projet.creator.prenom} ${projet.creator.nom}` : 'Non renseigné']);
+  rows.push(['Date de dernière mise à jour', projet.updated_at ? new Date(projet.updated_at).toLocaleString('fr-FR') : 'Non renseignée']);
+  rows.push([]);
 
-  // Données du projet
-  rows.push([
-    projet.id_projet,
-    projet.nom_projet || '',
-    projet.description || '',
-    projet.statut_projet_enum?.libelle || '',
-    projet.ddt_service_enum?.libelle_service || '',
-    projet.porteurs?.length || 0,
-    projet.suivis?.length || 0,
-    projet.thematiques?.length || 0,
-    projet.documents?.length || 0,
-    projet.created_at ? new Date(projet.created_at).toLocaleDateString('fr-FR') : '',
-    projet.updated_at ? new Date(projet.updated_at).toLocaleDateString('fr-FR') : ''
-  ]);
+  // ========== PORTEURS ==========
+  rows.push(['=== PORTEURS DE PROJET ===']);
+  if (projet.porteurs && projet.porteurs.length > 0) {
+    rows.push(['Numéro', 'Type de porteur', 'Structure', 'Référent', 'Fonction', 'Email', 'Téléphone']);
+    projet.porteurs.forEach((porteur, idx) => {
+      rows.push([
+        idx + 1,
+        porteur.type_porteur_enum?.libelle || 'Non renseigné',
+        porteur.nom_structure || 'Non renseigné',
+        porteur.referent_nom || 'Non renseigné',
+        porteur.referent_fonction || 'Non renseigné',
+        porteur.referent_email || 'Non renseigné',
+        porteur.referent_tel || 'Non renseigné'
+      ]);
+    });
+  } else {
+    rows.push(['Aucun porteur enregistré']);
+  }
+  rows.push([]);
+
+  // ========== SUIVIS DDT ==========
+  rows.push(['=== HISTORIQUE DES SUIVIS DDT ===']);
+  if (projet.suivis && projet.suivis.length > 0) {
+    rows.push(['Numéro', 'Date', 'Auteur', 'Commentaire']);
+    projet.suivis.forEach((suivi, idx) => {
+      const dateHeure = suivi.created_at
+        ? new Date(suivi.created_at).toLocaleDateString('fr-FR') + ' ' +
+          new Date(suivi.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        : 'Non renseigné';
+      const auteur = suivi.auteur
+        ? `${suivi.auteur.prenom} ${suivi.auteur.nom}`
+        : 'Non renseigné';
+      rows.push([
+        idx + 1,
+        dateHeure,
+        auteur,
+        suivi.suivi || 'Aucun commentaire'
+      ]);
+    });
+  } else {
+    rows.push(['Aucun suivi associé à ce projet']);
+  }
+  rows.push([]);
+
+  // ========== THÉMATIQUES ==========
+  rows.push(['=== THÉMATIQUES ===']);
+  if (projet.thematiques && projet.thematiques.length > 0) {
+    projet.thematiques.forEach((them, themIdx) => {
+      rows.push([`Thématique ${themIdx + 1}`, `${them.libelle} - ${them.modeleDisplayName}`]);
+
+      if (them.data && them.data.length > 0) {
+        // En-tête des champs de la thématique
+        const headers = Object.keys(them.data[0]);
+        rows.push(['Entrée', ...headers]);
+
+        // Données de chaque entrée
+        them.data.forEach((data, dataIdx) => {
+          const values = headers.map(key => data[key] || 'Non renseigné');
+          rows.push([dataIdx + 1, ...values]);
+        });
+      }
+      rows.push([]);
+    });
+  } else {
+    rows.push(['Aucune thématique associée à ce projet']);
+  }
+  rows.push([]);
+
+  // ========== DOCUMENTS ==========
+  rows.push(['=== DOCUMENTS ===']);
+  if (projet.documents && projet.documents.length > 0) {
+    rows.push(['Numéro', 'Lien Local', 'Lien Web']);
+    projet.documents.forEach((doc, idx) => {
+      const lienLocal = doc.lien_local || doc.lienLocal;
+      const lienWeb = doc.lien_web || doc.lienWeb;
+      rows.push([
+        idx + 1,
+        lienLocal || 'Non renseigné',
+        lienWeb || 'Non renseigné'
+      ]);
+    });
+  } else {
+    rows.push(['Aucun document associé à ce projet']);
+  }
+  rows.push([]);
+
+  // ========== GÉOMÉTRIES ==========
+  rows.push(['=== GÉOMÉTRIES ===']);
+  if (projet.geometry && projet.geometry.length > 0) {
+    rows.push(['Type', 'Longueur (m)', 'Superficie (m²)', 'Superficie (ha)', 'Communes traversées', 'Codes INSEE', 'EPCI', 'Arrondissements', 'Maires', 'Députés']);
+    projet.geometry.forEach((geom) => {
+      const areaHa = geom.area_m2 ? (parseFloat(geom.area_m2) / 10000).toFixed(2) : 'Non renseigné';
+      rows.push([
+        geom.geom_type || 'Non renseigné',
+        geom.length_m ? parseFloat(geom.length_m).toFixed(2) : 'Non renseignée',
+        geom.area_m2 ? parseFloat(geom.area_m2).toFixed(2) : 'Non renseignée',
+        areaHa !== 'Non renseigné' ? areaHa : 'Non renseignée',
+        Array.isArray(geom.communes_traversees) ? geom.communes_traversees.join(', ') : (geom.communes_traversees || 'Non renseignée'),
+        Array.isArray(geom.codes_insee) ? geom.codes_insee.join(', ') : (geom.codes_insee || 'Non renseigné'),
+        geom.epci || 'Non renseigné',
+        Array.isArray(geom.arrondissements) ? geom.arrondissements.join(', ') : (geom.arrondissements || 'Non renseigné'),
+        Array.isArray(geom.maires) ? geom.maires.join(', ') : (geom.maires || 'Non renseigné'),
+        Array.isArray(geom.deputes) ? geom.deputes.join(', ') : (geom.deputes || 'Non renseigné')
+      ]);
+    });
+  } else {
+    rows.push(['Aucune géométrie associée à ce projet']);
+  }
 
   // Convertir en CSV
   const csvContent = rows
@@ -438,7 +586,7 @@ async function generateCSV(projet) {
   return new NextResponse(csvBuffer, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="projet_${projet.id_projet}.csv"`,
+      'Content-Disposition': `attachment; filename="projet_${projet.id_projet}_complet.csv"`,
       'Cache-Control': 'no-cache'
     }
   });
@@ -500,7 +648,7 @@ function generateHTML(projet) {
         </tr>
         <tr>
           <td class="field-label">Date prise de connaissance par la DDT</td>
-          <td class="field-value">${projet.created_at ? new Date(projet.created_at).toLocaleDateString('fr-FR') : 'Non renseignée'}</td>
+          <td class="field-value">${projet.date_ident_projet ? new Date(projet.date_ident_projet).toLocaleDateString('fr-FR') : 'Non renseignée'}</td>
         </tr>
       </table>
     </div>

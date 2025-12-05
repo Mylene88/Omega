@@ -7,6 +7,7 @@ import Carte from '../../components/carte/carte-modele/Carte';
 import styles from '../../styles/CarteSection.module.css';
 import Search from '../../components/common/Search/Search';
 import { getCurrentUserId, getApiHeaders } from '../../utils/userHelper';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 
 const MapPage = ({
@@ -27,6 +28,8 @@ const MapPage = ({
     const [selectedTool, setSelectedTool] = useState(null);
     const [isUpdate, setIsUpdate] = useState(false);
     const carteRef = useRef(null);
+    const [showExistingProjects, setShowExistingProjects] = useState(false);
+    const [existingProjects, setExistingProjects] = useState([]);
 
     // ✅ AJOUT : useEffect pour charger la géométrie existante
     useEffect(() => {
@@ -63,7 +66,7 @@ const MapPage = ({
     useEffect(() => {
         const fetchGeoEntities = async () => {
             try {
-                const response = await fetch('http://localhost:3000/api/geo-entities');
+                const response = await fetch(`${API_BASE_URL}/api/geo-entities`);
                 if (response.ok) {
                     const data = await response.json();
                     setGeoEntities(data);
@@ -76,6 +79,26 @@ const MapPage = ({
         };
 
         fetchGeoEntities();
+    }, []);
+
+    // Charger tous les projets existants pour affichage sur la carte
+    useEffect(() => {
+        const fetchExistingProjects = async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/projet-geometry?format=geojson&limit=1000`);
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('📍 Projets existants chargés:', data.features?.length);
+                    setExistingProjects(data.features || []);
+                } else {
+                    console.error('Erreur lors du chargement des projets existants');
+                }
+            } catch (error) {
+                console.error('Erreur fetch projets existants:', error);
+            }
+        };
+
+        fetchExistingProjects();
     }, []);
 
     const handleSearchSelect = (item) => {
@@ -125,7 +148,7 @@ const MapPage = ({
 
             if (isNewProject) {
                 console.log('🆕 Nouveau projet - analyse temporaire');
-                endpoint = 'http://localhost:3000/api/geometry-temp';
+                endpoint = `${API_BASE_URL}/api/geometry-temp`;
                 method = 'POST';
                 requestData = {
                     project_id: projetData?.id_projet || 'temp_' + Date.now(),
@@ -135,7 +158,7 @@ const MapPage = ({
                 if (userId) requestData.userId = userId;
             } else {
                 console.log('🔄 Projet existant - mise à jour');
-                endpoint = `http://localhost:3000/api/projet-geometry/${projetData.id_geom}`;
+                endpoint = `${API_BASE_URL}/api/projet-geometry/${projetData.id_geom}`;
                 method = 'PATCH';
                 requestData = {
                     geom: geometryData.geom,
@@ -308,12 +331,13 @@ const MapPage = ({
                 <Search data={geoEntities} onSelect={handleSearchSelect}/>
             </div>
 
-            <div className={styles.controles}>
-                <div className={styles.drawTools}>
+            <div className={styles.controles} style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className={styles.drawTools} style={{ flex: '0 0 auto' }}>
                     <button
                         onClick={() => handleToolSelect('point')}
                         className={`${styles.toolBtn} ${selectedTool === 'point' ? styles.active : ''}`}
                         title="Dessiner un point"
+                        style={{ padding: '6px 12px', fontSize: '13px' }}
                     >
                         📍 Point
                     </button>
@@ -321,6 +345,7 @@ const MapPage = ({
                         onClick={() => handleToolSelect('line')}
                         className={`${styles.toolBtn} ${selectedTool === 'line' ? styles.active : ''}`}
                         title="Dessiner une ligne"
+                        style={{ padding: '6px 12px', fontSize: '13px' }}
                     >
                         📏 Ligne
                     </button>
@@ -328,6 +353,7 @@ const MapPage = ({
                         onClick={() => handleToolSelect('polygon')}
                         className={`${styles.toolBtn} ${selectedTool === 'polygon' ? styles.active : ''}`}
                         title="Dessiner un polygone"
+                        style={{ padding: '6px 12px', fontSize: '13px' }}
                     >
                         ⬜ Polygone
                     </button>
@@ -335,9 +361,43 @@ const MapPage = ({
                         onClick={handleClearDrawings}
                         className={styles.clearBtn}
                         title="Effacer tous les dessins"
+                        style={{ padding: '6px 12px', fontSize: '13px' }}
                     >
                         🗑️ Effacer
                     </button>
+                </div>
+
+                {/* Checkbox pour afficher les projets existants */}
+                <div style={{
+                    padding: '8px 14px',
+                    backgroundColor: '#f8fafc',
+                    borderRadius: '6px',
+                    border: '1px solid #e2e8f0',
+                    flex: '1 1 auto'
+                }}>
+                    <label style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: '500',
+                        color: '#334155',
+                        whiteSpace: 'nowrap'
+                    }}>
+                        <input
+                            type="checkbox"
+                            checked={showExistingProjects}
+                            onChange={(e) => setShowExistingProjects(e.target.checked)}
+                            style={{
+                                width: '16px',
+                                height: '16px',
+                                cursor: 'pointer',
+                                flexShrink: 0
+                            }}
+                        />
+                        <span>Afficher projets existants ({existingProjects.length})</span>
+                    </label>
                 </div>
             </div>
 
@@ -348,11 +408,13 @@ const MapPage = ({
                     onGeometryChange={handleGeometryChange}
                     initialGeometry={currentGeometry}
                     editable={true}
-                    existingGeometry={currentGeometry} 
+                    existingGeometry={currentGeometry}
                     className={styles.formCarte}
                     selectedTool={selectedTool}
                     onToolComplete={handleToolComplete}
                     center={selectedLocation}
+                    existingProjects={showExistingProjects ? existingProjects : []}
+                    showExistingProjects={showExistingProjects}
                 />
 
                 {/* Indicateur de chargement */}

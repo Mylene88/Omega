@@ -2,6 +2,7 @@
 import { useId, useMemo, useState, useEffect } from 'react';
 import '../../common/Collapsible/collapsible.css';
 import styles from '../../../styles/SuiviDDTSection.module.css';
+import { API_BASE_URL } from '../../../config/apiConfig';
 
 
 export default function SuiviDdtSection({value = {}, onChange ,
@@ -28,7 +29,7 @@ export default function SuiviDdtSection({value = {}, onChange ,
 
   // 🔹 Fetch des services
     useEffect(() => {
-        fetch('http://localhost:3000/api/service')
+        fetch(`${API_BASE_URL}/api/service`)
             .then((res) => res.json())
             .then((data) => setServices(data))
             .catch((err) => console.error('Erreur de fetch pour les services:', err));
@@ -74,10 +75,17 @@ export default function SuiviDdtSection({value = {}, onChange ,
         }
       } else {
         const now = new Date();
+        // Récupérer l'utilisateur actuellement connecté
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const currentUserName = currentUser.nom_complet ||
+                               `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() ||
+                               currentUser.username ||
+                               'Utilisateur inconnu';
+
         const item = {
           id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           dateTime: now.toISOString(),
-          author: v.createur,
+          author: currentUserName,
           description: v.suiviDescription.trim(),
         };
         emit({

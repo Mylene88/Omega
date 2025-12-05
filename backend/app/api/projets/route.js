@@ -217,7 +217,8 @@ export async function POST(request) {
     console.log('   - documents:', body.documents);
 
     // 🆔 Extraire l'ID utilisateur pour les snapshots et audits
-    const userId = body.created_by || body.updated_by;
+    // ✅ Vérifier plusieurs sources possibles (updated_by, userId, created_by)
+    const userId = body.updated_by || body.userId || body.created_by;
     console.log('   - userId:', userId);
 
     // ✅ Vérifier si le projet existe déjà (mode édition)
@@ -262,7 +263,7 @@ export async function POST(request) {
       service_id: body.service_id,
       referent_ddt: body.referent_ddt,
       created_by: body.created_by,
-      updated_by: body.updated_by,
+      updated_by: userId,  // ✅ Utiliser le userId extrait (prend en compte updated_by, userId, created_by)
 
       porteurs: Array.isArray(body.porteurs) ? body.porteurs : [],
       suivis: Array.isArray(body.suivis) ? body.suivis : [],
@@ -713,11 +714,17 @@ export async function POST(request) {
 
     console.log('=================================================================\n');
     await transaction.commit();
+
+    // ✅ Recharger le projet APRÈS le commit pour obtenir les valeurs fraîches (updated_at, etc.)
+    await nouveauProjet.reload();
+
     return NextResponse.json({
       success: true,
       data: {
         id_projet: nouveauProjet.id_projet,
         nom_projet: nouveauProjet.nom_projet,
+        updated_at: nouveauProjet.updated_at,  // ✅ Valeur fraîche
+        updated_by: nouveauProjet.updated_by,  // ✅ Valeur fraîche
         projet: nouveauProjet,
         liaisonIds: extra?.liaisonIds || []
       }

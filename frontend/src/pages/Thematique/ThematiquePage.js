@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Thematiques from "../../components/thematique/thematique_modele/Thematiques";
 import "../../styles/globals.css";
+import { API_BASE_URL } from '../../config/apiConfig';
 
 export default function ThematiquePage({ value = [], onThematiqueChange }) {
     const [thematiques, setThematiques] = useState([]);
@@ -26,7 +27,7 @@ export default function ThematiquePage({ value = [], onThematiqueChange }) {
 
                 console.log('🔍 Fetching thematiques...');
 
-                const res = await fetch("http://localhost:3000/api/thematiques?stats=true&models=true");
+                const res = await fetch(`${API_BASE_URL}/api/thematiques?stats=true&models=true`);
 
                 console.log('📡 Response status:', res.status);
 

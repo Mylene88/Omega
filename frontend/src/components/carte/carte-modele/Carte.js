@@ -20,11 +20,14 @@ const Carte = forwardRef(({
                               selectedTool = null,
                               onToolComplete = null,
                               center = null,
+                              existingProjects = [],
+                              showExistingProjects = false,
                           }, ref) => {
     const mapRef = useRef(null);
     const mapInstanceRef = useRef(null);
     const drawnItemsRef = useRef(null);
     const tempLayerRef = useRef(null);
+    const existingProjectsLayerRef = useRef(null);
 
     const [selectedLayer, setSelectedLayer] = useState(null);
     const [mapLayer, setMapLayer] = useState('plan');
@@ -576,6 +579,71 @@ const Carte = forwardRef(({
             window.removeEventListener('resize', handleResize)
         }
     }, [])
+
+    // Afficher les projets existants sur la carte
+    useEffect(() => {
+        if (!mapInstanceRef.current) return;
+
+        // Supprimer la couche existante si elle existe
+        if (existingProjectsLayerRef.current) {
+            mapInstanceRef.current.removeLayer(existingProjectsLayerRef.current);
+            existingProjectsLayerRef.current = null;
+        }
+
+        // Ajouter les projets existants si l'option est activée
+        if (showExistingProjects && existingProjects.length > 0) {
+            console.log('📍 Affichage de', existingProjects.length, 'projets existants');
+
+            const projectsLayer = L.geoJSON(existingProjects, {
+                style: (feature) => ({
+                    color: '#047857',
+                    fillColor: '#10B981',
+                    fillOpacity: 0.45,
+                    weight: 3,
+                    opacity: 1,
+                }),
+                pointToLayer: (feature, latlng) => {
+                    return L.circleMarker(latlng, {
+                        radius: 9,
+                        fillColor: '#10B981',
+                        color: '#047857',
+                        weight: 3,
+                        opacity: 1,
+                        fillOpacity: 0.75
+                    });
+                },
+                onEachFeature: (feature, layer) => {
+                    if (feature.properties) {
+                        const props = feature.properties;
+                        const popupContent = `
+                            <div style="min-width: 200px;">
+                                <h4 style="margin: 0 0 8px 0; color: #059669;">
+                                    ${props.nom_projet || 'Projet sans nom'}
+                                </h4>
+                                <p style="margin: 4px 0; font-size: 13px;">
+                                    <strong>ID:</strong> ${props.id_projet || 'N/A'}
+                                </p>
+                                ${props.libelle_statut ? `
+                                    <p style="margin: 4px 0; font-size: 13px;">
+                                        <strong>Statut:</strong> ${props.libelle_statut}
+                                    </p>
+                                ` : ''}
+                                ${props.communes_traversees ? `
+                                    <p style="margin: 4px 0; font-size: 13px;">
+                                        <strong>Communes:</strong> ${props.communes_traversees}
+                                    </p>
+                                ` : ''}
+                            </div>
+                        `;
+                        layer.bindPopup(popupContent);
+                    }
+                }
+            });
+
+            projectsLayer.addTo(mapInstanceRef.current);
+            existingProjectsLayerRef.current = projectsLayer;
+        }
+    }, [existingProjects, showExistingProjects]);
 
     // ✅ Méthode pour centrer la carte sur des coordonnées
     const panTo = useCallback((latlng, zoom = 13) => {

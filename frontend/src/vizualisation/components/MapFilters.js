@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Search from '../../components/common/Search/Search';
 import styles from '../styles/MapFilters.module.css';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 export default function MapFilters({
     onFilterChange,
@@ -30,7 +31,7 @@ export default function MapFilters({
 
   const loadServices = async () => {
     try {
-      const res = await fetch('http://localhost:3000/api/service');
+      const res = await fetch(`${API_BASE_URL}/api/service`);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       setServices(Array.isArray(data) ? data : []);
@@ -45,7 +46,7 @@ export default function MapFilters({
     try {
       console.log('🔄 Chargement des thématiques depuis /api/thematiques/modeles...');
 
-      const response = await fetch("http://localhost:3000/api/thematiques/modeles");
+      const response = await fetch(`${API_BASE_URL}/api/thematiques/modeles`);
 
       if (response.ok) {
         const data = await response.json();
@@ -80,7 +81,7 @@ export default function MapFilters({
 
   const loadStatuts = async () => {
     try {
-      const res = await fetch('http://localhost:3000/api/statut');
+      const res = await fetch(`${API_BASE_URL}/api/statut`);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       setStatuts(Array.isArray(data) ? data : []);

@@ -70,6 +70,10 @@
     padding: 20px 32px;
     box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
 }
 
 .vue-liste-title {
@@ -1792,6 +1796,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: center;  /* ✅ Centrer les communes horizontalement */
     gap: 8px;
     margin-top: 4px;
 }
@@ -1800,6 +1805,7 @@
     font-size: 13px;
     color: var(--text-primary);
     font-weight: 600;
+    text-align: center;  /* ✅ Centrer le texte */
 }
 
 .commune-separator {

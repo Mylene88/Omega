@@ -4,6 +4,7 @@
 import { useId, useState, useEffect, useRef } from 'react';
 import '../../common/Collapsible/collapsible.css';
 import styles from '../../../styles/ThematiqueSection.module.css';
+import { API_BASE_URL } from '../../../config/apiConfig';
 
 const genId = () => `thematique-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -70,7 +71,7 @@ export default function Thematiques({ value = [], onChange, title = 'Thematique(
       console.log('🔍 Chargement des modèles depuis API...');
 
       // ✅ FIX: Use relative URL - setupProxy.js will route to port 3000
-      const apiUrl = 'http://localhost:3000/api/thematiques/modeles';
+      const apiUrl = `${API_BASE_URL}/api/thematiques/modeles`;
 
       console.log('📡 Calling:', apiUrl);
 
@@ -133,7 +134,7 @@ export default function Thematiques({ value = [], onChange, title = 'Thematique(
       console.log(`🔄 Loading enum: ${enumType}`);
 
       // ✅ FIX: Use relative URL - setupProxy.js will route to port 3000
-      const apiUrl = `http://localhost:3000/api/thematiques/enums/${enumType}`;
+      const apiUrl = `${API_BASE_URL}/api/thematiques/enums/${enumType}`;
 
       console.log('📡 Calling:', apiUrl);
 

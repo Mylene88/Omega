@@ -386,6 +386,24 @@
   box-shadow: var(--shadow);
 }
 
+.btn-download {
+  background: linear-gradient(135deg, #000091 0%, #1212FF 100%);
+  color: white;
+  border: none;
+  padding: 0.625rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  font-size: 14px;
+}
+
+.btn-download:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
 .audit-list {
   display: flex;
   flex-direction: column;

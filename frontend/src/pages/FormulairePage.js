@@ -11,6 +11,7 @@ import Id from './Id/Id';
 import '../styles/globals.css';
 import Search from "../components/common/Search/Search";
 import { getCurrentUserId, getApiHeaders } from '../utils/userHelper';
+import { API_BASE_URL } from '../config/apiConfig';
 
 export default function FormulairePage() {
     const navigate = useNavigate();
@@ -47,7 +48,7 @@ export default function FormulairePage() {
     const generateProjectId = async () => {
         setIsGeneratingId(true);
         try {
-            const res = await fetch('http://localhost:3000/api/projets/generate-id');
+            const res = await fetch(`${API_BASE_URL}/api/projets/generate-id`);
             const result = await res.json();
             if (result?.success && result?.data?.idprojet) {
                 setProjetData(prev => ({ ...prev, id_projet: result.data.idprojet }));
@@ -75,7 +76,7 @@ export default function FormulairePage() {
 
     useEffect(() => {
         if (id) {
-            fetch(`http://localhost:3000/api/projets/${id}`)
+            fetch(`${API_BASE_URL}/api/projets/${id}`)
                 .then(res => res.json())
                 .then(data => {
                     const projetComplet = data.data;
@@ -491,7 +492,7 @@ export default function FormulairePage() {
             console.log('================================================\n');
 
             // --- 3. Envoyer le payload complet en un seul appel API ---
-            const response = await fetch('http://localhost:3000/api/projets', {
+            const response = await fetch(`${API_BASE_URL}/api/projets`, {
                 method: 'POST',
                 headers: getApiHeaders(),
                 body: JSON.stringify(finalPayload),

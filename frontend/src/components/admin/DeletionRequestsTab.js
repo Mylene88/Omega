@@ -1,8 +1,7 @@
 // frontend/src/components/admin/DeletionRequestsTab.js
 import React, { useState, useEffect } from 'react';
 import './DeletionRequestsTab.css';
-
-const API_BASE_URL = 'http://localhost:3000/api';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 const DeletionRequestsTab = ({ apiCall, success, error: errorToast, warning }) => {
   const [deletionRequests, setDeletionRequests] = useState([]);

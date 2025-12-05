@@ -9,6 +9,7 @@ import { useAccordion } from '../hooks/useAccordion';
 import styles from '../styles/MapFilters.module.css';
 import '../styles/VueListeStyle.css';
 import { filterProjectsArray } from '../utils/ProjectFilters';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 
 
@@ -53,7 +54,7 @@ export default function ListeProjetPage() {
         }
         
         try {
-            const response = await fetch(`http://localhost:3000/api/projets/${projectId}`);
+            const response = await fetch(`${API_BASE_URL}/api/projets/${projectId}`);
             if (!response.ok) throw new Error('Erreur chargement projet');
             
             const result = await response.json();
@@ -85,7 +86,7 @@ export default function ListeProjetPage() {
         const load = async () => {
             try {
                 setLoading(true);
-                const res = await fetch('http://localhost:3000/api/projet-geometry?format=geojson&limit=1000');
+                const res = await fetch(`${API_BASE_URL}/api/projet-geometry?format=geojson&limit=1000`);
                 if (!res.ok) throw new Error(`Erreur ${res.status}`);
                 const featureCollection = await res.json();
                 const projectsList = featureCollection.features.map(f => ({
@@ -120,7 +121,7 @@ export default function ListeProjetPage() {
     useEffect(() => {
         const run = async () => {
             try {
-                const res = await fetch('http://localhost:3000/api/geo-entities');
+                const res = await fetch(`${API_BASE_URL}/api/geo-entities`);
                 if (res.ok) setGeoEntities(await res.json());
             } catch {}
         };
@@ -171,6 +172,36 @@ export default function ListeProjetPage() {
                     Liste des projets
                     <span className="project-count">{filteredProjects.length} éléments</span>
                 </div>
+                <button
+                    onClick={() => navigate('/')}
+                    style={{
+                        padding: '10px 16px',
+                        background: 'linear-gradient(135deg, #000091 0%, #1212FF 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '20px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 2px 8px rgba(0, 0, 145, 0.2)',
+                        transition: 'all 0.2s ease',
+                        minWidth: '50px',
+                        height: '44px'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 145, 0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 145, 0.2)';
+                    }}
+                    title="Retour à l'accueil"
+                >
+                    🏠
+                </button>
             </div>
 
             <MapFilters

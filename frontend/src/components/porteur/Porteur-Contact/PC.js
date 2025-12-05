@@ -2,6 +2,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import '../../common/Collapsible/collapsible.css';
 import styles from '../../../styles/PorteurContactSection.module.css';
+import { API_BASE_URL } from '../../../config/apiConfig';
 
 const genId = () => `porteur-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -18,7 +19,7 @@ export default function PorteurContactList({ value = [], onChange, title = 'Port
     (async () => {
       try {
         setLoadingTypes(true);
-        const res = await fetch('http://localhost:3000/api/type-porteur', { cache: 'no-store' });
+        const res = await fetch(`${API_BASE_URL}/api/type-porteur`, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (alive) setTypes(Array.isArray(data) ? data : []);
@@ -45,20 +46,23 @@ export default function PorteurContactList({ value = [], onChange, title = 'Port
   }];
 
   const [porteurs, setPorteurs] = useState(initial);
-  const [openStates, setOpenStates] = useState(initial.map(p => p.id));
+  // ✅ Par défaut, aucun porteur n'est ouvert (ils sont tous fermés)
+  const [openStates, setOpenStates] = useState([]);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     console.log('🔄 PorteurContact - Props value changées:', value);
-    if (value && value.length > 0) {
+    if (value && value.length > 0 && !isInitialized) {
+      // ✅ Seulement au premier chargement
       const porteursAvecIds = value.map(p => ({
         ...p,
         id: p.id || p.id_porteur || genId()
       }));
       setPorteurs(porteursAvecIds);
-      setOpenStates(porteursAvecIds.map(p => p.id));
-      console.log('✅ Porteurs mis à jour:', porteursAvecIds);
+      setIsInitialized(true);
+      console.log('✅ Porteurs initialisés:', porteursAvecIds);
     }
-  }, [value]);
+  }, [value, isInitialized]);
 
   // 3) Collapsible sizing
   const contentRef = useRef(null);

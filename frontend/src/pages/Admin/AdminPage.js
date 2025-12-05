@@ -6,6 +6,7 @@ import './AdminPage.css';
 import DeletionRequestsTab from '../../components/admin/DeletionRequestsTab';
 import SectionVersionsTab from '../../components/admin/SectionVersionsTab';
 import { formatDateTimeFr } from '../../utils/dateFormatter';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 const AdminPage = () => {
   const navigate = useNavigate();
@@ -104,6 +105,14 @@ const AdminPage = () => {
     }
   }, [activeTab]);
 
+  // Auto-refresh audit logs when filters change
+  useEffect(() => {
+    if (activeTab === 'audit') {
+      console.log('🔄 [ADMIN] Filtres modifiés, rechargement des logs d\'audit');
+      fetchAuditLogs();
+    }
+  }, [filters]);
+
   const fetchStats = async () => {
     console.log('📊 [ADMIN] Début du chargement des statistiques');
     setIsLoading(true);
@@ -112,7 +121,7 @@ const AdminPage = () => {
       const token = localStorage.getItem('token');
       console.log('📤 [ADMIN] Requête GET stats');
 
-      const response = await fetch('http://localhost:3000/api/admin/stats', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -153,7 +162,7 @@ const AdminPage = () => {
       const queryString = params.toString();
       console.log('📤 [ADMIN] Requête GET audit avec params:', queryString);
 
-      const response = await fetch(`http://localhost:3000/api/admin/audit?${params}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/audit?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -185,7 +194,7 @@ const AdminPage = () => {
       const token = localStorage.getItem('token');
       console.log('📤 [ADMIN] Requête GET snapshots avec limit=100');
 
-      const response = await fetch('http://localhost:3000/api/admin/snapshots?limit=100', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/snapshots?limit=100`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -215,7 +224,7 @@ const AdminPage = () => {
     setError(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3000/api/admin/users', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -253,6 +262,100 @@ const AdminPage = () => {
     }
   };
 
+  // Fonction pour télécharger les audits
+  const handleDownloadAudits = async (format = 'csv') => {
+    try {
+      const token = localStorage.getItem('token');
+      const params = new URLSearchParams();
+      params.append('format', format);
+      if (filters.limit) params.append('limit', filters.limit);
+      if (filters.tableName) params.append('tableName', filters.tableName);
+      if (filters.action) params.append('action', filters.action);
+      if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
+      if (filters.dateTo) params.append('dateTo', filters.dateTo);
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/audit/export?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Erreur lors de l\'export');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `audit_logs.${format}`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch) filename = filenameMatch[1];
+      }
+
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      alert(`✅ Export ${format.toUpperCase()} réussi !`);
+    } catch (error) {
+      console.error('Erreur téléchargement audits:', error);
+      alert(`❌ Erreur: ${error.message}`);
+    }
+  };
+
+  // Fonction pour télécharger les snapshots
+  const handleDownloadSnapshots = async (format = 'csv') => {
+    try {
+      const token = localStorage.getItem('token');
+      const params = new URLSearchParams();
+      params.append('format', format);
+      params.append('limit', 1000);
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/snapshots/export?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Erreur lors de l\'export');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `snapshots.${format}`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch) filename = filenameMatch[1];
+      }
+
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      alert(`✅ Export ${format.toUpperCase()} réussi !`);
+    } catch (error) {
+      console.error('Erreur téléchargement snapshots:', error);
+      alert(`❌ Erreur: ${error.message}`);
+    }
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     console.log('➕ [ADMIN] Début de création d\'utilisateur');
@@ -278,7 +381,7 @@ const AdminPage = () => {
       }
 
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3000/api/admin/users', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -368,7 +471,7 @@ const AdminPage = () => {
       setIsLoading(true);
 
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3000/api/admin/users', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -445,7 +548,7 @@ const AdminPage = () => {
         updateData.first_login = true; // Forcer le changement de mot de passe à la prochaine connexion
       }
 
-      const response = await fetch(`http://localhost:3000/api/admin/users/${editingUser.id_user}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${editingUser.id_user}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -512,7 +615,7 @@ const AdminPage = () => {
 
       console.log('📤 [ADMIN] Body de la requête:', requestBody);
 
-      const response = await fetch('http://localhost:3000/api/admin/restore', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/restore`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -574,7 +677,7 @@ const AdminPage = () => {
 
       console.log('📤 [ADMIN] Body de la requête:', requestBody);
 
-      const response = await fetch('http://localhost:3000/api/admin/snapshots', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/snapshots`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1222,7 +1325,7 @@ const AdminPage = () => {
                   <input
                       type="text"
                       placeholder="Table name..."
-                      value={filters.tableName}la
+                      value={filters.tableName}
                       onChange={(e) => setFilters({ ...filters, tableName: e.target.value })}
                   />
                   <select
@@ -1248,6 +1351,8 @@ const AdminPage = () => {
                       placeholder="Date fin"
                   />
                   <button onClick={fetchAuditLogs} className="btn-filter">Filtrer</button>
+                  <button onClick={() => handleDownloadAudits('csv')} className="btn-download" title="Télécharger en CSV">📥 CSV</button>
+                  <button onClick={() => handleDownloadAudits('json')} className="btn-download" title="Télécharger en JSON">📥 JSON</button>
                 </div>
 
                 <div className="audit-list">
@@ -1282,6 +1387,13 @@ const AdminPage = () => {
           {/* Tab: Snapshots */}
           {activeTab === 'snapshots' && !isLoading && (
               <div className="snapshots-container">
+                <div className="snapshots-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', padding: '10px', background: '#f8f9fa', borderRadius: '8px' }}>
+                  <h3 style={{ margin: 0 }}>Liste des Snapshots</h3>
+                  <div>
+                    <button onClick={() => handleDownloadSnapshots('csv')} className="btn-download" title="Télécharger en CSV" style={{ marginRight: '10px' }}>📥 CSV</button>
+                    <button onClick={() => handleDownloadSnapshots('json')} className="btn-download" title="Télécharger en JSON">📥 JSON</button>
+                  </div>
+                </div>
                 <div className="snapshots-list">
                   {snapshots.map((snapshot) => (
                       <div key={snapshot.id} className="snapshot-item">
@@ -1340,7 +1452,7 @@ const AdminPage = () => {
               <DeletionRequestsTab
                   apiCall={async (endpoint, options = {}) => {
                     const token = localStorage.getItem('token');
-                    const response = await fetch(`http://localhost:3000/api${endpoint}`, {
+                    const response = await fetch(`${API_BASE_URL}/api${endpoint}`, {
                       ...options,
                       headers: {
                         'Authorization': `Bearer ${token}`,
@@ -1365,7 +1477,7 @@ const AdminPage = () => {
               <SectionVersionsTab
                   apiCall={async (endpoint, options = {}) => {
                     const token = localStorage.getItem('token');
-                    const response = await fetch(`http://localhost:3000/api${endpoint}`, {
+                    const response = await fetch(`${API_BASE_URL}/api${endpoint}`, {
                       ...options,
                       headers: {
                         'Authorization': `Bearer ${token}`,

@@ -1,7 +1,7 @@
 // frontend/src/visualisation/api/api.js
 
-// ✅ URL de base de l'API backend (port 3000)
-const API_BASE_URL = 'http://localhost:3000';
+// ✅ Import de la configuration API centralisée
+import { API_BASE_URL } from '../../config/apiConfig';
 
 export async function fetchProjectGeometries({ limit = 1000, offset = 0 } = {}) {
     const res = await fetch(`${API_BASE_URL}/api/projet-geometry?limit=${limit}&offset=${offset}`, {

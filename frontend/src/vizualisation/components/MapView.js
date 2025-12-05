@@ -11,6 +11,7 @@ import { getStatusStyle } from '../utils/statutColors';
 import styles from '../styles/MapFilters.module.css';
 import { filterProjects } from '../utils/ProjectFilters';
 import { TILE_CONFIG, MAP_CENTER, MAP_BOUNDS } from '../../config/mapConfig';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 const EURE_ET_LOIR_CENTER = MAP_CENTER;
 const EURE_ET_LOIR_BOUNDS = MAP_BOUNDS;
@@ -185,7 +186,7 @@ export default function Map({ onSelect }) {
     useEffect(() => {
         const run = async () => {
             try {
-                const res = await fetch('http://localhost:3000/api/geo-entities');
+                const res = await fetch(`${API_BASE_URL}/api/geo-entities`);
                 if (res.ok) {
                     const data = await res.json();
                     setGeoEntities(data);
@@ -204,7 +205,7 @@ export default function Map({ onSelect }) {
             try {
                 setLoading(true);
                 setError(null);
-                const res = await fetch('http://localhost:3000/api/projet-geometry?format=geojson&limit=1000');
+                const res = await fetch(`${API_BASE_URL}/api/projet-geometry?format=geojson&limit=1000`);
                 if (!res.ok) throw new Error(`Erreur ${res.status}`);
                 const featureCollection = await res.json();
                 setAllProjects(featureCollection || { type: 'FeatureCollection', features: [] });
@@ -465,7 +466,7 @@ export default function Map({ onSelect }) {
                                                         const communesToShow = communes.slice(0, 3);
                                                         const remaining = communes.length - 3;
 
-                                                        return `<div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                                                        return `<div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center;">
                                                             ${communesToShow.map(commune => `
                                                                 <span style="
                                                                     display: inline-flex;
@@ -723,6 +724,44 @@ export default function Map({ onSelect }) {
 
     return (
         <div className="map-container">
+            <div className="vue-liste-header">
+                <div className="vue-liste-title">
+                    Carte des projets
+                    <span className="project-count">{filteredProjects.features?.length || 0} éléments</span>
+                </div>
+                <button
+                    onClick={() => navigate('/')}
+                    style={{
+                        padding: '10px 16px',
+                        background: 'linear-gradient(135deg, #000091 0%, #1212FF 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '20px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 2px 8px rgba(0, 0, 145, 0.2)',
+                        transition: 'all 0.2s ease',
+                        minWidth: '50px',
+                        height: '44px',
+                        zIndex: 1000
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 145, 0.3)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 145, 0.2)';
+                    }}
+                    title="Retour à l'accueil"
+                >
+                    🏠
+                </button>
+            </div>
+
             <MapFilters
                 onFilterChange={handleFilterChange}
                 onLocationSelect={handleLocationSelect}

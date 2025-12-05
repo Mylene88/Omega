@@ -16,8 +16,7 @@ import ConfirmationModal from '../../components/admin/ConfirmationModal';
 import Toast, { useToast } from '../../components/admin/Toast';
 import DeletionRequestsTab from '../../components/admin/DeletionRequestsTab';
 import { formatDateTimeFr } from '../../utils/dateFormatter';
-
-const API_BASE_URL = 'http://localhost:3000/api';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 const AdminPageEnhanced = () => {
   const navigate = useNavigate();
@@ -403,24 +402,8 @@ const AdminPageEnhanced = () => {
     };
   }, [autoRefresh, refreshInterval, activeTab, fetchStats, fetchAuditLogs, fetchSnapshots, fetchAccessLogs, fetchUsers]);
 
-<<<<<<< HEAD
   // Formater la date (utilise la fonction utilitaire avec gestion timezone correcte)
   const formatDate = formatDateTimeFr;
-=======
-  // Formater la date
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    }).format(date);
-  };
->>>>>>> 047fe70c63be5cbd62ae8d710ad8d60a501b11fb
 
   // Formater la durée relative
   const formatRelativeTime = (dateString) => {
@@ -580,6 +563,315 @@ const AdminPageEnhanced = () => {
               <div className="empty-state">Aucun utilisateur trouvé</div>
             )}
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Télécharger les journaux d'audit en CSV
+  const downloadAuditCSV = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      Object.entries(auditFilters).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
+      params.append('format', 'csv');
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/admin/audit/export?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors du téléchargement');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit_logs_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      success('Journaux d\'audit téléchargés avec succès', 'Export CSV');
+    } catch (err) {
+      errorToast(err.message, 'Erreur de téléchargement');
+    }
+  }, [auditFilters, success, errorToast]);
+
+  // Télécharger les logs d'accès admin en CSV
+  const downloadAccessLogsCSV = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      Object.entries(accessFilters).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
+      params.append('format', 'csv');
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/admin/access-logs/export?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors du téléchargement');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `admin_access_logs_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      success('Logs d\'accès téléchargés avec succès', 'Export CSV');
+    } catch (err) {
+      errorToast(err.message, 'Erreur de téléchargement');
+    }
+  }, [accessFilters, success, errorToast]);
+
+  // Rendre l'onglet Historique d'Audit
+  const renderAuditTab = () => {
+    return (
+      <div className="audit-container">
+        <div className="section-header">
+          <h3>Historique d'Audit</h3>
+          <button className="btn-primary" onClick={downloadAuditCSV}>
+            📥 Télécharger CSV
+          </button>
+        </div>
+
+        {/* Filtres */}
+        <div className="filters-panel">
+          <div className="filter-group">
+            <label>Table</label>
+            <input
+              type="text"
+              placeholder="Nom de la table"
+              value={auditFilters.tableName}
+              onChange={(e) => setAuditFilters({ ...auditFilters, tableName: e.target.value })}
+            />
+          </div>
+
+          <div className="filter-group">
+            <label>Action</label>
+            <select
+              value={auditFilters.action}
+              onChange={(e) => setAuditFilters({ ...auditFilters, action: e.target.value })}
+            >
+              <option value="">Toutes</option>
+              <option value="CREATE">CREATE</option>
+              <option value="UPDATE">UPDATE</option>
+              <option value="DELETE">DELETE</option>
+              <option value="RESTORE">RESTORE</option>
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label>Date début</label>
+            <input
+              type="date"
+              value={auditFilters.dateFrom}
+              onChange={(e) => setAuditFilters({ ...auditFilters, dateFrom: e.target.value })}
+            />
+          </div>
+
+          <div className="filter-group">
+            <label>Date fin</label>
+            <input
+              type="date"
+              value={auditFilters.dateTo}
+              onChange={(e) => setAuditFilters({ ...auditFilters, dateTo: e.target.value })}
+            />
+          </div>
+
+          <div className="filter-group">
+            <label>Limite</label>
+            <input
+              type="number"
+              value={auditFilters.limit}
+              onChange={(e) => setAuditFilters({ ...auditFilters, limit: parseInt(e.target.value) })}
+              min="10"
+              max="1000"
+            />
+          </div>
+
+          <button className="btn-secondary" onClick={fetchAuditLogs}>
+            🔍 Rechercher
+          </button>
+        </div>
+
+        {/* Table des logs */}
+        <div className="logs-table-container">
+          {auditLogs.length > 0 ? (
+            <table className="logs-table">
+              <thead>
+                <tr>
+                  <th>Date/Heure</th>
+                  <th>Utilisateur</th>
+                  <th>Table</th>
+                  <th>Enregistrement</th>
+                  <th>Action</th>
+                  <th>Champs modifiés</th>
+                  <th>IP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditLogs.map(log => (
+                  <tr key={log.id}>
+                    <td>{formatDate(log.createdAt)}</td>
+                    <td>{log.user?.nomComplet || 'N/A'}</td>
+                    <td>{log.tableName}</td>
+                    <td>{log.recordId}</td>
+                    <td>
+                      <span className={`action-badge action-${log.action.toLowerCase()}`}>
+                        {log.action}
+                      </span>
+                    </td>
+                    <td>{log.changedFields?.join(', ') || 'N/A'}</td>
+                    <td>{log.userIp || 'N/A'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="empty-state">Aucun journal d'audit trouvé</div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Rendre l'onglet Snapshots
+  const renderSnapshotsTab = () => {
+    return (
+      <div className="snapshots-container">
+        <div className="section-header">
+          <h3>Snapshots</h3>
+        </div>
+
+        <div className="snapshots-info">
+          <p>Les snapshots seront affichés ici prochainement.</p>
+        </div>
+      </div>
+    );
+  };
+
+  // Rendre l'onglet Accès Admin
+  const renderAccessLogsTab = () => {
+    return (
+      <div className="access-logs-container">
+        <div className="section-header">
+          <h3>Journaux d'Accès Admin</h3>
+          <button className="btn-primary" onClick={downloadAccessLogsCSV}>
+            📥 Télécharger CSV
+          </button>
+        </div>
+
+        {/* Filtres */}
+        <div className="filters-panel">
+          <div className="filter-group">
+            <label>Action</label>
+            <input
+              type="text"
+              placeholder="Action"
+              value={accessFilters.action}
+              onChange={(e) => setAccessFilters({ ...accessFilters, action: e.target.value })}
+            />
+          </div>
+
+          <div className="filter-group">
+            <label>Succès</label>
+            <select
+              value={accessFilters.success}
+              onChange={(e) => setAccessFilters({ ...accessFilters, success: e.target.value })}
+            >
+              <option value="">Tous</option>
+              <option value="true">Succès</option>
+              <option value="false">Échec</option>
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label>Date début</label>
+            <input
+              type="date"
+              value={accessFilters.dateFrom}
+              onChange={(e) => setAccessFilters({ ...accessFilters, dateFrom: e.target.value })}
+            />
+          </div>
+
+          <div className="filter-group">
+            <label>Date fin</label>
+            <input
+              type="date"
+              value={accessFilters.dateTo}
+              onChange={(e) => setAccessFilters({ ...accessFilters, dateTo: e.target.value })}
+            />
+          </div>
+
+          <div className="filter-group">
+            <label>Limite</label>
+            <input
+              type="number"
+              value={accessFilters.limit}
+              onChange={(e) => setAccessFilters({ ...accessFilters, limit: parseInt(e.target.value) })}
+              min="10"
+              max="1000"
+            />
+          </div>
+
+          <button className="btn-secondary" onClick={fetchAccessLogs}>
+            🔍 Rechercher
+          </button>
+        </div>
+
+        {/* Table des logs */}
+        <div className="logs-table-container">
+          {accessLogs.length > 0 ? (
+            <table className="logs-table">
+              <thead>
+                <tr>
+                  <th>Date/Heure</th>
+                  <th>Utilisateur</th>
+                  <th>Action</th>
+                  <th>Ressource</th>
+                  <th>Succès</th>
+                  <th>Durée (ms)</th>
+                  <th>IP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {accessLogs.map(log => (
+                  <tr key={log.id}>
+                    <td>{formatDate(log.createdAt)}</td>
+                    <td>{log.user?.fullName || 'N/A'}</td>
+                    <td>{log.action}</td>
+                    <td>{log.resource || 'N/A'}</td>
+                    <td>
+                      <span className={`status-badge ${log.success ? 'success' : 'error'}`}>
+                        {log.success ? '✓ Succès' : '✗ Échec'}
+                      </span>
+                    </td>
+                    <td>{log.durationMs || 'N/A'}</td>
+                    <td>{log.ipAddress || 'N/A'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="empty-state">Aucun log d'accès trouvé</div>
+          )}
         </div>
       </div>
     );
@@ -827,6 +1119,9 @@ const AdminPageEnhanced = () => {
 
         {activeTab === 'stats' && renderStatsTab()}
         {activeTab === 'users' && renderUsersTab()}
+        {activeTab === 'audit' && renderAuditTab()}
+        {activeTab === 'snapshots' && renderSnapshotsTab()}
+        {activeTab === 'access' && renderAccessLogsTab()}
         {activeTab === 'deletion-requests' && (
           <DeletionRequestsTab
             apiCall={apiCall}
@@ -835,7 +1130,6 @@ const AdminPageEnhanced = () => {
             warning={warning}
           />
         )}
-        {/* Les autres onglets seront ajoutés dans la partie 2 */}
       </div>
     </div>
   );

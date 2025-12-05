@@ -776,7 +776,8 @@ export async function PUT(request, { params }) {
     }
 
     // 1.5. Sauvegarder l'état AVANT modification et créer un snapshot
-    const userId = body.updated_by || body.created_by;
+    // ✅ Extraire userId de plusieurs sources possibles (updated_by, userId, created_by)
+    const userId = body.updated_by || body.userId || body.created_by;
     const projetAvant = projet.toJSON(); // Sauvegarder l'état avant modification
 
     // Créer un snapshot AVANT modification pour permettre la restauration
@@ -833,7 +834,7 @@ export async function PUT(request, { params }) {
       demande_suppression: body.demande_suppression ?? projet.demande_suppression,
       service_id: body.service_id ?? projet.service_id,
       referent_ddt: body.referent_ddt ?? projet.referent_ddt,
-      updated_by: body.updated_by ?? projet.updated_by,
+      updated_by: userId ?? projet.updated_by,  // ✅ Utiliser le userId extrait
       updated_at: new Date(),
     }, { transaction });
 
@@ -1075,13 +1076,17 @@ export async function PUT(request, { params }) {
 
     await transaction.commit();
 
+    // ✅ Recharger le projet pour obtenir les valeurs à jour (updated_at, etc.)
+    await projet.reload();
+
     return NextResponse.json({
       success: true,
       message: 'Projet mis à jour avec succès',
       data: {
         id_projet: projet.id_projet,
         nom_projet: projet.nom_projet,
-        updated_at: projet.updated_at
+        updated_at: projet.updated_at,
+        updated_by: projet.updated_by
       }
     });
 

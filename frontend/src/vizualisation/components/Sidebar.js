@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import '../styles/SidebarStyle.css';
 import { formatDateTime, formatDate } from '../utils/DateFormat';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 export default function Sidebar({ projectId, onClose }) {
     const [info, setInfo] = useState(null);
@@ -63,7 +64,7 @@ export default function Sidebar({ projectId, onClose }) {
         setInfo(null);
         setLoading(true);
 
-        fetch(`http://localhost:3000/api/projets/${actualProjetId}`)
+        fetch(`${API_BASE_URL}/api/projets/${actualProjetId}`)
             .then((res) => {
                 if (!res.ok) throw new Error(`Erreur ${res.status}`);
                 return res.json();

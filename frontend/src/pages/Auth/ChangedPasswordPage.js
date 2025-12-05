@@ -1,6 +1,7 @@
 //frontend/src/pages/auth/ChangedPasswordPage.js
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 const ChangedPasswordPage = () => {
   const [newPassword, setNewPassword] = useState('');
@@ -31,7 +32,7 @@ const ChangedPasswordPage = () => {
 
   const generateSuggestedPassword = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3000'}/api/auth/change-password`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
         method: 'GET'
       });
       
@@ -100,15 +101,15 @@ const ChangedPasswordPage = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3000'}/api/auth/change-password`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           token,
-          newPassword: useGenerated ? undefined : newPassword,
-          useGeneratedPassword: useGenerated
+          newPassword: useGenerated ? suggestedPassword : newPassword,
+          useGeneratedPassword: false  // Toujours false car on envoie le mot de passe
         })
       });
 
@@ -126,12 +127,8 @@ const ChangedPasswordPage = () => {
       // Stocker les nouvelles données
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(data.data.user));
-      
+
       setSuccess('Mot de passe changé avec succès !');
-      
-      if (data.data.generatedPassword) {
-        alert(`Votre nouveau mot de passe est : ${data.data.generatedPassword}\n\nVeuillez le noter dans un endroit sûr !`);
-      }
 
       setTimeout(() => {
         navigate('/dashboard');

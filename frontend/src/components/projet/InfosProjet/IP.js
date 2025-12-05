@@ -2,6 +2,7 @@
 import { useId, useState, useEffect } from 'react';
 import '../../common/Collapsible/collapsible.css';
 import styles from '../../../styles/InfosProjetSection.module.css';
+import { API_BASE_URL } from '../../../config/apiConfig';
 
 export default function InfosProjetSection({
                                                value = {},
@@ -19,7 +20,7 @@ export default function InfosProjetSection({
     const panelId = useId();
 
     useEffect(() => {
-        fetch('http://localhost:3000/api/statut')
+        fetch(`${API_BASE_URL}/api/statut`)
             .then(res => res.json())
             .then(data => setStatuses(Array.isArray(data) ? data : []))
             .catch(err => console.error('Erreur de fetch pour les statuts:', err));

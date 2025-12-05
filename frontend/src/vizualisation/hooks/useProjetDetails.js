@@ -1,5 +1,6 @@
 // frontend/src/visualisation/hooks/useProjetDetails.js
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 export function useProjetDetails(selectedProjectId) {
     const [selectedProjectDetails, setSelectedProjectDetails] = useState(null);
@@ -14,7 +15,7 @@ export function useProjetDetails(selectedProjectId) {
         const loadDetails = async () => {
             setLoadingDetails(true);
             try {
-                const res = await fetch(`http://localhost:3000/api/projets/${selectedProjectId}`);
+                const res = await fetch(`${API_BASE_URL}/api/projets/${selectedProjectId}`);
                 if (!res.ok) throw new Error(`Erreur ${res.status}`);
                 const json = await res.json();
 

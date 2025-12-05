@@ -1,6 +1,7 @@
 // frontend/src/visualisation/components/common/Telechargement.js
 import React, { useState } from 'react';
 import '../../styles/Telechargement.module.css';
+import { API_BASE_URL } from '../../../config/apiConfig';
 
 export default function Telechargement({
   isOpen,
@@ -18,7 +19,7 @@ export default function Telechargement({
 
     try {
       const response = await fetch(
-        `http://localhost:3000/api/projets/${projectId}/export?format=${selectedFormat}`
+        `${API_BASE_URL}/api/projets/${projectId}/export?format=${selectedFormat}`
       );
 
 

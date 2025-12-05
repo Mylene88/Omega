@@ -6,6 +6,7 @@ import Pagination from './common/Pagination';
 import DeletionRequestModal from './common/DeletionRequestModal';
 import { formatDateTimeFr } from '../../utils/dateFormatter';
 import '../styles/VueListeStyle.css';
+import { API_BASE_URL } from '../../config/apiConfig';
 
 export default function VueListe({
     projects,
@@ -56,7 +57,7 @@ export default function VueListe({
 
         try {
             const response = await fetch(
-              `http://localhost:3000/api/projets/${project.id_projet}/export?format=${format}`,
+              `${API_BASE_URL}/api/projets/${project.id_projet}/export?format=${format}`,
             {
                 method: 'GET',
                 headers: {
@@ -120,7 +121,7 @@ export default function VueListe({
                 throw new Error('Utilisateur non connecté');
             }
 
-            const response = await fetch('http://localhost:3000/api/deletion-requests', {
+            const response = await fetch(`${API_BASE_URL}/api/deletion-requests`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
