@@ -1234,3 +1234,121 @@
 .users-list > div:first-child::-webkit-scrollbar-thumb:hover {
   background: var(--accent-hover);
 }
+
+/* ==================== PROJETS SUPPRIMÉS ==================== */
+.deleted-projects-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.deleted-projects-header h2 {
+  color: var(--primary);
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.deleted-projects-header p {
+  color: var(--text-muted);
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.deleted-projects-list {
+  overflow-x: auto;
+}
+
+/* Table générique pour l'admin */
+.admin-table {
+  width: 100%;
+  background: white;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.admin-table thead {
+  background: var(--bg-secondary);
+}
+
+.admin-table th {
+  padding: 0.875rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.admin-table td {
+  padding: 0.875rem 1rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.9375rem;
+}
+
+.admin-table tbody tr:hover {
+  background: var(--bg-primary);
+  transition: background 0.2s ease;
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Badge de statut */
+.status-badge {
+  display: inline-block;
+  padding: 0.375rem 0.875rem;
+  background: var(--accent);
+  color: white;
+  border-radius: 12px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+/* Boutons d'action dans les tables */
+.btn-action {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.btn-action:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+/* Variantes de boutons d'action */
+.btn-action.btn-restore {
+  background: var(--success);
+}
+
+.btn-action.btn-restore:hover {
+  background: var(--success-hover);
+}
+
+.btn-action.btn-delete {
+  background: var(--danger);
+}
+
+.btn-action.btn-delete:hover {
+  background: var(--danger-hover);
+}

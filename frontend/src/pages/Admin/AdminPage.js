@@ -20,6 +20,7 @@ const AdminPage = () => {
   const [snapshots, setSnapshots] = useState([]);
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [deletedProjects, setDeletedProjects] = useState([]);
   const [filters, setFilters] = useState({
     limit: 100,
     tableName: '',
@@ -102,6 +103,8 @@ const AdminPage = () => {
     } else if (activeTab === 'users') {
       fetchUsers();
       fetchRoles();
+    } else if (activeTab === 'deleted-projects') {
+      fetchDeletedProjects();
     }
   }, [activeTab]);
 
@@ -259,6 +262,64 @@ const AdminPage = () => {
       console.log('✅ [ADMIN] Rôles chargés');
     } catch (err) {
       console.error('❌ [ADMIN] Erreur lors du chargement des rôles:', err);
+    }
+  };
+
+  const fetchDeletedProjects = async () => {
+    console.log('🗑️ [ADMIN] Chargement des projets supprimés');
+    setIsLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/admin/deleted-projects`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Erreur lors du chargement des projets supprimés');
+
+      const data = await response.json();
+      console.log('📋 [ADMIN] Projets supprimés reçus:', data.data?.length || 0);
+
+      setDeletedProjects(data.data || []);
+      console.log('✅ [ADMIN] Projets supprimés chargés avec succès');
+    } catch (err) {
+      console.error('❌ [ADMIN] Erreur lors du chargement des projets supprimés:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRestoreProject = async (projectId, projectName) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir restaurer le projet "${projectName}" ?`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/projets/${projectId}/restore`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Erreur lors de la restauration');
+      }
+
+      const data = await response.json();
+      alert(`✅ ${data.message}`);
+
+      // Recharger la liste des projets supprimés
+      fetchDeletedProjects();
+    } catch (err) {
+      console.error('❌ Erreur lors de la restauration:', err);
+      alert(`❌ Erreur: ${err.message}`);
     }
   };
 
@@ -766,6 +827,12 @@ const AdminPage = () => {
               onClick={() => setActiveTab('deletion-requests')}
           >
             🗑️ Demandes de suppression
+          </button>
+          <button
+              className={`tab ${activeTab === 'deleted-projects' ? 'active' : ''}`}
+              onClick={() => setActiveTab('deleted-projects')}
+          >
+            ♻️ Projets supprimés
           </button>
           <button
               className={`tab ${activeTab === 'section-versions' ? 'active' : ''}`}
@@ -1470,6 +1537,71 @@ const AdminPage = () => {
                   error={(message, title) => alert(`❌ ${title}\n${message}`)}
                   warning={(message, title) => alert(`⚠️ ${title}\n${message}`)}
               />
+          )}
+
+          {/* Tab: Projets supprimés */}
+          {activeTab === 'deleted-projects' && !isLoading && (
+              <div className="deleted-projects-container">
+                <div className="deleted-projects-header">
+                  <h2>♻️ Projets supprimés</h2>
+                  <p>Liste des projets supprimés (soft delete). Vous pouvez les restaurer.</p>
+                </div>
+
+                {deletedProjects.length === 0 ? (
+                    <div className="empty-state">
+                      <p>Aucun projet supprimé</p>
+                    </div>
+                ) : (
+                    <div className="deleted-projects-list">
+                      <table className="admin-table">
+                        <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>Nom du projet</th>
+                          <th>Statut</th>
+                          <th>Supprimé le</th>
+                          <th>Modifié par</th>
+                          <th>Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {deletedProjects.map((project) => (
+                            <tr key={project.id_projet}>
+                              <td>{project.id_projet}</td>
+                              <td>
+                                <strong>{project.nom_projet || 'Sans nom'}</strong>
+                              </td>
+                              <td>
+                                    <span className="status-badge">
+                                      {project.statut_projet_enum?.libelle || 'N/A'}
+                                    </span>
+                              </td>
+                              <td>
+                                {project.deleted_at
+                                    ? formatDateTimeFr(project.deleted_at)
+                                    : 'N/A'}
+                              </td>
+                              <td>
+                                {project.updater
+                                    ? `${project.updater.prenom || ''} ${project.updater.nom || ''}`.trim() || project.updater.username
+                                    : 'N/A'}
+                              </td>
+                              <td>
+                                <button
+                                    onClick={() => handleRestoreProject(project.id_projet, project.nom_projet)}
+                                    className="btn-action btn-restore"
+                                    title="Restaurer ce projet"
+                                >
+                                  ♻️ Restaurer
+                                </button>
+                              </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                      </table>
+                    </div>
+                )}
+              </div>
           )}
 
           {/* Tab: Versions de Sections */}
