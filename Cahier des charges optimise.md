@@ -451,12 +451,12 @@ L’utilisateur peut filtrer les projets affichés selon :
       |Critère d’évaluation|Analyse pour Omega|Impact sur l’approche|
       | - | - | - |
       |Sensibilité des données|Données personnelles|Mezzo ???|
-      |**Impact d'une compromission**|Atteinte à la vie privée, perte de confiance, gêne pour les missions de la DDT, mais pas d'impact sur la sécurité nationale||
-      |**Exigences réglementaires**|RGPD, RGS niveau Standard||
-      |**Complexité du système**|Architecture 3-tiers moderne, technologies matures et connues, périmètre bien défini|<p></p><p></p>|
-      |**Environnement de menace**|Réseau interne cloisonné, pas d'exposition Internet, menaces internes possibles||
-      |**Nombre d'utilisateurs**|20 à 50 agents||
-      |**Volumétrie de données**|1000-2000 projets à 5 ans, plusieurs dizaines de milliers d'enregistrements||
+      |**Impact d'une compromission**|Atteinte à la vie privée, perte de confiance, gêne pour les missions de la DDT, mais pas d'impact sur la sécurité nationale|**Mezzo** - Impact significatif sur l'organisation mais limité au périmètre de la DDT|
+      |**Exigences réglementaires**|RGPD, RGS niveau Standard|**Mezzo à Forte** - Obligations légales importantes nécessitant une approche structurée et documentée|
+      |**Complexité du système**|Architecture 3-tiers moderne, technologies matures et connues, périmètre bien défini|**Mezzo** - Complexité technique maîtrisée ne nécessitant pas d'approche maximale|
+      |**Environnement de menace**|Réseau interne cloisonné, pas d'exposition Internet, menaces internes possibles|**Piano à Mezzo** - Exposition limitée réduisant le niveau de menace, vigilance nécessaire sur les menaces internes|
+      |**Nombre d'utilisateurs**|20 à 50 agents|**Piano** - Échelle limitée facilitant la gestion des accès et la traçabilité|
+      |**Volumétrie de données**|1000-2000 projets à 5 ans, plusieurs dizaines de milliers d'enregistrements|**Piano à Mezzo** - Volume modéré ne nécessitant pas de mesures exceptionnelles|
 
 
    1. #
