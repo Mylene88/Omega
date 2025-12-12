@@ -460,3 +460,531 @@ L’utilisateur peut filtrer les projets affichés selon :
 
 
    1. #
+   1. ### **Recommandation : Approche Mezzo Forte**
+
+      Compte tenu de l'analyse ci-dessus, l'approche **Mezzo Forte** est recommandée pour l'homologation d'OMEGA. Cette approche se caractérise par :
+
+      - Une analyse de risques structurée selon la méthode EBIOS 2010
+      - Un catalogue de mesures de sécurité adapté au contexte
+      - Des audits de conformité réguliers
+      - Une documentation complète mais proportionnée
+      - Un processus d'homologation formalisé avec décision écrite de l'autorité d'homologation
+
+      Cette approche offre le meilleur équilibre entre rigueur de sécurité et pragmatisme opérationnel pour un système de cette nature.
+
+1. ## **Étape 3 : Identification et caractérisation des biens supports**
+
+   Cette étape consiste à recenser tous les éléments techniques et organisationnels qui supportent le système OMEGA et qui doivent être protégés.
+
+   1. ### **Biens supports techniques**
+
+      **Infrastructure matérielle**
+
+      - Serveur de base de données PostgreSQL (VM hébergée sur infrastructure DDT)
+      - Serveur d'application backend Next.js (VM hébergée sur infrastructure DDT)
+      - Serveur web Nginx (peut être sur la même VM que le backend ou séparé)
+      - Serveur de stockage des sauvegardes (NAS de la DDT)
+      - Serveur de stockage des tuiles cartographiques (peut être intégré au serveur web)
+      - Postes de travail des agents (pour accéder à l'application)
+
+      **Infrastructure réseau**
+
+      - Réseau local de la DDT (LAN)
+      - Équipements de routage et de commutation
+      - Pare-feu assurant le cloisonnement avec Internet
+      - Système de noms de domaine interne (DNS)
+
+      **Logiciels et composants applicatifs**
+
+      - Système d'exploitation des serveurs (Linux, probable Debian ou Ubuntu)
+      - PostgreSQL version 12 ou supérieure
+      - Node.js et npm
+      - Next.js framework
+      - Bibliothèques JavaScript (React, Leaflet, Sequelize, Puppeteer, bcrypt, jsonwebtoken, etc.)
+      - Nginx
+      - Systemd pour la gestion des services
+
+      **Données**
+
+      - Base de données OMEGA (tables projet, utilisateurs, audit_log, etc.)
+      - Fichiers de sauvegarde (.dump.gz)
+      - Tuiles cartographiques (environ 2 Go)
+      - Fichiers de configuration
+      - Logs applicatifs et systèmes
+
+   1. ### **Biens supports organisationnels**
+
+      - Procédures d'exploitation et de maintenance
+      - Procédures de sauvegarde et de restauration
+      - Documentation utilisateur et administrateur
+      - Politique de sécurité des systèmes d'information (PSSI) de la DDT
+      - Contrats de maintenance et support
+      - Équipe d'administration système (2 à 5 personnes)
+      - Équipe utilisatrice (20 à 50 agents)
+
+1. ## **Étape 4 : Identification et caractérisation des sources de menaces**
+
+   Conformément à la méthode EBIOS 2010, cette étape identifie les sources de menaces susceptibles de porter atteinte au système OMEGA.
+
+   1. ### **Sources de menaces humaines**
+
+      **Menaces internes**
+
+      - **Erreur humaine** : Un agent peut supprimer accidentellement des données, saisir des informations erronées, ou mal configurer un paramètre.
+        - Probabilité : Moyenne
+        - Impact potentiel : Modéré (restauration possible via snapshots et sauvegardes)
+
+      - **Malveillance interne** : Un agent mécontent pourrait volontairement altérer ou divulguer des données.
+        - Probabilité : Faible (environnement professionnel de confiance)
+        - Impact potentiel : Modéré (journal d'audit permettant la traçabilité)
+
+      - **Abus de droits** : Un administrateur pourrait abuser de ses privilèges.
+        - Probabilité : Très faible
+        - Impact potentiel : Élevé (journalisation des accès admin pour détecter)
+
+      **Menaces externes**
+
+      - **Attaque ciblée** : Compte tenu du cloisonnement réseau strict, une attaque externe directe est quasi impossible.
+        - Probabilité : Très faible
+        - Impact potentiel : Faible (pas d'accès direct depuis Internet)
+
+      - **Ingénierie sociale** : Tentative d'obtenir des identifiants par usurpation d'identité ou manipulation.
+        - Probabilité : Faible
+        - Impact potentiel : Modéré (authentification forte et formation des utilisateurs)
+
+   1. ### **Sources de menaces non humaines**
+
+      - **Panne matérielle** : Défaillance d'un serveur, d'un disque dur, ou d'un équipement réseau.
+        - Probabilité : Moyenne (usure naturelle)
+        - Impact potentiel : Modéré à élevé selon le composant (sauvegardes quotidiennes permettant la récupération)
+
+      - **Bug logiciel** : Anomalie dans le code de l'application provoquant des comportements imprévus.
+        - Probabilité : Moyenne (tout logiciel contient des bugs)
+        - Impact potentiel : Variable (tests unitaires et de régression pour limiter)
+
+      - **Saturation des ressources** : Espace disque saturé, mémoire insuffisante.
+        - Probabilité : Faible (monitoring et alertes en place)
+        - Impact potentiel : Modéré (indisponibilité temporaire)
+
+      - **Sinistre physique** : Incendie, inondation, coupure électrique prolongée.
+        - Probabilité : Très faible
+        - Impact potentiel : Élevé (sauvegardes externalisées pour la reprise)
+
+1. ## **Étape 5 : Étude des risques selon EBIOS 2010**
+
+   L'analyse de risques suit la méthodologie EBIOS 2010 (Expression des Besoins et Identification des Objectifs de Sécurité) en cinq phases.
+
+   1. ### **Phase 1 : Étude du contexte**
+
+      Cette phase a été couverte dans les sections précédentes :
+      - Périmètre du système défini (section 6.1.1)
+      - Objectifs de sécurité formalisés (FEROS, section 6.1.2)
+      - Biens supports identifiés (section 6.3)
+
+   1. ### **Phase 2 : Étude des événements redoutés**
+
+      Les événements redoutés représentent les scénarios de compromission des objectifs de sécurité.
+
+      **ER-1 : Divulgation de données personnelles**
+      - Bien essentiel : Données personnelles des agents et porteurs
+      - Critère de sécurité : Confidentialité (C2)
+      - Scénario : Un accès non autorisé permet la consultation ou l'exfiltration de données personnelles
+      - Impact : Atteinte à la vie privée, non-conformité RGPD, perte de confiance
+      - Gravité : **Importante**
+
+      **ER-2 : Altération non détectée des données projet**
+      - Bien essentiel : Données des projets territoriaux
+      - Critère de sécurité : Intégrité (I2)
+      - Scénario : Des modifications non autorisées ou accidentelles corrompent les données sans qu'on puisse le détecter
+      - Impact : Incohérences dans le suivi des projets, décisions basées sur des données erronées
+      - Gravité : **Importante**
+
+      **ER-3 : Indisponibilité prolongée du système**
+      - Bien essentiel : Service de gestion des projets
+      - Critère de sécurité : Disponibilité (D2)
+      - Scénario : Panne matérielle, corruption de la base, saturation des ressources
+      - Impact : Impossibilité de consulter ou modifier les projets, ralentissement des missions DDT
+      - Gravité : **Modérée**
+
+      **ER-4 : Perte définitive de données**
+      - Bien essentiel : Données des projets et historiques
+      - Critère de sécurité : Intégrité + Disponibilité
+      - Scénario : Suppression accidentelle massive, corruption irréversible, sinistre physique
+      - Impact : Perte d'information critique, obligations d'archivage non respectées
+      - Gravité : **Critique**
+
+   1. ### **Phase 3 : Étude des scénarios de menaces**
+
+      Pour chaque événement redouté, on identifie les scénarios d'attaque plausibles.
+
+      **Pour ER-1 (Divulgation de données personnelles)**
+
+      - SM-1.1 : Vol de session (token JWT intercepté ou volé)
+      - SM-1.2 : Exploitation d'une vulnérabilité applicative (injection SQL, XSS)
+      - SM-1.3 : Compromission d'un compte utilisateur (mot de passe faible ou divulgué)
+      - SM-1.4 : Accès physique non autorisé au serveur de base de données
+
+      **Pour ER-2 (Altération non détectée des données)**
+
+      - SM-2.1 : Modification malveillante par un utilisateur autorisé abusant de ses droits
+      - SM-2.2 : Bug logiciel corrompant silencieusement les données
+      - SM-2.3 : Injection SQL permettant des modifications arbitraires
+
+      **Pour ER-3 (Indisponibilité prolongée)**
+
+      - SM-3.1 : Panne matérielle (disque, serveur)
+      - SM-3.2 : Saturation des ressources (espace disque, mémoire, CPU)
+      - SM-3.3 : Erreur de manipulation lors d'une maintenance
+
+      **Pour ER-4 (Perte définitive de données)**
+
+      - SM-4.1 : Suppression accidentelle sans sauvegarde récente
+      - SM-4.2 : Corruption de la base ET des sauvegardes (sinistre)
+      - SM-4.3 : Échec du processus de sauvegarde non détecté
+
+   1. ### **Phase 4 : Identification des objectifs de sécurité**
+
+      Les objectifs de sécurité sont déduits des événements redoutés à prévenir.
+
+      **OS-1 : Garantir l'authentification forte des utilisateurs**
+      - Lien : Prévient ER-1, ER-2
+      - Mesures : Mots de passe robustes, changement obligatoire à la première connexion, tokens JWT signés
+
+      **OS-2 : Assurer la traçabilité complète des actions**
+      - Lien : Détecte ER-2, dissuade la malveillance
+      - Mesures : Journal d'audit immuable, enregistrement de toutes les modifications avec identité de l'auteur
+
+      **OS-3 : Protéger les données contre les accès non autorisés**
+      - Lien : Prévient ER-1
+      - Mesures : Contrôle d'accès basé sur les rôles (RBAC), vérifications backend systématiques, chiffrement des mots de passe
+
+      **OS-4 : Garantir la disponibilité du système**
+      - Lien : Prévient ER-3
+      - Mesures : Redémarrage automatique des services, monitoring avec alertes, dimensionnement des ressources
+
+      **OS-5 : Assurer la sauvegarde et la récupérabilité des données**
+      - Lien : Prévient ER-4, atténue ER-3
+      - Mesures : Sauvegardes quotidiennes automatiques, rétention sur 7/4/12 (jours/semaines/mois), tests de restauration trimestriels
+
+      **OS-6 : Protéger contre les vulnérabilités applicatives**
+      - Lien : Prévient ER-1, ER-2
+      - Mesures : Utilisation d'ORM (Sequelize) pour prévenir les injections SQL, validation des entrées, audits de sécurité npm, tests de sécurité
+
+      **OS-7 : Assurer la séparation des privilèges**
+      - Lien : Limite l'impact de ER-1, ER-2
+      - Mesures : Distinction administrateurs/utilisateurs, workflow de validation pour les suppressions
+
+   1. ### **Phase 5 : Détermination des mesures de sécurité**
+
+      Catalogue complet des mesures de sécurité pour OMEGA, classées par catégorie.
+
+      **Mesures organisationnelles (MO)**
+
+      - **MO-01** : Politique de mots de passe (longueur minimale 8 caractères, changement obligatoire à la première connexion)
+      - **MO-02** : Procédure de création et désactivation des comptes utilisateurs
+      - **MO-03** : Gestion des rôles et permissions (matrice de droits documentée)
+      - **MO-04** : Procédure de sauvegarde quotidienne automatisée (script cron à 2h du matin)
+      - **MO-05** : Tests de restauration trimestriels sur environnement de test
+      - **MO-06** : Revue annuelle des accès et des comptes utilisateurs
+      - **MO-07** : Procédures d'exploitation documentées (démarrage, arrêt, maintenance)
+      - **MO-08** : Formation et sensibilisation des utilisateurs à la sécurité
+      - **MO-09** : Audit de sécurité annuel
+      - **MO-10** : Gestion des incidents de sécurité (procédure de signalement et traitement)
+
+      **Mesures techniques (MT)**
+
+      - **MT-01** : Authentification par JWT avec tokens signés
+      - **MT-02** : Hachage des mots de passe avec bcrypt (facteur de coût 10)
+      - **MT-03** : Contrôle d'accès basé sur les rôles (RBAC) avec vérifications backend
+      - **MT-04** : Journal d'audit immuable (append-only) enregistrant toutes les modifications
+      - **MT-05** : Utilisation d'ORM (Sequelize) pour prévenir les injections SQL
+      - **MT-06** : Validation et sanitisation des entrées utilisateur
+      - **MT-07** : Protection contre les attaques XSS (échappement des données affichées)
+      - **MT-08** : Protection CSRF via tokens anti-CSRF dans les formulaires
+      - **MT-09** : Cloisonnement réseau strict (aucune connexion externe)
+      - **MT-10** : Sauvegardes chiffrées stockées sur serveur distinct (NAS DDT)
+      - **MT-11** : Redémarrage automatique des services en cas de crash (systemd Restart=on-failure)
+      - **MT-12** : Monitoring de disponibilité avec alertes (vérification /api/health toutes les minutes)
+      - **MT-13** : Monitoring des ressources système (CPU, RAM, disque) avec seuils d'alerte
+      - **MT-14** : Limitation du nombre de tentatives de connexion (protection contre brute force)
+      - **MT-15** : Soft delete avec conservation des données supprimées (paranoid mode Sequelize)
+      - **MT-16** : Système de versioning multi-niveaux (snapshots, versions par section, audit log)
+      - **MT-17** : Séparation des privilèges (workflow de validation pour suppressions)
+      - **MT-18** : Nettoyage automatique des snapshots anciens (>15 jours)
+      - **MT-19** : Rétention des logs d'audit (3 ans minimum)
+      - **MT-20** : Mise à jour régulière des dépendances npm (npm audit trimestriel)
+      - **MT-21** : HTTPS recommandé pour les communications (certificat auto-signé acceptable en réseau interne)
+      - **MT-22** : Génération de mots de passe temporaires aléatoires forts (12 caractères)
+      - **MT-23** : Sessions à durée limitée (expiration des tokens JWT après 24h)
+      - **MT-24** : Isolation des données par utilisateur pour les snapshots (un utilisateur ne voit que ses propres snapshots)
+      - **MT-25** : Validation des permissions avant chaque action critique
+      - **MT-26** : Journalisation spécifique des accès administrateurs (admin_access_log)
+      - **MT-27** : Protection contre la saturation des ressources (limites de taille pour uploads si implémentés)
+      - **MT-28** : Vérification d'intégrité des sauvegardes (tests de restauration)
+      - **MT-29** : Configuration sécurisée de PostgreSQL (désactivation des accès distants non nécessaires)
+      - **MT-30** : Gestion des erreurs sécurisée (pas de divulgation d'informations sensibles dans les messages d'erreur)
+
+      **Mesures de conformité RGPD (MC)**
+
+      - **MC-01** : Registre des activités de traitement à jour
+      - **MC-02** : Minimisation des données collectées (seulement les données nécessaires)
+      - **MC-03** : Information des personnes concernées (agents et porteurs de projets)
+      - **MC-04** : Procédure de gestion des demandes d'exercice de droits (accès, rectification, effacement)
+      - **MC-05** : Durées de conservation définies et respectées (projets supprimés conservés 5 ans, logs 3 ans)
+      - **MC-06** : Sécurisation des données personnelles (hachage des mots de passe, contrôle d'accès)
+      - **MC-07** : Consultation du DPO lors d'évolutions significatives
+      - **MC-08** : Procédure de notification en cas de violation de données
+
+1. ## **Étape 6 : Choix et mise en œuvre des mesures de sécurité**
+
+   Cette étape consiste à valider que les mesures de sécurité identifiées en Phase 5 sont effectivement implémentées dans le système OMEGA.
+
+   1. ### **État d'implémentation des mesures**
+
+      Toutes les mesures techniques (MT-01 à MT-30) décrites ci-dessus sont **implémentées** dans la version actuelle d'OMEGA (v1.0.0).
+
+      Les mesures organisationnelles (MO-01 à MO-10) sont **documentées et en cours de déploiement** :
+      - MO-01 à MO-03 : En place
+      - MO-04 à MO-05 : Scripts développés et testés
+      - MO-06 à MO-10 : Procédures documentées, déploiement progressif
+
+      Les mesures de conformité RGPD (MC-01 à MC-08) sont **en place**, avec consultation du DPO effectuée.
+
+   1. ### **Risques résiduels acceptés**
+
+      Malgré la mise en œuvre des mesures de sécurité, certains risques résiduels demeurent et doivent être explicitement acceptés par l'autorité d'homologation :
+
+      **RR-1 : Malveillance interne privilégiée**
+      - Description : Un administrateur malveillant ayant un accès direct à la base de données pourrait contourner les protections applicatives
+      - Mesure d'atténuation : Journalisation des accès admin, revue annuelle, limitation du nombre d'administrateurs (2-5 personnes de confiance)
+      - Niveau de risque résiduel : **Faible** (environnement de confiance, traçabilité)
+
+      **RR-2 : Sinistre majeur affectant le site principal ET le site de sauvegarde**
+      - Description : Un événement catastrophique (incendie généralisé, inondation majeure) pourrait détruire simultanément les serveurs et les sauvegardes
+      - Mesure d'atténuation : Sauvegardes conservées sur NAS distinct, possibilité d'archivage supplémentaire sur bandes magnétiques
+      - Niveau de risque résiduel : **Très faible** (événement extrêmement improbable)
+
+      **RR-3 : Vulnérabilité zero-day dans une dépendance logicielle**
+      - Description : Une faille de sécurité non encore connue pourrait exister dans React, PostgreSQL ou une autre dépendance
+      - Mesure d'atténuation : Veille de sécurité, npm audit trimestriel, application rapide des correctifs dès leur disponibilité
+      - Niveau de risque résiduel : **Faible** (cloisonnement réseau limite l'exploitabilité)
+
+1. ## **Étape 7 : Audit de conformité**
+
+   Des audits réguliers permettent de vérifier que les mesures de sécurité restent effectives.
+
+   1. ### **Audit initial (avant homologation)**
+
+      Un audit initial a été conduit avant la mise en production, vérifiant :
+
+      - Conformité du code aux bonnes pratiques de sécurité (revue de code)
+      - Présence et efficacité des mesures techniques MT-01 à MT-30
+      - Absence de vulnérabilités connues dans les dépendances (npm audit)
+      - Fonctionnement correct des sauvegardes et capacité de restauration
+      - Traçabilité effective des actions dans le journal d'audit
+      - Respect des exigences RGPD (minimisation, sécurisation, droits des personnes)
+
+      **Résultat : Conforme** avec quelques recommandations mineures (documentation de certaines procédures, amélioration de la gestion des erreurs).
+
+   1. ### **Audits de suivi annuels**
+
+      Chaque année, un audit de sécurité complet est conduit (cf. section 10.1 du présent cahier des charges) comprenant :
+
+      - Revue des accès utilisateurs
+      - Analyse des logs d'accès admin
+      - Mise à jour des dépendances et correction des vulnérabilités
+      - Test de pénétration interne
+      - Test de restauration complet
+      - Rapport d'audit présenté à la direction et au DPO
+
+1. ## **Étape 8 : Dossier d'homologation et décision**
+
+   Le dossier d'homologation constitue la synthèse de tout le travail d'analyse et de sécurisation.
+
+   1. ### **Contenu du dossier d'homologation**
+
+      Le dossier d'homologation d'OMEGA contient les documents suivants :
+
+      1. **Note de présentation du système** (10 pages)
+         - Contexte et objectifs
+         - Description fonctionnelle
+         - Architecture technique
+         - Utilisateurs et volumétrie
+
+      2. **Fiche d'Expression Rationnelle des Objectifs de Sécurité (FEROS)** (2 pages)
+         - Objectifs de sécurité (Confidentialité C2, Intégrité I2, Disponibilité D2)
+         - Justification des niveaux retenus
+
+      3. **Analyse de risques EBIOS 2010** (30 pages)
+         - Phase 1 : Étude du contexte
+         - Phase 2 : Événements redoutés
+         - Phase 3 : Scénarios de menaces
+         - Phase 4 : Objectifs de sécurité
+         - Phase 5 : Mesures de sécurité
+
+      4. **Catalogue des mesures de sécurité** (15 pages)
+         - 10 mesures organisationnelles (MO-01 à MO-10)
+         - 30 mesures techniques (MT-01 à MT-30)
+         - 8 mesures de conformité RGPD (MC-01 à MC-08)
+         - État d'implémentation de chaque mesure
+
+      5. **Rapport d'audit initial** (20 pages)
+         - Méthodologie d'audit
+         - Constats et écarts identifiés
+         - Recommandations
+         - Plan d'action associé
+
+      6. **Analyse des risques résiduels** (5 pages)
+         - Identification des risques résiduels (RR-1 à RR-3)
+         - Évaluation de leur criticité
+         - Mesures d'atténuation
+
+      7. **Plan de Continuité d'Activité (PCA)** (10 pages)
+         - Procédures de sauvegarde
+         - Procédures de restauration
+         - RTO (4 heures) et RPO (24 heures)
+         - Tests de restauration
+
+      8. **Documentation technique** (50 pages)
+         - Architecture détaillée
+         - Modèle de données
+         - Procédures d'exploitation
+         - Guides administrateur et utilisateur
+
+      9. **Registre RGPD** (5 pages)
+         - Finalités du traitement
+         - Catégories de données
+         - Durées de conservation
+         - Mesures de sécurité
+
+      10. **Décision d'homologation** (modèle pré-rempli, 3 pages)
+
+   1. ### **Décision d'homologation**
+
+      La décision d'homologation est un document formel signé par l'autorité d'homologation (typiquement le Directeur de la DDT d'Eure-et-Loir).
+
+      **Modèle de décision d'homologation :**
+
+      ---
+
+      **DÉCISION D'HOMOLOGATION DE SÉCURITÉ**
+
+      **Application OMEGA - Gestion de projets territoriaux**
+
+      Je soussigné(e), [Nom Prénom], Directeur/Directrice de la Direction Départementale des Territoires d'Eure-et-Loir, agissant en qualité d'Autorité d'Homologation,
+
+      Vu le Référentiel Général de Sécurité (RGS) version 2.0,
+      Vu la Politique de Sécurité des Systèmes d'Information (PSSI) de la DDT d'Eure-et-Loir,
+      Vu le dossier d'homologation de l'application OMEGA daté du [Date],
+      Vu l'analyse de risques EBIOS 2010 réalisée le [Date],
+      Vu le rapport d'audit de sécurité initial daté du [Date],
+      Vu les recommandations du DPO en date du [Date],
+
+      Considérant que :
+      - Le système OMEGA a été conçu conformément aux exigences de sécurité du RGS niveau Standard,
+      - Les mesures de sécurité organisationnelles et techniques identifiées sont implémentées et effectives,
+      - Les risques résiduels identifiés sont acceptables au regard des enjeux,
+      - Le système répond aux exigences de conformité RGPD,
+      - Un dispositif de surveillance et de maintien en condition de sécurité est mis en place,
+
+      **Article 1** : L'application OMEGA est homologuée pour une durée de **3 ans** à compter de la date de signature de la présente décision, soit jusqu'au [Date + 3 ans].
+
+      **Article 2** : Les risques résiduels suivants sont explicitement acceptés :
+      - RR-1 : Malveillance interne privilégiée (risque faible)
+      - RR-2 : Sinistre majeur affectant site principal et sauvegardes (risque très faible)
+      - RR-3 : Vulnérabilité zero-day dans une dépendance logicielle (risque faible)
+
+      **Article 3** : L'homologation est conditionnée au respect des obligations suivantes :
+      - Mise en œuvre effective de l'ensemble des mesures de sécurité du catalogue
+      - Réalisation des sauvegardes quotidiennes automatiques
+      - Tests de restauration trimestriels
+      - Audit de sécurité annuel avec rapport transmis à l'autorité d'homologation
+      - Revue annuelle des accès et des comptes utilisateurs
+      - Application des correctifs de sécurité dans un délai de 30 jours suivant leur disponibilité pour les vulnérabilités critiques
+      - Mise à jour du registre RGPD en cas d'évolution du traitement
+      - Notification immédiate à l'autorité d'homologation de tout incident de sécurité majeur
+
+      **Article 4** : Un réexamen de l'homologation devra être effectué en cas de :
+      - Modification substantielle du système (nouvelle fonctionnalité majeure, changement d'architecture)
+      - Évolution significative des menaces
+      - Incident de sécurité grave
+      - Non-respect des obligations énoncées à l'article 3
+
+      **Article 5** : Le responsable de la sécurité des systèmes d'information (RSSI) de la DDT est chargé du suivi de l'application de la présente décision.
+
+      Fait à Chartres, le [Date]
+
+      [Signature]
+      [Nom Prénom]
+      Directeur/Directrice DDT Eure-et-Loir
+
+      ---
+
+1. ## **Étape 9 : Conditions d'exploitation et amélioration continue**
+
+   L'homologation n'est pas une fin en soi mais le début d'un processus continu de maintien en condition de sécurité.
+
+   1. ### **Surveillance continue**
+
+      Les dispositifs de surveillance mis en place (cf. section 8.3) permettent une détection rapide des anomalies :
+
+      - Monitoring de disponibilité (vérification /api/health chaque minute)
+      - Monitoring des ressources système (alertes si CPU > 80%, RAM > 90%, disque < 15%)
+      - Analyse des logs applicatifs et systèmes
+      - Surveillance des tentatives de connexion échouées
+      - Tableau de bord de monitoring pour les administrateurs
+
+   1. ### **Gestion des incidents**
+
+      Toute anomalie détectée fait l'objet d'une procédure de gestion d'incident :
+
+      1. **Détection** : Via monitoring automatique ou signalement utilisateur
+      2. **Qualification** : Évaluation de la criticité (bloquant, majeur, mineur)
+      3. **Intervention** : Correction immédiate (bloquant), sous 24h (majeur), planifiée (mineur)
+      4. **Traçabilité** : Création d'un ticket documentant le problème et sa résolution
+      5. **Analyse post-incident** : Identification de la cause racine et mesures préventives
+
+      En cas d'incident de sécurité majeur (compromission de données, intrusion détectée), l'autorité d'homologation et le DPO sont immédiatement informés.
+
+   1. ### **Maintien en condition de sécurité**
+
+      Le maintien en condition de sécurité s'appuie sur plusieurs activités récurrentes :
+
+      **Quotidien**
+      - Sauvegarde automatique de la base de données (2h du matin)
+      - Nettoyage automatique des snapshots > 15 jours (3h du matin)
+
+      **Hebdomadaire**
+      - Vérification des logs d'erreur (30 minutes)
+      - Contrôle de l'espace disque disponible
+
+      **Mensuel**
+      - VACUUM ANALYZE de PostgreSQL (dimanche matin 4h)
+      - Rotation et archivage des logs
+      - Revue des alertes de monitoring
+
+      **Trimestriel**
+      - Audit npm des vulnérabilités (npm audit)
+      - Application des mises à jour de sécurité
+      - Test de restauration de sauvegarde sur environnement de test
+
+      **Annuel**
+      - Audit de sécurité complet (cf. section 10.1)
+      - Revue des accès utilisateurs
+      - Analyse des logs d'accès admin
+      - Test de pénétration interne
+      - Revue RGPD avec le DPO
+      - Rapport à l'autorité d'homologation
+
+   1. ### **Renouvellement de l'homologation**
+
+      L'homologation est accordée pour une durée de **3 ans**. Six mois avant l'échéance, un processus de renouvellement est engagé :
+
+      1. **Mise à jour de l'analyse de risques** : Réévaluation des menaces et des mesures de sécurité
+      2. **Audit de conformité complet** : Vérification que toutes les mesures sont toujours effectives
+      3. **Bilan des incidents** : Analyse des incidents de sécurité survenus pendant les 3 ans
+      4. **Évolutions du système** : Documentation des changements intervenus
+      5. **Actualisation du dossier d'homologation** : Mise à jour de tous les documents
+      6. **Nouvelle décision d'homologation** : Signature par l'autorité d'homologation pour 3 ans supplémentaires
+
+      Si des évolutions majeures du système ont eu lieu pendant la période (ajout de fonctionnalités importantes, changement d'architecture), une analyse de risques complète peut être nécessaire.
