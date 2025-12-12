@@ -8,7 +8,7 @@
  */
 
 const db = require('../../../../models');
-const { ProjetSnapshot, ProjetSnapshotSection, Projet, User } = db.principale;
+const { ProjetSnapshot, ProjetSnapshotSection, Projet, User } = db;
 
 /**
  * POST /api/projets/snapshots/create

@@ -6,7 +6,7 @@
  */
 
 const db = require('../models');
-const { ProjetSnapshot } = db.principale;
+const { ProjetSnapshot } = db;
 
 async function cleanupOldSnapshots() {
   try {

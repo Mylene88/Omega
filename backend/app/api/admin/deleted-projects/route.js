@@ -5,7 +5,7 @@ import { requireAdmin } from '@/backend/lib/adminAuthHelper';
 import db from '@/backend/models';
 import { Op } from 'sequelize';
 
-const { Projet, User, StatutProjet } = db;
+const { Projet, User, StatutProjetEnum } = db;
 
 /**
  * GET /api/admin/deleted-projects
@@ -30,7 +30,7 @@ export async function GET(request) {
       },
       include: [
         {
-          model: StatutProjet,
+          model: StatutProjetEnum,
           as: 'statut_projet_enum',
           attributes: ['id_statut', 'libelle']
         },

@@ -13,6 +13,11 @@
 
 set -e  # Arrêter en cas d'erreur
 
+# Ajouter PostgreSQL au PATH si pg_dump n'est pas trouvé (utile pour cron)
+if ! command -v pg_dump >/dev/null 2>&1; then
+  export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
+fi
+
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$(dirname "$SCRIPT_DIR")"

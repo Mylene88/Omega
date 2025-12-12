@@ -1,6 +1,0 @@
-[2025-12-04 10:53:53] ❌ ERREUR: Variables de base de données manquantes dans .env
-[2025-12-04 11:03:18] ❌ ERREUR: Variables de base de données manquantes dans .env
-[2025-12-04 11:03:18] Variables requises: POSTGRES_DB, POSTGRES_USR, POSTGRES_PWD, POSTGRES_HOST, POSTGRES_PORT
-[2025-12-04 11:03:53] ✅ Fichier .env chargé: /Users/mylene/Developer/Omega-fix/backend/.env
-[2025-12-04 11:03:53] ❌ ERREUR: Variables de base de données manquantes dans .env
-[2025-12-04 11:03:53] Variables requises: POSTGRES_DB, POSTGRES_USR, POSTGRES_PWD, POSTGRES_HOST, POSTGRES_PORT
