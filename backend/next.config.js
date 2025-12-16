@@ -4,10 +4,12 @@ const path = require('path');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Configuration compatible avec Next.js 13.5.6
+  // Configuration compatible avec Next.js 13.1.6 et Node 16.2.0
   experimental: {
-    // Packages à externaliser côté serveur (équivalent de serverExternalPackages dans Next 14+)
-    serverComponentsExternalPackages: ['pg', 'sequelize'],
+    // App directory activé pour Next 13.1.6
+    appDir: true,
+    // Packages à externaliser côté serveur
+    serverComponentsExternalPackages: ['pg', 'sequelize', 'puppeteer', 'puppeteer-core'],
   },
 
   // Configuration CORS pour toutes les routes API
