@@ -1,3 +1,6 @@
+// Force dynamic rendering (no static generation at build time)
+export const dynamic = 'force-dynamic';
+
 // backend/app/api/section-versions/restore/route.js
 /**
  * API pour restaurer une version spécifique d'une section

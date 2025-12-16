@@ -1,3 +1,6 @@
+// Force dynamic rendering (no static generation at build time)
+export const dynamic = 'force-dynamic';
+
 // Endpoint pour exécuter la migration de la fonction SQL get_next_section_version_number
 import { NextResponse } from 'next/server';
 import db from '@/backend/models';

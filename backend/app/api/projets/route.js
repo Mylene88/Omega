@@ -1,3 +1,6 @@
+// Force dynamic rendering (no static generation at build time)
+export const dynamic = 'force-dynamic';
+
 // app/api/projets/route.js
 
 

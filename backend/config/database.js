@@ -31,35 +31,40 @@ const createConnection = () => {
     timezone: 'Europe/Paris',  // Configure timezone pour gérer correctement les dates
 
     // Optimize connection pool to prevent EMFILE errors
+    // Configuration adaptée pour VEEAM (système de sauvegarde DDT)
     pool: {
       max: 5,          // Maximum number of connections in pool
       min: 0,          // Minimum number of connections in pool
-      acquire: 30000,  // Maximum time (ms) to get connection before throwing error
+      acquire: 60000,  // 60s - Augmenté pour les snapshots VEEAM
       idle: 10000,     // Maximum time (ms) a connection can be idle before being released
       evict: 5000,     // Time interval (ms) to check for idle connections
       handleDisconnects: true // Automatically handle disconnects
     },
 
     // Additional optimizations
+    // Timeouts augmentés pour compatibilité VEEAM
     dialectOptions: {
-      connectTimeout: 30000, // 30 seconds
-      requestTimeout: 30000, // 30 seconds
-      statement_timeout: 30000, // PostgreSQL specific
-      query_timeout: 30000,     // PostgreSQL specific
+      connectTimeout: 60000, // 60 seconds - Snapshots VEEAM peuvent prendre du temps
+      requestTimeout: 60000, // 60 seconds
+      statement_timeout: 60000, // PostgreSQL specific
+      query_timeout: 60000,     // PostgreSQL specific
       // Enable connection keep-alive
       keepAlive: true,
       keepAliveInitialDelayMillis: 0,
     },
 
-    // Retry configuration
+    // Retry configuration - Renforcé pour VEEAM
     retry: {
-      max: 3,
+      max: 5, // Augmenté de 3 à 5 pour les snapshots VEEAM
       match: [
         /ETIMEDOUT/,
         /EHOSTUNREACH/,
         /ECONNRESET/,
         /ECONNREFUSED/,
-        /EMFILE/
+        /EMFILE/,
+        /EPIPE/,           // Broken pipe (peut arriver avec VEEAM)
+        /PROTOCOL_ERROR/,  // Erreurs protocolaires
+        /SequelizeConnectionError/, // Erreurs de connexion Sequelize
       ]
     },
 

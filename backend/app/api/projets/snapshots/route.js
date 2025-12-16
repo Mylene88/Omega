@@ -1,3 +1,6 @@
+// Force dynamic rendering (no static generation at build time)
+export const dynamic = 'force-dynamic';
+
 // backend/app/api/projets/snapshots/route.js
 /**
  * API pour gérer le versioning des projets

@@ -1,3 +1,6 @@
+// Force dynamic rendering (no static generation at build time)
+export const dynamic = 'force-dynamic';
+
 // backend/app/api/thematiques_projet/[id]/route.js
 
 /*import { NextResponse } from 'next/server';

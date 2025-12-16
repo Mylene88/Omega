@@ -1,3 +1,6 @@
+// Force dynamic rendering (no static generation at build time)
+export const dynamic = 'force-dynamic';
+
 // app/api/geo-entities/route.js
 import { NextResponse } from 'next/server';
 import sequelize from '@/backend/config/database';

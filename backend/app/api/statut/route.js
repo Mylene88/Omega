@@ -1,3 +1,6 @@
+// Force dynamic rendering (no static generation at build time)
+export const dynamic = 'force-dynamic';
+
 // backend/statut/route.js
 import { NextResponse } from 'next/server';
 import db from '@/backend/models';

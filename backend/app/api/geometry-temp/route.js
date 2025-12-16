@@ -1,3 +1,6 @@
+// Force dynamic rendering (no static generation at build time)
+export const dynamic = 'force-dynamic';
+
 // backend/app/api/geometry-temp/route.js
 import { NextResponse } from 'next/server';
 import sequelize from '@/backend/config/database'; 

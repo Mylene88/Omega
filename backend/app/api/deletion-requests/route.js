@@ -1,3 +1,6 @@
+// Force dynamic rendering (no static generation at build time)
+export const dynamic = 'force-dynamic';
+
 // backend/app/api/deletion-requests/route.js
 /**
  * API pour gérer les demandes de suppression de projets

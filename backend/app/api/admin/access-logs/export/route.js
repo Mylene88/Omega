@@ -1,3 +1,6 @@
+// Force dynamic rendering (no static generation at build time)
+export const dynamic = 'force-dynamic';
+
 // backend/app/api/admin/access-logs/export/route.js
 
 import { NextResponse } from 'next/server';
