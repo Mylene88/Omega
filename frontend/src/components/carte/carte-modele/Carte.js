@@ -28,6 +28,7 @@ const Carte = forwardRef(({
     const drawnItemsRef = useRef(null);
     const tempLayerRef = useRef(null);
     const existingProjectsLayerRef = useRef(null);
+    const currentTileLayerRef = useRef(null);
 
     const [selectedLayer, setSelectedLayer] = useState(null);
     const [mapLayer, setMapLayer] = useState('plan');
@@ -107,7 +108,9 @@ const Carte = forwardRef(({
         });
 
         // Ajouter la couche de base par défaut
-        tileLayers[mapLayer].addTo(map);
+        const initialLayer = tileLayers[mapLayer];
+        initialLayer.addTo(map);
+        currentTileLayerRef.current = initialLayer;
 
         // Créer le groupe pour les dessins
         const drawnItems = new L.FeatureGroup();
@@ -150,16 +153,21 @@ const Carte = forwardRef(({
     const changeMapLayer = (layerName) => {
         if (!mapInstanceRef.current) return;
 
-        // Supprimer la couche actuelle
-        mapInstanceRef.current.eachLayer(layer => {
-            if (layer._url && layer._url.includes('geopf.fr')) {
-                mapInstanceRef.current.removeLayer(layer);
+        // Supprimer la couche actuelle en utilisant la référence
+        if (currentTileLayerRef.current) {
+            try {
+                mapInstanceRef.current.removeLayer(currentTileLayerRef.current);
+            } catch (e) {
+                console.warn('Erreur lors de la suppression de la couche:', e);
             }
-        });
+        }
 
         // Ajouter la nouvelle couche
-        tileLayers[layerName].addTo(mapInstanceRef.current);
+        const newLayer = tileLayers[layerName];
+        newLayer.addTo(mapInstanceRef.current);
+        currentTileLayerRef.current = newLayer;
         setMapLayer(layerName);
+        console.log(`🎨 Couche changée: ${layerName}`);
     };
 
     // Charger une géométrie existante sur la carte

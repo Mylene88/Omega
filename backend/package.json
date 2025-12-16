@@ -2,26 +2,31 @@
   "name": "backend",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=16.0.0 <17.0.0"
+  },
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
-    "start": "next start -p 3000"
+    "start": "next start -p 3000",
+    "monitoring": "node monitoring/health-check.js"
   },
   "dependencies": {
-    "bcrypt": "^6.0.0",
-    "bcryptjs": "^3.0.2",
-    "dotenv": "^17.2.2",
+    "bcrypt": "^5.1.1",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
     "jsonwebtoken": "^9.0.2",
-    "next": "15.5.3",
-    "pg": "^8.16.3",
+    "next": "13.5.6",
+    "pg": "^8.11.3",
     "pg-hstore": "^2.3.4",
-    "puppeteer": "^24.27.0",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "sequelize": "^6.37.7"
+    "puppeteer": "^21.11.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "sequelize": "^6.35.2"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4"
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.3.6"
   }
 }
