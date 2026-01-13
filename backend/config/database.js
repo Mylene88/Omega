@@ -1,8 +1,18 @@
 // backend/config/database.js - Fixed version
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
+
 const { Sequelize } = require('sequelize');
 
 // Remove the conflicting declaration - you had both 'let sequelize = null' and 'const sequelize = new Sequelize(...)'
 let sequelizeInstance = null;
+
+console.log('🔍 Environment variables loaded:', {
+  POSTGRES_HOST: process.env.POSTGRES_HOST,
+  POSTGRES_PORT: process.env.POSTGRES_PORT,
+  POSTGRES_USR: process.env.POSTGRES_USR,
+  POSTGRES_DB: process.env.POSTGRES_DB,
+});
 
 const {
   POSTGRES_URL,
@@ -24,6 +34,7 @@ const createConnection = () => {
       `postgres://${POSTGRES_USR}:${POSTGRES_PWD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}`;
 
   console.log('🔗 Creating new Sequelize connection...');
+  console.log('📊 Connection URL:', url.replace(POSTGRES_PWD, '***'));
 
   sequelizeInstance = new Sequelize(url, {
     dialect: 'postgres',

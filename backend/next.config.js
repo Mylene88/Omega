@@ -6,8 +6,8 @@ const path = require('path');
 const nextConfig = {
   // Configuration compatible avec Next.js 13.1.6 et Node 16.2.0
   experimental: {
-    // App directory activé pour Next 13.1.6
-    appDir: true,
+    // App directory désactivé - utilisation de Pages Router
+    // appDir: true,
     // Packages à externaliser côté serveur
     serverComponentsExternalPackages: ['pg', 'sequelize', 'puppeteer', 'puppeteer-core'],
   },
