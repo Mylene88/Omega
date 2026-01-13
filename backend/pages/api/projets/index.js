@@ -127,14 +127,6 @@ const {
 
 // GET /api/projets → récupérer tous les projets
 
-
-// POST → créer ou mettre à jour un projet
-
-
-/**
- * OPTIONS - Gestion des requêtes preflight CORS
- */
-
 export default async function handler(req, res) {
   if (req.method === 'GET') {
 
@@ -207,6 +199,9 @@ export default async function handler(req, res) {
     return res.status(500 ).json({ error: 'Impossible de récupérer les projets' });
   }
   }
+
+  // POST → créer ou mettre à jour un projet
+
   else if (req.method === 'POST') {
 
   const transaction = await db.sequelize.transaction();
