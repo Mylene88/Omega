@@ -10,12 +10,27 @@ const JWT_SECRET = process.env.JWT_SECRET || 'votre_secret_jwt_super_securise_a_
 
 /**
  * Extrait les informations de la requête (IP, User Agent)
+ * 
  */
+
+function getHeader(request, name) {
+    if (!request || !request.headers) return null;
+    
+    // Si c'est l'App Router (Next.js 13+ standard)
+    if (typeof request.headers.get === 'function') {
+        return request.headers.get(name);
+    }
+    
+    // Si c'est le Pages Router (Ancien req)
+    return request.headers[name.toLowerCase()];
+}
+
+
 function extractRequestInfo(request) {
-  const ip = request.headers.get('x-forwarded-for') ||
-             request.headers.get('x-real-ip') ||
-             'unknown';
-  const userAgent = request.headers.get('user-agent') || 'unknown';
+  const ip = getHeader(request,'x-forwarded-for') ||
+            getHeader(request,'x-real-ip') ||
+             (request.socket ? request.socket.remoteAddress : 'unknown');
+ const userAgent = getHeader(request, 'user-agent') || 'unknown';
 
   return { ip, userAgent };
 }
