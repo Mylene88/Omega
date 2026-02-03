@@ -1,0 +1,116 @@
+/* src/components/suivi_ddt/Suivi_ddt/SuiviDDTSection.module.css */
+.feed {
+    display: grid;
+    gap: 14px;
+    margin-top: 16px;
+    padding: 4px;
+}
+
+.item {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+}
+
+.item:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+}
+
+.itemHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #1C3D5A;
+    font-weight: 600;
+    font-size: 13px;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.meta {
+    color: #1C3D5A;
+}
+
+.itemBody {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    color: #334155;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.scrollableFeed {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* Style de scrollbar personnalisé pour webkit (Chrome, Safari, Edge) */
+.scrollableFeed::-webkit-scrollbar {
+  width: 10px;
+}
+
+.scrollableFeed::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.scrollableFeed::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+
+.scrollableFeed::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Style de scrollbar pour Firefox */
+.scrollableFeed {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+ 
+.suivi-modifier {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: #3b82f6;
+  transition: all 0.2s;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.suivi-modifier:hover {
+  background-color: #eff6ff;
+  transform: scale(1.1);
+}
+
+.suivi-supprimer {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: #dc3545;
+  transition: all 0.2s;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.suivi-supprimer:hover {
+  background-color: #fef2f2;
+  transform: scale(1.1);
+}
+
+.suividdtContent {
+  overflow-y: auto;
+  padding-right: 1em;
+}

@@ -1,0 +1,64 @@
+# Fichier de service systemd pour la surveillance de santé Omega
+#
+# Installation :
+# 1. Copiez ce fichier dans /etc/systemd/system/
+#    sudo cp omega-health-monitor.service /etc/systemd/system/
+#
+# 2. Modifiez les chemins et l'utilisateur selon votre configuration
+#    sudo nano /etc/systemd/system/omega-health-monitor.service
+#
+# 3. Activez et démarrez le service
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable omega-health-monitor
+#    sudo systemctl start omega-health-monitor
+#
+# Commandes utiles :
+#    sudo systemctl status omega-health-monitor
+#    sudo systemctl stop omega-health-monitor
+#    sudo systemctl restart omega-health-monitor
+#    sudo journalctl -u omega-health-monitor -f
+
+[Unit]
+Description=Omega Health Monitoring Service
+Documentation=file:///path/to/Omega-fix/backend/monitoring/README.md
+After=network.target
+
+[Service]
+Type=simple
+
+# IMPORTANT : Modifier ces valeurs selon votre installation
+User=omega
+Group=omega
+WorkingDirectory=/path/to/Omega-fix/backend/monitoring
+
+# Commande de démarrage
+ExecStart=/usr/bin/node /path/to/Omega-fix/backend/monitoring/health-check.js
+
+# Redémarrage automatique en cas d'échec
+Restart=always
+RestartSec=10
+
+# Gestion des logs
+StandardOutput=append:/var/log/omega-health-monitor.log
+StandardError=append:/var/log/omega-health-monitor-error.log
+SyslogIdentifier=omega-health-monitor
+
+# Variables d'environnement (optionnel)
+# Environment="HEALTH_CHECK_URL=http://localhost:3000/api/health"
+# Environment="HEALTH_CHECK_INTERVAL=60000"
+# Environment="HEALTH_ALERT_THRESHOLD=3"
+
+# Ou charger depuis un fichier .env
+# EnvironmentFile=/path/to/Omega-fix/backend/monitoring/.env
+
+# Limites de sécurité
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Limites de ressources
+LimitNOFILE=4096
+MemoryMax=256M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

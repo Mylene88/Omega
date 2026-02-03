@@ -1,0 +1,997 @@
+# CAHIER DES CHARGES - APPLICATION OMEGA
+## PARTIE 2 : FONCTIONNALITÉS ET EXPLOITATION
+
+---
+
+**Organisme** : Direction Départementale des Territoires (DDT) d'Eure-et-Loir
+**Projet** : Application OMEGA - Gestion de projets territoriaux
+**Version** : 1.0
+**Date** : 29 novembre 2025
+**Classification** : Usage interne - Environnement cloisonné
+
+---
+
+## 6. HOMOLOGATION DE SÉCURITÉ ANSSI : ÉTAPES 5 À 9
+
+### 6.1 Étape 5 : Analyse de risques (méthode EBIOS 2010)
+
+#### 6.1.1 Présentation de la méthode EBIOS 2010
+
+L'analyse de risques de l'application OMEGA est conduite selon la **méthode EBIOS 2010** (Expression des Besoins et Identification des Objectifs de Sécurité), méthode officielle de l'ANSSI pour l'analyse de risques en sécurité des systèmes d'information.
+
+La méthode EBIOS 2010 se déroule en **5 phases** :
+
+1. **Phase 1 - Étude du contexte** : Identifier les biens essentiels, les biens supports, les événements redoutés et leurs impacts
+2. **Phase 2 - Étude des événements redoutés** : Apprécier les événements redoutés en fonction de leur gravité et de leur vraisemblance
+3. **Phase 3 - Étude des scénarios de menaces** : Identifier les sources de menaces et les scénarios d'attaque
+4. **Phase 4 - Étude des risques** : Estimer les risques en croisant menaces et vulnérabilités
+5. **Phase 5 - Étude des mesures de sécurité** : Définir les mesures de sécurité pour traiter les risques
+
+Pour OMEGA (approche **Mezzo Piano**), les **phases 1 et 2** sont obligatoires. Les phases 3 à 5 peuvent être réalisées de manière simplifiée ou complète selon la complexité identifiée.
+
+#### 6.1.2 Phase 1 : Étude du contexte
+
+**Biens essentiels** (actifs métier) :
+
+| Bien essentiel | Description | Critères de sécurité impactés |
+|----------------|-------------|-------------------------------|
+| **Données des projets territoriaux** | Ensemble des informations sur les projets gérés par la DDT : identification, description, statuts, suivis | Intégrité (I2), Disponibilité (D3), Confidentialité (C2) |
+| **Données personnelles** | Coordonnées des agents DDT et des porteurs de projets | Confidentialité (C2), Intégrité (I2), Conformité RGPD |
+| **Historique et traçabilité** | Journaux d'audit permettant de reconstituer l'historique des modifications | Intégrité (I1 - critique), Disponibilité (D3) |
+| **Géométries spatiales** | Emprises géographiques des projets | Intégrité (I2), Disponibilité (D3) |
+| **Capacité opérationnelle de la DDT** | Capacité à gérer efficacement les projets territoriaux | Disponibilité (D3) |
+
+**Biens supports** (actifs techniques et organisationnels) :
+
+| Bien support | Type | Importance | Justification |
+|--------------|------|------------|---------------|
+| **Base de données PostgreSQL** | Logiciel | Critique | Contient toutes les données métier |
+| **Serveur backend Next.js** | Logiciel | Critique | Expose l'API et implémente la logique métier |
+| **Serveur frontend React** | Logiciel | Important | Interface utilisateur |
+| **Serveur web Nginx** | Logiciel | Important | Point d'entrée du système |
+| **Serveur d'hébergement** | Matériel | Critique | Héberge tous les composants logiciels |
+| **Réseau interne DDT** | Infrastructure | Critique | Permet l'accès au système |
+| **Comptes utilisateurs** | Organisationnel | Critique | Authentification et traçabilité |
+| **Sauvegardes** | Organisationnel | Critique | Permet la restauration en cas de sinistre |
+| **Administrateurs système** | Humain | Critique | Exploitent et maintiennent le système |
+| **Utilisateurs agents DDT** | Humain | Important | Utilisent le système quotidiennement |
+| **Documentation technique** | Organisationnel | Important | Nécessaire pour l'exploitation et la maintenance |
+
+**Événements redoutés** :
+
+| ID | Événement redouté | Bien essentiel impacté | Critère | Impact métier | Gravité |
+|----|------------------|------------------------|---------|---------------|---------|
+| **ER1** | Divulgation de données personnelles à des tiers non autorisés | Données personnelles | Confidentialité | Atteinte à la vie privée, non-conformité RGPD, sanctions CNIL | **Grave** |
+| **ER2** | Corruption ou altération des données de projets | Données des projets | Intégrité | Perte de confiance, décisions erronées, conflits juridiques | **Grave** |
+| **ER3** | Perte définitive de données (sans possibilité de restauration) | Données des projets, historique | Disponibilité, Intégrité | Impossibilité de poursuivre les missions, perte d'historique irréversible | **Très grave** |
+| **ER4** | Indisponibilité prolongée du système (> 4h) | Capacité opérationnelle | Disponibilité | Ralentissement des missions, impossibilité de consulter les dossiers | **Modéré** |
+| **ER5** | Altération ou suppression des journaux d'audit | Historique et traçabilité | Intégrité | Impossibilité de prouver la conformité, investigation impossible en cas d'incident | **Grave** |
+| **ER6** | Usurpation d'identité d'un utilisateur (accès frauduleux) | Données des projets, données personnelles | Confidentialité, Intégrité | Actions malveillantes non détectées, compromission de données | **Grave** |
+| **ER7** | Défaillance du système de versioning (impossibilité de restaurer) | Données des projets | Intégrité, Disponibilité | Perte définitive de versions antérieures en cas d'erreur | **Modéré** |
+
+**Échelle de gravité** :
+- **Très grave** : Impact majeur sur les missions, préjudice important, sanctions réglementaires lourdes
+- **Grave** : Impact significatif, préjudice notable, sanctions possibles
+- **Modéré** : Gêne dans les missions, préjudice limité
+- **Faible** : Impact négligeable
+
+#### 6.1.3 Phase 2 : Appréciation des événements redoutés
+
+Pour chaque événement redouté, on évalue :
+- **Gravité** (déjà identifiée ci-dessus)
+- **Vraisemblance** (probabilité que l'événement se produise)
+- **Niveau de risque** = Gravité × Vraisemblance
+
+| Événement redouté | Gravité | Vraisemblance | Justification vraisemblance | Niveau de risque |
+|------------------|---------|---------------|----------------------------|------------------|
+| **ER1** - Divulgation données personnelles | Grave | Faible | Environnement cloisonné, pas d'exposition Internet, authentification robuste | **Moyen** |
+| **ER2** - Corruption données projets | Grave | Moyenne | Erreurs de manipulation possibles, bugs logiciels possibles | **Élevé** |
+| **ER3** - Perte définitive de données | Très grave | Très faible | Sauvegardes quotidiennes, infrastructure fiable, tests de restauration | **Moyen** |
+| **ER4** - Indisponibilité prolongée | Modéré | Faible | Redémarrage automatique, monitoring, mais défaillance matérielle possible | **Faible à Moyen** |
+| **ER5** - Altération journaux d'audit | Grave | Très faible | Journal append-only, protections techniques fortes | **Faible à Moyen** |
+| **ER6** - Usurpation d'identité | Grave | Faible | Mots de passe hachés, JWT, mais menace interne possible | **Moyen** |
+| **ER7** - Défaillance versioning | Modéré | Faible | Système testé, mais complexité technique | **Faible** |
+
+**Risques prioritaires nécessitant une attention particulière** :
+1. **ER2 - Corruption données projets** (risque élevé) → Mesures : versioning multi-niveaux, journal d'audit, validations techniques
+2. **ER1 - Divulgation données personnelles** (risque moyen mais impact RGPD) → Mesures : contrôle d'accès strict, cloisonnement réseau
+3. **ER3 - Perte définitive de données** (risque moyen mais impact très grave) → Mesures : sauvegardes robustes, tests de restauration
+4. **ER6 - Usurpation d'identité** (risque moyen) → Mesures : authentification forte, surveillance des accès
+
+#### 6.1.4 Phases 3 à 5 : Scénarios de menaces et mesures de sécurité (synthèse)
+
+**Principales sources de menaces identifiées** :
+- **Menaces internes** : Erreur humaine (utilisateur ou administrateur), malveillance interne (faible probabilité mais possible)
+- **Menaces sur l'infrastructure** : Défaillance matérielle, bug logiciel, vulnérabilité non corrigée
+- **Menaces externes** (limitées par le cloisonnement) : Attaque depuis le réseau interne (si compromis), exploitation de vulnérabilité
+
+**Principales vulnérabilités à surveiller** :
+- Vulnérabilités dans les dépendances npm (bibliothèques JavaScript tierces)
+- Configuration incorrecte des serveurs ou de la base de données
+- Failles de sécurité applicatives (injection SQL, XSS) → mitigées par l'utilisation d'ORM et de React
+- Gestion insuffisante des droits d'accès
+
+**Mesures de sécurité mises en œuvre** (voir section 6.3 pour le détail complet) :
+- **Mesures techniques** : authentification JWT, hachage bcrypt, RBAC, journal d'audit immuable, versioning multi-niveaux, sauvegardes automatiques, cloisonnement réseau, utilisation d'ORM
+- **Mesures organisationnelles** : PSSI, processus de gestion des changements, gestion des incidents, veille de sécurité, audits réguliers, formation des utilisateurs
+- **Mesures physiques** : Hébergement sécurisé dans les locaux de la DDT, contrôle d'accès physique aux serveurs
+
+#### 6.1.5 Risques résiduels acceptés
+
+Après mise en œuvre des mesures de sécurité, les **risques résiduels** suivants subsistent et devront être **acceptés formellement par l'autorité d'homologation** :
+
+| Risque résiduel | Niveau | Justification acceptation |
+|-----------------|--------|---------------------------|
+| Erreur humaine d'un administrateur entraînant une corruption partielle | Faible | Système de versioning permet la restauration, journal d'audit permet l'investigation |
+| Vulnérabilité zero-day dans une dépendance (non encore découverte) | Faible | Veille active, mises à jour trimestrielles, environnement cloisonné limite l'exploitation |
+| Défaillance matérielle simultanée du serveur principal ET du serveur de sauvegarde | Très faible | Probabilité extrêmement faible, infrastructure DDT robuste |
+| Malveillance d'un administrateur disposant de tous les privilèges | Très faible | Contrôles organisationnels, séparation des fonctions, audit a posteriori possible |
+
+**Décision d'acceptation** : Ces risques résiduels sont considérés comme acceptables au regard :
+- De leur très faible niveau résiduel après mesures de sécurité
+- Des mesures compensatoires en place (détection, restauration, investigation)
+- Du contexte d'usage (réseau interne, données sensibles mais non classifiées)
+
+### 6.2 Étape 6 : Contrôle de la réalité (audits de sécurité)
+
+#### 6.2.1 Types d'audits requis pour l'homologation
+
+Dans le cadre de l'approche **Mezzo Piano**, les audits de sécurité suivants sont **fortement recommandés** :
+
+**Audit organisationnel** :
+- **Objectif** : Vérifier que l'organisation de la sécurité est conforme aux exigences (PSSI, procédures, responsabilités)
+- **Contenu** :
+  - Revue de la PSSI et des procédures de sécurité
+  - Vérification que les rôles et responsabilités sont bien définis et assumés
+  - Contrôle de l'existence et de la mise à jour de la documentation (PES, PCA/PRA)
+  - Vérification de la sensibilisation et formation des utilisateurs
+  - Contrôle du processus de gestion des changements et des incidents
+- **Réalisation** : Audit documentaire + entretiens avec les acteurs (RSSI, MOA, MOE, exploitant)
+- **Fréquence** : Avant l'homologation initiale, puis tous les 3 ans ou lors de changements organisationnels majeurs
+
+**Audit technique** :
+- **Objectif** : Vérifier que les mesures de sécurité techniques sont effectivement implémentées et efficaces
+- **Contenu** :
+  - **Tests de configuration** : vérification de la configuration sécurisée des serveurs, base de données, services
+  - **Tests de vulnérabilité** : scan automatisé des vulnérabilités connues (OpenVAS, Nessus, ou équivalent)
+  - **Revue de code sécurité** (optionnelle pour Mezzo Piano mais recommandée) : analyse statique du code pour identifier les failles (injection SQL, XSS, etc.)
+  - **Tests de cloisonnement** : vérification qu'aucune connexion externe n'est possible
+  - **Tests d'authentification et contrôle d'accès** : tentatives d'accès non autorisés, bypass de droits
+  - **Tests du journal d'audit** : vérification de l'exhaustivité et de l'immuabilité des logs
+  - **Tests de sauvegarde/restauration** : validation de la procédure de restauration
+- **Réalisation** : Tests techniques automatisés + tests manuels par auditeur qualifié
+- **Fréquence** : Avant l'homologation initiale, puis annuellement
+
+**Tests d'intrusion (optionnels pour Mezzo Piano, recommandés pour Mezzo Forte)** :
+- **Objectif** : Simuler une attaque réelle pour identifier les vulnérabilités exploitables
+- **Contenu** : Tentatives d'exploitation de vulnérabilités, tests de contournement des mesures de sécurité, élévation de privilèges
+- **Réalisation** : Prestataire qualifié PASSI
+- **Fréquence** : Avant l'homologation initiale si budget disponible, sinon tous les 3 ans
+
+#### 6.2.2 Résultats attendus des audits
+
+Chaque audit doit produire un **rapport d'audit** contenant :
+
+1. **Synthèse exécutive** : constats principaux, niveau de conformité global, recommandations prioritaires
+2. **Méthodologie** : périmètre audité, outils utilisés, référentiels appliqués
+3. **Constats détaillés** : Pour chaque exigence testée, résultat (conforme / non conforme / partiellement conforme)
+4. **Vulnérabilités identifiées** : Liste des vulnérabilités découvertes avec leur criticité (CVSS score si applicable)
+5. **Recommandations** : Plan d'action pour corriger les non-conformités et vulnérabilités, avec priorisation
+6. **Conclusion** : Avis de l'auditeur sur l'acceptabilité du niveau de sécurité
+
+**Criticité des vulnérabilités** (échelle CVSS adaptée) :
+- **Critique** (9.0-10.0) : Exploitation facile, impact majeur → correction immédiate obligatoire avant homologation
+- **Élevée** (7.0-8.9) : Exploitation possible, impact significatif → correction sous 30 jours
+- **Moyenne** (4.0-6.9) : Exploitation complexe ou impact modéré → correction sous 90 jours
+- **Faible** (0.1-3.9) : Exploitation difficile, impact mineur → correction lors de maintenance de routine
+
+**Critères d'acceptabilité pour l'homologation** :
+- **Aucune vulnérabilité critique** non corrigée
+- **Les vulnérabilités élevées** doivent faire l'objet d'un plan d'action avec échéance < 30 jours
+- **Conformité organisationnelle** : au moins 80% des exigences organisationnelles conformes
+- **Conformité technique** : au moins 85% des exigences techniques conformes
+
+#### 6.2.3 Plan d'action de mise en conformité
+
+Suite aux audits, un **plan d'action de mise en conformité** doit être établi :
+
+| ID | Non-conformité / Vulnérabilité | Criticité | Mesure corrective | Responsable | Échéance | Statut |
+|----|-------------------------------|-----------|-------------------|-------------|----------|--------|
+| [À compléter après audits réels] | | | | | | |
+
+**Suivi du plan d'action** :
+- Revue mensuelle par le comité de pilotage sécurité pendant la phase de correction
+- Validation par le RSSI de chaque mesure corrective implémentée
+- Clôture formelle du plan d'action avant la décision d'homologation
+
+### 6.3 Étape 7 : Mesures de sécurité complémentaires
+
+#### 6.3.1 Catalogue des mesures de sécurité mises en œuvre
+
+Le tableau ci-dessous récapitule l'ensemble des mesures de sécurité implémentées dans OMEGA, en référence aux exigences du RGS et des 40 règles d'hygiène ANSSI.
+
+**Mesures organisationnelles** :
+
+| ID | Mesure | Description | Référence |
+|----|--------|-------------|-----------|
+| **MO-01** | PSSI applicable | Politique de Sécurité des SI de la DDT appliquée à OMEGA | §5.4.1 |
+| **MO-02** | Rôles et responsabilités définis | Autorité d'homologation, RSSI, MOA, MOE, exploitant clairement identifiés | §5.3 |
+| **MO-03** | Comité de pilotage sécurité | Suivi trimestriel de la sécurité par comité dédié | §5.4.2 |
+| **MO-04** | Gestion des changements | Validation RSSI obligatoire avant tout changement en production | §5.4.3 |
+| **MO-05** | Gestion des incidents de sécurité | Procédure d'escalade, contacts d'urgence, rapport d'incident | §5.4.3 |
+| **MO-06** | Veille de sécurité | Sources : CERT-FR, npm audit, bulletins éditeurs | §5.4.3 |
+| **MO-07** | Formation et sensibilisation | Plan de formation annuel, sensibilisation aux 40 règles ANSSI | §5.4.6 |
+| **MO-08** | Revue annuelle des droits d'accès | Contrôle annuel des comptes utilisateurs et de leurs droits | §5.3 |
+| **MO-09** | Documentation complète | PES, PCA/PRA, manuels utilisateurs et administrateurs | §5.4.4 |
+| **MO-10** | Audits de sécurité réguliers | Audit organisationnel et technique avant homologation puis annuel | §6.2 |
+
+**Mesures techniques - Authentification et contrôle d'accès** :
+
+| ID | Mesure | Description | Référence |
+|----|--------|-------------|-----------|
+| **MT-01** | Authentification obligatoire | Aucun accès sans authentification | §4.1 |
+| **MT-02** | Mots de passe robustes | Min 8 caractères (12 recommandés), hachage bcrypt facteur 10 | §4.1 |
+| **MT-03** | Changement mot de passe à la 1ère connexion | Obligation de changer le mot de passe temporaire | §7.2 |
+| **MT-04** | Tokens JWT | Authentification stateless, durée de validité 24h | §4.1 |
+| **MT-05** | Contrôle d'accès basé sur les rôles (RBAC) | Administrateurs vs utilisateurs standard, principe du moindre privilège | §7.1 |
+| **MT-06** | Vérification côté serveur | Tous les endpoints API vérifient les droits avant exécution | §7.1 |
+| **MT-07** | Protection contre les tentatives de force brute | Surveillance des échecs de connexion répétés | §4.1 |
+
+**Mesures techniques - Traçabilité et intégrité** :
+
+| ID | Mesure | Description | Référence |
+|----|--------|-------------|-----------|
+| **MT-08** | Journal d'audit immuable | Table append-only enregistrant toutes les modifications | §4.2 |
+| **MT-09** | Traçabilité exhaustive | User ID, timestamp, action, anciennes/nouvelles valeurs, IP, user-agent | §4.2 |
+| **MT-10** | Conservation des logs 3 ans | Respect des obligations légales d'archivage | §4.2 |
+| **MT-11** | Soft delete | Suppression logique, données conservées pour archivage | §2.3.4 |
+| **MT-12** | Versioning multi-niveaux | Snapshots + versions par section + audit log | §6.1 (Partie 2) |
+| **MT-13** | Protection en écriture des journaux | Pas de suppression ni modification possible des logs d'audit | §4.2 |
+
+**Mesures techniques - Disponibilité et continuité** :
+
+| ID | Mesure | Description | Référence |
+|----|--------|-------------|-----------|
+| **MT-14** | Sauvegardes automatiques quotidiennes | pg_dump à 2h du matin, stockage serveur distinct | §6.2 (Partie 1) |
+| **MT-15** | Rétention des sauvegardes | 7 quotidiennes + 4 hebdo + 12 mensuelles | §6.2 (Partie 1) |
+| **MT-16** | Tests de restauration trimestriels | Validation de la procédure de restauration | §6.2 (Partie 1) |
+| **MT-17** | Redémarrage automatique (systemd) | Restart=on-failure, RestartSec=10s | §8.1 (Partie 2) |
+| **MT-18** | Monitoring et alertes | Supervision Nagios/Zabbix, endpoint /api/health | §8.3 (Partie 2) |
+| **MT-19** | PCA/PRA documentés | RTO 4h, RPO 24h | §5.4.3 |
+
+**Mesures techniques - Sécurité du code et des données** :
+
+| ID | Mesure | Description | Référence |
+|----|--------|-------------|-----------|
+| **MT-20** | Utilisation d'ORM (Sequelize) | Protection contre les injections SQL | §3.2 |
+| **MT-21** | Échappement automatique React | Protection contre les attaques XSS | §3.2 |
+| **MT-22** | Validation des entrées côté serveur | Vérification types, longueurs, formats avant enregistrement | §4.1 |
+| **MT-23** | Audit npm trimestriel | Détection vulnérabilités dans les dépendances | §5.4.3 |
+| **MT-24** | Mises à jour de sécurité | Correctifs critiques sous 30 jours, importants sous 90 jours | §5.4.3 |
+| **MT-25** | Cloisonnement réseau complet | Aucune connexion HTTP/HTTPS sortante, tuiles locales | §4.4 |
+| **MT-26** | Segmentation des privilèges BDD | Compte applicatif avec privilèges minimums, pas d'admin | §4.2 |
+
+**Mesures techniques - Conformité RGPD** :
+
+| ID | Mesure | Description | Référence |
+|----|--------|-------------|-----------|
+| **MT-27** | Minimisation des données | Collecte uniquement des données strictement nécessaires | §4.3 |
+| **MT-28** | Registre des traitements | Documentation des traitements, finalités, durées | §4.3 |
+| **MT-29** | Gestion des droits des personnes | Processus pour droit d'accès, rectification, effacement | §4.3 |
+| **MT-30** | Pseudonymisation partielle | Hachage irréversible des mots de passe | §4.1 |
+
+#### 6.3.2 Mesures complémentaires recommandées
+
+Les mesures suivantes ne sont **pas implémentées dans la version 1.0** mais sont recommandées pour les versions futures ou dans le cadre d'une approche Mezzo Forte :
+
+| ID | Mesure | Description | Priorité | Complexité |
+|----|--------|-------------|----------|------------|
+| **MC-01** | Authentification multi-facteurs (MFA) | Ajout d'un second facteur (SMS, TOTP) pour les administrateurs | Moyenne | Moyenne |
+| **MC-02** | Chiffrement de la base de données au repos | Chiffrement transparent des données (TDE PostgreSQL) | Moyenne | Faible |
+| **MC-03** | HTTPS systématique | Mise en place de certificats TLS pour chiffrer les communications | Élevée | Faible |
+| **MC-04** | WAF (Web Application Firewall) | Filtrage applicatif en amont de Nginx | Faible | Moyenne |
+| **MC-05** | SIEM (Security Information and Event Management) | Centralisation et corrélation des logs de sécurité | Faible | Élevée |
+| **MC-06** | Tests d'intrusion annuels | Pentest par prestataire PASSI | Moyenne | Faible (coût) |
+| **MC-07** | Signature de code | Signature des releases pour garantir l'authenticité | Faible | Moyenne |
+| **MC-08** | Durcissement (hardening) des serveurs | Application des guides de durcissement ANSSI Linux | Moyenne | Moyenne |
+
+### 6.4 Étape 8 : Décision d'homologation
+
+#### 6.4.1 Dossier d'homologation
+
+Le **dossier d'homologation** constitue la synthèse de l'ensemble des travaux menés. Il doit contenir :
+
+**Table des matières du dossier d'homologation OMEGA** :
+
+1. **Résumé exécutif** (2-3 pages)
+   - Présentation synthétique du système
+   - Approche d'homologation retenue (Mezzo Piano)
+   - Principaux risques identifiés et traités
+   - Risques résiduels et recommandation d'acceptation
+   - Conclusion et proposition de décision
+
+2. **Description du système** (référence au CAHIER_CHARGES_PARTIE1, sections 1 à 4)
+   - Périmètre, architecture, technologies
+   - Utilisateurs et volumétries
+   - Contexte et besoins métier
+
+3. **Stratégie d'homologation** (section 5 du CAHIER_CHARGES_PARTIE1)
+   - FEROS (Fiche d'Expression Rationnelle des Objectifs de Sécurité)
+   - Classification des données
+   - Choix de l'approche Mezzo Piano et justification
+
+4. **Acteurs et organisation** (section 5.3 et 5.4 du CAHIER_CHARGES_PARTIE1)
+   - Identification des rôles et responsabilités
+   - Structure de gouvernance sécurité
+   - PSSI applicable et procédures de sécurité
+
+5. **Analyse de risques** (section 6.1 ci-dessus)
+   - Biens essentiels et supports
+   - Événements redoutés et leur appréciation
+   - Scénarios de menaces et vulnérabilités
+   - Risques résiduels et leur acceptabilité
+
+6. **Mesures de sécurité** (section 6.3 ci-dessus)
+   - Catalogue complet des mesures techniques et organisationnelles
+   - Correspondance mesures ↔ risques
+   - Mesures complémentaires recommandées
+
+7. **Audits de sécurité** (section 6.2 ci-dessus + rapports d'audit en annexe)
+   - Synthèse des audits organisationnels et techniques
+   - Principales vulnérabilités identifiées
+   - Plan d'action de mise en conformité et son avancement
+
+8. **Documentation d'exploitation** (section 8 du CAHIER_CHARGES_PARTIE2)
+   - Procédures d'Exploitation de Sécurité (PES)
+   - Plan de Continuité/Reprise d'Activité (PCA/PRA)
+   - Procédures de sauvegarde et restauration
+
+9. **Annexes**
+   - Rapports d'audit complets
+   - Cartographie détaillée du réseau et des flux
+   - Liste exhaustive des dépendances logicielles
+   - Registre des traitements RGPD
+
+#### 6.4.2 Décision d'homologation
+
+La **décision d'homologation** est un document officiel signé par **l'Autorité d'Homologation** (Directeur de la DDT), sur proposition du **RSSI**.
+
+**Contenu de la décision d'homologation** :
+
+```
+DÉCISION D'HOMOLOGATION DE SÉCURITÉ
+Application OMEGA - Gestion de projets territoriaux
+
+Je soussigné(e), [Nom Prénom], Directeur/Directrice de la Direction Départementale
+des Territoires d'Eure-et-Loir, agissant en qualité d'Autorité d'Homologation,
+
+Vu le Référentiel Général de Sécurité (RGS) version 2.0,
+Vu la Politique de Sécurité des Systèmes d'Information (PSSI) de la DDT d'Eure-et-Loir,
+Vu le dossier d'homologation de l'application OMEGA version 1.0 daté du [Date],
+Vu l'analyse de risques selon la méthode EBIOS 2010,
+Vu les rapports d'audit de sécurité organisationnel et technique datés du [Date],
+Vu l'avis favorable du RSSI de la DDT,
+
+Après avoir pris connaissance :
+- Des enjeux de sécurité et des objectifs de sécurité définis (FEROS)
+- Des risques résiduels identifiés et des mesures de sécurité mises en œuvre
+- Des résultats des audits et du plan d'action de mise en conformité
+
+DÉCIDE :
+
+Article 1 : L'application OMEGA est homologuée pour une durée de 3 ans à compter
+du [Date de mise en production], soit jusqu'au [Date + 3 ans].
+
+Article 2 : Les risques résiduels suivants sont explicitement acceptés :
+- [Liste des risques résiduels identifiés en section 6.1.5]
+
+Article 3 : L'homologation est conditionnée à :
+- La mise en œuvre complète des mesures de sécurité décrites dans le dossier d'homologation
+- L'application du plan d'action de mise en conformité selon l'échéancier défini
+- Le respect des Procédures d'Exploitation de Sécurité (PES)
+
+Article 4 : Une revue annuelle de l'homologation sera effectuée par le RSSI et présentée
+à l'Autorité d'Homologation. Cette revue vérifiera :
+- Le maintien de l'efficacité des mesures de sécurité
+- L'absence de changement majeur du contexte ou des risques
+- La réalisation des audits et maintenances prévus
+
+Article 5 : L'homologation sera révisée en cas de :
+- Évolution majeure du système (nouvelle version modifiant l'architecture ou les fonctionnalités)
+- Incident de sécurité majeur
+- Changement significatif du contexte de menace ou réglementaire
+- Identification de vulnérabilité critique
+
+Article 6 : Le RSSI de la DDT est chargé du suivi de la mise en œuvre de cette décision.
+
+Fait à [Ville], le [Date]
+
+[Signature]
+[Nom Prénom]
+Directeur/Directrice de la DDT d'Eure-et-Loir
+Autorité d'Homologation
+```
+
+#### 6.4.3 Conditions de mise en exploitation
+
+L'autorisation de mise en exploitation est accordée **sous réserve** de la complétude des conditions suivantes :
+
+**Conditions préalables obligatoires** :
+- [ ] Décision d'homologation signée par l'Autorité d'Homologation
+- [ ] Toutes les vulnérabilités **critiques** identifiées lors des audits sont corrigées
+- [ ] Le plan d'action pour les vulnérabilités **élevées** est validé avec échéances < 30 jours
+- [ ] Les Procédures d'Exploitation de Sécurité (PES) sont rédigées et validées
+- [ ] Le Plan de Continuité/Reprise d'Activité (PCA/PRA) est rédigé et validé
+- [ ] La formation des administrateurs système est réalisée
+- [ ] Le système de sauvegarde automatique est opérationnel et testé
+- [ ] Le monitoring et les alertes sont configurés et fonctionnels
+
+**Conditions post-mise en exploitation** (à réaliser dans les 90 jours) :
+- [ ] Formation de l'ensemble des utilisateurs agents DDT
+- [ ] Correction des vulnérabilités de criticité **moyenne** selon le plan d'action
+- [ ] Documentation utilisateur finalisée et diffusée
+- [ ] Premier rapport de revue d'exploitation (1 mois après MEP)
+
+### 6.5 Étape 9 : Amélioration continue de la sécurité
+
+#### 6.5.1 Suivi en vie courante
+
+L'homologation n'est pas un état figé mais un **processus continu** nécessitant un suivi régulier pendant toute la durée de vie du système.
+
+**Activités de suivi quotidien/hebdomadaire** :
+- **Monitoring** : Surveillance continue de la disponibilité et des performances (§8.3 Partie 2)
+- **Veille de sécurité** : Consultation des bulletins CERT-FR, npm audit, bulletins éditeurs
+- **Analyse des logs d'audit** : Recherche d'anomalies ou de comportements suspects
+- **Gestion des incidents** : Traitement des incidents de sécurité selon la procédure
+
+**Activités de suivi mensuel** :
+- **Revue des logs d'administration** : Analyse des actions administratives (admin_access_log)
+- **Vérification des sauvegardes** : Contrôle de l'exécution correcte des sauvegardes quotidiennes
+- **Revue des demandes de suppression** : Traitement des demandes en attente
+- **Statistiques d'utilisation** : Analyse des métriques d'usage et détection d'anomalies
+
+**Activités de suivi trimestriel** :
+- **Comité de pilotage sécurité** : Réunion trimestrielle, suivi du plan d'action, décisions majeures
+- **Audit npm des dépendances** : npm audit + application des correctifs de sécurité
+- **Test de restauration** : Test complet de restauration d'une sauvegarde
+- **Maintenance préventive** : VACUUM ANALYZE PostgreSQL, rotation des logs
+
+**Activités de suivi annuel** :
+- **Revue d'homologation** : Bilan annuel présenté à l'Autorité d'Homologation (voir §6.5.2)
+- **Audit de sécurité** : Audit organisationnel et/ou technique annuel
+- **Revue des droits d'accès** : Vérification des comptes utilisateurs et de leurs rôles
+- **Test PCA/PRA** : Exercice de reprise après sinistre simulé
+- **Mise à jour du dossier d'homologation** : Actualisation de la documentation si nécessaire
+
+#### 6.5.2 Revue annuelle d'homologation
+
+Chaque année, le **RSSI** doit produire un **rapport de revue d'homologation** destiné à l'Autorité d'Homologation.
+
+**Contenu du rapport de revue annuelle** :
+
+1. **Rappel du contexte**
+   - Décision d'homologation initiale (référence, date, durée de validité)
+   - Périmètre du système homologué
+   - Année de revue concernée
+
+2. **Évolution du système**
+   - Changements effectués durant l'année (nouvelles versions, évolutions fonctionnelles)
+   - Impact de ces changements sur la sécurité
+   - Modifications du périmètre ou de l'architecture
+
+3. **Maintien en condition de sécurité**
+   - Disponibilité effective du système (% de disponibilité, incidents majeurs)
+   - Sauvegardes : taux de succès, tests de restauration réalisés
+   - Mises à jour de sécurité appliquées (nombre, criticité, délais de déploiement)
+   - Incidents de sécurité survenus (nombre, nature, traitement)
+
+4. **Audits et contrôles**
+   - Synthèse des audits réalisés durant l'année
+   - Principales vulnérabilités identifiées et corrigées
+   - État d'avancement du plan d'action de conformité
+
+5. **Analyse des risques actualisée**
+   - Évolution du contexte de menace
+   - Nouveaux risques identifiés
+   - Risques résiduels toujours acceptables ?
+
+6. **Conformité réglementaire**
+   - Conformité RGPD : registre à jour, respect des droits des personnes
+   - Conformité RGS : niveau de sécurité maintenu
+   - Autres obligations légales
+
+7. **Recommandations**
+   - Mesures de sécurité supplémentaires à envisager
+   - Ajustements des procédures
+   - Besoins de formation ou sensibilisation
+
+8. **Conclusion et proposition**
+   - **Maintien de l'homologation** : l'homologation peut être maintenue sans modification
+   - **Maintien sous réserve** : maintien conditionné à la réalisation d'actions correctives sous X mois
+   - **Révision nécessaire** : changements majeurs nécessitant une nouvelle analyse de risques et une nouvelle décision
+
+**Décision de l'Autorité d'Homologation** :
+Suite à ce rapport, l'Autorité d'Homologation prend une décision formelle :
+- Maintien de l'homologation pour une année supplémentaire
+- Maintien sous réserve avec plan d'action
+- Suspension de l'homologation (cas exceptionnel)
+
+#### 6.5.3 Renouvellement de l'homologation (tous les 3 ans)
+
+À l'échéance de la période d'homologation (3 ans), un **renouvellement complet** doit être effectué.
+
+**Processus de renouvellement** :
+
+1. **Actualisation complète du dossier d'homologation** (6 mois avant échéance)
+   - Mise à jour de tous les documents (DAT, DSF, DST, FEROS)
+   - Nouvelle analyse de risques EBIOS tenant compte des évolutions du système et du contexte
+   - Actualisation du catalogue des mesures de sécurité
+
+2. **Audits de sécurité complets** (3-4 mois avant échéance)
+   - Audit organisationnel complet
+   - Audit technique complet
+   - Tests d'intrusion (si budget disponible)
+
+3. **Traitement des non-conformités** (2-3 mois avant échéance)
+   - Plan d'action de mise en conformité
+   - Correction des vulnérabilités critiques et élevées
+
+4. **Nouvelle décision d'homologation** (avant échéance)
+   - Présentation du dossier actualisé au comité de pilotage
+   - Avis du RSSI
+   - Décision de l'Autorité d'Homologation pour 3 nouvelles années
+
+**IMPORTANT** : Si le renouvellement n'est pas effectué avant l'échéance, le système n'est plus homologué et doit théoriquement être arrêté jusqu'à obtention d'une nouvelle homologation.
+
+#### 6.5.4 Révision d'homologation en cas de changement majeur
+
+Une **révision de l'homologation** (avant l'échéance des 3 ans) est obligatoire en cas de :
+
+**Changements techniques majeurs** :
+- Migration vers une nouvelle version avec changement d'architecture significatif
+- Ajout de nouvelles fonctionnalités exposant de nouveaux risques
+- Changement de technologie (par exemple, migration PostgreSQL → autre SGBD)
+- Exposition du système à Internet ou à un réseau externe (changement fondamental du contexte)
+
+**Changements organisationnels majeurs** :
+- Changement d'hébergeur (externalisation par exemple)
+- Changement de Maîtrise d'Œuvre
+- Réorganisation majeure de la DSI affectant l'exploitation
+
+**Événements de sécurité majeurs** :
+- Incident de sécurité grave (compromission, fuite de données)
+- Découverte d'une vulnérabilité critique dans une brique technologique sans correctif disponible
+- Changement majeur du contexte réglementaire
+
+**Processus de révision** :
+1. Analyse d'impact du changement sur la sécurité (par le RSSI)
+2. Actualisation partielle ou complète de l'analyse de risques
+3. Définition de mesures de sécurité additionnelles si nécessaire
+4. Audits ciblés sur les éléments modifiés
+5. Nouvelle décision d'homologation (ou avenant à la décision initiale)
+
+---
+
+## 7. FONCTIONNALITÉS DÉTAILLÉES DE L'APPLICATION
+
+### 7.1 Système de versioning multi-niveaux
+
+L'une des fonctionnalités les plus sophistiquées d'OMEGA est son système de versioning à trois niveaux, conçu pour offrir une protection maximale contre les erreurs de manipulation tout en permettant une traçabilité fine des évolutions. Cette architecture répond au besoin exprimé par les utilisateurs de pouvoir "revenir en arrière" en cas de modification malencontreuse, tout en conservant un historique détaillé de toutes les transformations qu'a connues un projet.
+
+Le premier niveau de versioning repose sur les snapshots complets. Un snapshot représente une photographie complète de l'état d'un projet à un instant donné, capturant l'ensemble des six sections qui composent le projet : les informations générales, les porteurs, l'historique des suivis, les thématiques associées avec leurs détails techniques, les documents liés, et la géométrie spatiale. Lorsqu'un utilisateur crée un snapshot, toutes ces informations sont extraites de la base de données et sérialisées au format JSON dans la table "projet_snapshot_section". Cette sérialisation garantit que même si la structure de la base de données évolue ultérieurement, les snapshots anciens resteront exploitables.
+
+Le système limite le nombre de snapshots à dix par utilisateur et par projet. Cette limitation répond à deux objectifs : d'une part, maîtriser la croissance de la base de données en évitant qu'elle ne soit saturée par des milliers de snapshots accumulés au fil des années ; d'autre part, inciter les utilisateurs à ne créer des snapshots qu'aux moments vraiment significatifs de la vie d'un projet. Lorsqu'un utilisateur a déjà créé dix snapshots pour un projet donné et qu'il en crée un onzième, le système supprime automatiquement le plus ancien snapshot et réutilise son numéro de version. Ainsi, les snapshots sont numérotés de un à dix et "tournent" en permanence, garantissant que les dix derniers points de sauvegarde sont toujours disponibles.
+
+Pour éviter que des snapshots anciens ne restent indéfiniment dans la base de données, un mécanisme de nettoyage automatique a été implémenté. Chaque nuit, à trois heures du matin, un script s'exécute et supprime tous les snapshots créés il y a plus de quinze jours. Cette durée de rétention a été jugée suffisante pour permettre aux utilisateurs de détecter une erreur et d'y remédier, tout en limitant l'accumulation de données historiques peu utiles. Les snapshots supprimés disparaissent définitivement, libérant l'espace correspondant dans la base de données.
+
+La restauration d'un snapshot peut s'effectuer de deux manières. L'utilisateur peut choisir de restaurer l'intégralité du snapshot, auquel cas toutes les sections du projet sont remplacées par les valeurs sauvegardées. Cette opération est irréversible (sauf si un nouveau snapshot a été créé juste avant la restauration), et l'utilisateur en est averti par un message de confirmation explicite. Alternativement, l'utilisateur peut choisir de ne restaurer que certaines sections spécifiques. Par exemple, s'il constate que les porteurs du projet ont été modifiés par erreur mais que le reste des données est correct, il peut restaurer uniquement la section "porteurs", laissant les autres sections inchangées. Cette flexibilité est très appréciée car elle permet des corrections chirurgicales sans perdre les modifications légitimes effectuées sur d'autres parties du projet.
+
+Le deuxième niveau de versioning, plus fin, repose sur les versions par section. Alors que les snapshots capturent l'état global du projet à des moments ponctuels choisis par l'utilisateur, les versions par section enregistrent automatiquement l'évolution de chaque section individuellement. Chaque fois qu'une section est modifiée, une nouvelle version peut être créée dans la table "section_version", stockant le contenu complet de la section au format JSON. Ce mécanisme permet de suivre l'historique détaillé d'une section particulière sans être pollué par les modifications des autres sections. Par exemple, si l'historique des suivis DDT a été enrichi progressivement avec vingt modifications successives, on peut consulter les vingt versions de cette section et comprendre comment elle a évolué au fil du temps.
+
+Ce deuxième niveau de versioning offre également une fonctionnalité de comparaison entre versions. L'interface d'administration permet de sélectionner deux versions d'une même section et d'afficher un "diff" visuel mettant en évidence les différences : les éléments ajoutés apparaissent en vert, les éléments supprimés en rouge, et les éléments modifiés en orange. Cette visualisation facilite grandement la compréhension des changements, notamment lorsque plusieurs mois se sont écoulés entre deux versions et que la mémoire des modifications s'est estompée.
+
+Le troisième niveau de versioning est constitué par le journal d'audit immuable. Contrairement aux deux niveaux précédents qui permettent de sauvegarder et restaurer des états complets de données, le journal d'audit enregistre uniquement les métadonnées des modifications : qui a modifié quoi, quand, et quels champs précis ont été touchés. Pour chaque modification, le système enregistre les anciennes et nouvelles valeurs au format JSON, permettant de reconstituer l'historique exact d'un champ particulier. Ce journal n'autorise aucune suppression ni modification : il est strictement append-only, garantissant sa valeur probante en cas de litige ou de besoin d'investigation.
+
+Ces trois niveaux de versioning sont complémentaires et répondent à des besoins différents. Les snapshots sont utilisés pour les restaurations massives en cas d'erreur importante. Les versions par section servent à l'analyse détaillée de l'évolution d'une partie spécifique du projet. Le journal d'audit permet la traçabilité réglementaire et l'investigation en cas de problème. Ensemble, ils forment un système de protection et de traçabilité extrêmement robuste, rassurant les utilisateurs sur le fait qu'aucune donnée ne peut être perdue définitivement.
+
+### 6.2 Interface d'administration et supervision du système
+
+L'interface d'administration d'OMEGA constitue le centre de contrôle du système pour les responsables de la DDT. Accessible uniquement aux utilisateurs disposant du rôle administrateur, cette interface offre une vision globale de l'activité, des outils de gestion avancés, et des capacités d'investigation en cas de problème.
+
+L'écran principal de l'interface d'administration présente un tableau de bord synthétique affichant les métriques essentielles du système. On y trouve le nombre total de projets actifs (c'est-à-dire non supprimés), réparti selon différentes dimensions : par statut (identification, instruction, réalisation, terminé), par service DDT responsable, et par thématique principale. Des graphiques circulaires et en barres facilitent la lecture de ces répartitions. Le tableau de bord affiche également le nombre d'utilisateurs actifs (comptes non désactivés ayant au moins une connexion dans les trente derniers jours), le nombre de snapshots stockés dans la base de données, et le nombre de demandes de suppression en attente de traitement. Ces indicateurs donnent une vision instantanée de la santé du système et de la charge de travail administrative à traiter.
+
+Une section du tableau de bord présente l'activité récente sous forme de graphique temporel montrant l'évolution du nombre de projets créés au cours des six derniers mois. Ce graphique permet de détecter des tendances (augmentation saisonnière de l'activité, par exemple) et de planifier les ressources en conséquence. Un second graphique présente les dix actions les plus fréquemment enregistrées dans le journal d'audit au cours des trente derniers jours, donnant une idée de l'utilisation réelle du système par les agents.
+
+L'onglet "Historique d'Audit" donne accès au journal complet de toutes les modifications effectuées dans le système. Les administrateurs peuvent filtrer ce journal selon de multiples critères : la table concernée (projets, porteurs, suivis, etc.), le type d'action (création, modification, suppression, restauration), l'utilisateur ayant effectué l'action, et une plage de dates. Le tableau résultant présente pour chaque entrée la date et l'heure précises, l'utilisateur concerné, la table et l'identifiant de l'enregistrement modifié, et le type d'action. Un clic sur une entrée ouvre un panneau détaillé affichant les anciennes et nouvelles valeurs au format JSON structuré et coloré syntaxiquement, facilitant la lecture. Cette fonctionnalité est essentielle pour comprendre l'historique d'un projet, pour investiguer un problème signalé par un utilisateur, ou pour répondre à une demande d'information administrative nécessitant de reconstituer précisément la chronologie des événements.
+
+L'onglet "Snapshots" présente la liste de tous les snapshots existants, tous projets et tous utilisateurs confondus. Les administrateurs peuvent filtrer cette liste par projet ou par utilisateur pour retrouver rapidement les snapshots pertinents. Pour chaque snapshot, le tableau indique le projet concerné, l'utilisateur ayant créé le snapshot, le numéro de version, le libellé optionnel fourni lors de la création, et la date de création. Les administrateurs disposent de plusieurs actions possibles : visualiser le contenu détaillé du snapshot (les six sections sont affichées dans un format lisible), restaurer le snapshot (avec sélection des sections à restaurer), ou supprimer manuellement le snapshot si nécessaire (par exemple, si un snapshot manifestement inutile consomme de l'espace). Cette vue d'ensemble permet de gérer le système de versioning de manière centralisée et d'intervenir en cas de besoin.
+
+L'onglet "Demandes de Suppression" constitue le cœur du workflow de validation des suppressions. Lorsqu'un utilisateur standard demande la suppression d'un projet, la demande apparaît dans cet onglet avec le statut "En attente". L'administrateur voit le nom du projet concerné, l'utilisateur ayant fait la demande, la raison fournie (champ texte libre obligatoire), et la date de la demande. Deux actions sont possibles : approuver ou rejeter la demande. En cas d'approbation, une modale de confirmation s'affiche, rappelant que l'action entraînera la suppression logique du projet (soft delete), et proposant un champ optionnel pour ajouter un commentaire administratif. Après confirmation, le projet est marqué comme supprimé (il disparaît des vues normales mais reste dans la base de données pour l'archivage), la demande passe au statut "Approuvée", et une entrée est créée dans le journal d'audit et dans le journal des accès admin. En cas de rejet, l'administrateur doit obligatoirement fournir un commentaire expliquant les raisons du refus, puis la demande passe au statut "Rejetée" et reste visible dans l'historique mais n'apparaît plus dans les demandes en attente.
+
+L'onglet "Versions par Section" offre une vue détaillée du versioning granulaire. Les administrateurs peuvent filtrer par projet et par section pour voir toutes les versions successives d'une section donnée. Pour chaque version, le tableau indique le numéro de version, la date de création, l'utilisateur ayant créé la version, et le commentaire optionnel. Deux fonctionnalités avancées sont disponibles : la comparaison de deux versions (affichage d'un diff visuel) et la restauration d'une version spécifique. Ces outils sont particulièrement utiles lorsqu'un utilisateur signale une régression et qu'il faut comprendre précisément ce qui a changé entre deux moments donnés.
+
+L'onglet "Accès Admin" présente le journal spécifique des actions effectuées par les administrateurs dans l'interface d'administration elle-même. Ce métajournal enregistre chaque connexion à l'interface admin, chaque consultation du tableau de bord, chaque approbation ou rejet de demande de suppression, chaque restauration de snapshot, etc. Pour chaque action, on enregistre l'utilisateur, la date et l'heure, le type d'action, l'endpoint API appelé, la méthode HTTP, le code de statut HTTP retourné, et la durée d'exécution en millisecondes. Cet onglet permet de détecter des comportements anormaux : par exemple, un grand nombre de tentatives de connexion échouées (code HTTP quatre cent un ou quatre cent trois) pourrait indiquer une tentative d'accès non autorisé. Des alertes automatiques peuvent être configurées pour signaler de telles anomalies.
+
+Plusieurs fonctionnalités transverses enrichissent l'interface d'administration. Un système de notifications toast affiche des messages temporaires en haut à droite de l'écran pour confirmer le succès d'une action (en vert), signaler une erreur (en rouge), ou attirer l'attention sur un point important (en orange ou bleu). Ces notifications disparaissent automatiquement après cinq secondes mais peuvent être fermées manuellement. Un mécanisme d'auto-refresh configurable permet de rafraîchir automatiquement les données affichées toutes les quinze secondes, trente secondes, une minute, ou cinq minutes, évitant ainsi aux administrateurs de recharger manuellement la page pour voir les nouvelles demandes ou les nouvelles entrées d'audit. Un indicateur affiche la date et l'heure de la dernière mise à jour des données. Enfin, des boutons d'export sont disponibles sur la plupart des onglets, permettant de télécharger les données au format CSV pour des analyses ultérieures avec des outils comme Excel ou des scripts Python.
+
+### 6.3 Workflow de demande et validation de suppression
+
+La suppression d'un projet dans OMEGA ne peut jamais s'effectuer directement et immédiatement. Un workflow de validation a été implémenté pour garantir qu'aucune suppression accidentelle ou non justifiée ne puisse survenir. Ce workflow répond à une double exigence : protéger les données contre les erreurs de manipulation tout en conservant la souplesse nécessaire à la gestion quotidienne des projets.
+
+Lorsqu'un utilisateur standard consulte un projet et souhaite le supprimer (par exemple, parce que le projet a été abandonné ou qu'il a été créé par erreur), il clique sur un bouton "Demander la suppression" présent dans l'interface de détail du projet. Ce clic ouvre une modale (fenêtre contextuelle) demandant à l'utilisateur de justifier sa demande. Un champ texte libre d'au moins dix caractères est obligatoire : l'utilisateur doit expliquer pourquoi il souhaite supprimer ce projet. Cette justification écrite est importante car elle permet à l'administrateur qui traitera la demande de comprendre le contexte et de prendre une décision éclairée. Une fois la raison saisie, l'utilisateur clique sur "Confirmer la demande".
+
+Le système crée alors une entrée dans la table "projet_deletion_request" avec le statut "pending" (en attente). Cette entrée enregistre le projet concerné, l'utilisateur ayant fait la demande, la raison fournie, et la date de la demande. Le projet reste parfaitement accessible et modifiable : la simple existence d'une demande de suppression ne change rien à son statut opérationnel. L'utilisateur reçoit une notification confirmant que sa demande a bien été enregistrée et qu'elle sera examinée par un administrateur.
+
+Du côté administrateur, la demande apparaît dans l'onglet "Demandes de Suppression" de l'interface d'administration. L'administrateur voit toutes les informations de la demande et peut consulter le projet complet pour mieux comprendre le contexte. Si la demande lui semble légitime (projet effectivement abandonné, doublon, ou créé par erreur), il clique sur "Approuver". Une modale de confirmation s'affiche, rappelant que l'approbation entraînera la suppression logique du projet. Cette modale présente un niveau de dangerosité élevé (fond rouge, icône d'avertissement) pour bien signifier la gravité de l'action. L'administrateur peut optionnellement ajouter un commentaire (par exemple : "Suppression approuvée suite à confirmation écrite du porteur de projet"). Après confirmation, plusieurs opérations s'enchaînent automatiquement : la demande passe au statut "approved", les champs "reviewed_by" (identifiant de l'administrateur), "review_comment" (commentaire de l'administrateur), et "reviewed_at" (date et heure de la décision) sont renseignés. Le projet lui-même est marqué comme supprimé via le mécanisme de soft delete : le champ "deleted_at" de la table "projet" reçoit le timestamp actuel. Une entrée est créée dans le journal d'audit avec l'action "DELETE", enregistrant l'état complet du projet juste avant sa suppression. Une entrée est également créée dans le journal des accès admin avec l'action "APPROVE_DELETION".
+
+Si au contraire l'administrateur estime que la demande n'est pas justifiée (par exemple, s'il s'agit manifestement d'une erreur ou si le projet doit être conservé pour des raisons réglementaires), il clique sur "Rejeter". Une modale s'affiche, demandant obligatoirement un commentaire expliquant les raisons du rejet. Ce commentaire est important car il sera visible par l'utilisateur ayant fait la demande (s'il consulte l'historique de ses demandes) et permet de justifier la décision. Après validation, la demande passe au statut "rejected", les champs "reviewed_by", "review_comment" et "reviewed_at" sont renseignés, mais le projet reste parfaitement inchangé et accessible.
+
+Le mécanisme de soft delete utilisé lors de l'approbation mérite d'être explicité. Contrairement à une suppression physique qui effacerait définitivement les données de la base, le soft delete se contente de marquer l'enregistrement comme supprimé en inscrivant une valeur dans le champ "deleted_at". Cette technique est rendue possible par le paramètre "paranoid: true" de Sequelize. Lorsque des requêtes sont effectuées sur la table "projet", Sequelize ajoute automatiquement une clause "WHERE deleted_at IS NULL" pour n'afficher que les projets actifs. Les projets supprimés deviennent donc invisibles dans les vues normales de l'application, mais restent techniquement présents dans la base de données. Cette conservation répond aux obligations légales d'archivage des archives publiques : les données relatives aux projets territoriaux doivent être conservées pendant des durées minimales définies par la réglementation. Les administrateurs peuvent consulter les projets supprimés via des requêtes spéciales incluant la clause "paranoid: false", et une restauration technique reste possible si nécessaire.
+
+### 6.4 Génération automatisée de rapports PDF
+
+La capacité de générer automatiquement des rapports PDF complets et professionnels constitue l'une des fonctionnalités les plus appréciées d'OMEGA. Cette fonctionnalité répond au besoin fréquent de communiquer les informations d'un projet aux porteurs, aux élus locaux, ou à d'autres services de l'État, sous une forme imprimable et facilement diffusable.
+
+Le processus de génération démarre lorsqu'un utilisateur, consultant un projet, clique sur le bouton "Télécharger PDF" présent dans l'interface. Ce clic déclenche une requête HTTP GET vers l'endpoint "/api/projets/[id]/export" avec le paramètre "format=pdf". Le backend reçoit cette requête et commence par récupérer l'intégralité des données du projet depuis la base de données. Cette récupération s'effectue via une requête Sequelize incluant toutes les associations : les informations de base du projet, la liste complète des porteurs avec leurs coordonnées, l'historique chronologique de tous les suivis DDT, les thématiques associées avec leurs détails techniques spécifiques, les documents liés, et la géométrie spatiale avec la liste des communes traversées.
+
+Une fois toutes ces données rassemblées en mémoire, le backend génère une chaîne de caractères contenant du code HTML structuré et stylisé. Ce HTML constitue une représentation complète et formatée du projet, organisée en sections clairement identifiées. L'en-tête du document comporte le logo de la DDT (si disponible), le titre "Fiche Projet", l'identifiant du projet au format "PR-YYYY-XXXXX", et le nom du projet. Vient ensuite une section "Informations Générales" présentant sous forme de lignes "Libellé : Valeur" le statut du projet, le service DDT responsable, le contact référent, et les dates de création et dernière modification. La section "Porteurs de Projet" présente un tableau avec une ligne par porteur, affichant le type de porteur, le nom de la structure, et les coordonnées complètes du référent. La section "Historique des Suivis DDT" présente également un tableau avec une ligne par suivi, affichant la date, le commentaire, et les indicateurs (enjeu prioritaire, charte d'accueil). Les sections suivantes présentent les thématiques associées, les documents liés, et les informations spatiales (communes traversées, aire ou longueur).
+
+La mise en forme visuelle est assurée par des styles CSS intégrés directement dans le HTML (inline styles). Ces styles définissent les polices de caractères (Arial ou équivalent système), les tailles de texte, les couleurs (un fond bleu pour l'en-tête rappelant la charte graphique de la DDT), les bordures de tableaux, et les espacements. L'objectif est d'obtenir un document professionnel, clair et agréable à lire, sans surcharge décorative.
+
+La conversion HTML vers PDF est confiée à Puppeteer, une bibliothèque Node.js permettant de contrôler programmatiquement un navigateur Chrome en mode headless (sans interface graphique). Le backend lance une instance de Chrome via Puppeteer, crée une nouvelle page vierge, et utilise la méthode "setContent" pour charger le HTML généré. L'utilisation de "setContent" plutôt que "goto" avec une URL est importante pour le respect du cloisonnement réseau : le HTML est transmis directement en mémoire sans passer par une requête HTTP, évitant ainsi tout risque de tentative de connexion externe. Puppeteer demande ensuite à Chrome de générer un PDF de la page avec les paramètres suivants : format A quatre (le format standard en Europe), orientation portrait, inclusion des couleurs de fond (pour que le fond bleu de l'en-tête apparaisse effectivement), et marges standards. Chrome effectue le rendu du HTML, applique les styles CSS, et produit un fichier PDF de haute qualité avec une pagination automatique si le contenu dépasse une page. Le fichier PDF résultant est récupéré par Puppeteer sous forme de tampon binaire (buffer).
+
+Le backend ferme ensuite l'instance de Chrome pour libérer les ressources, et retourne le buffer PDF au frontend en utilisant les en-têtes HTTP appropriés. L'en-tête "Content-Type: application/pdf" indique au navigateur que la réponse contient un fichier PDF. L'en-tête "Content-Disposition: attachment; filename=[id_projet].pdf" indique que le fichier doit être téléchargé plutôt qu'affiché dans le navigateur, et spécifie le nom de fichier proposé (par exemple "PR-2025-00042.pdf"). Le navigateur de l'utilisateur reçoit cette réponse et déclenche automatiquement le téléchargement du fichier, qui apparaît dans le répertoire de téléchargements habituel de l'utilisateur.
+
+L'utilisateur obtient ainsi en quelques secondes un document PDF complet, professionnel, et prêt à être imprimé ou envoyé par email. Ce PDF constitue une photographie de l'état du projet au moment de la génération : si le projet est modifié ultérieurement, il faut régénérer un nouveau PDF pour obtenir les informations à jour. Cette approche garantit la cohérence : le PDF reçu correspond exactement à ce qui était dans la base de données à l'instant de la demande.
+
+### 6.5 Visualisation cartographique et analyses spatiales
+
+La dimension spatiale des projets territoriaux est fondamentale, et OMEGA accorde une place centrale à la visualisation cartographique grâce à l'intégration de la bibliothèque Leaflet. L'interface cartographique permet non seulement de consulter la localisation des projets, mais également de dessiner leurs emprises géographiques et de calculer automatiquement certaines informations spatiales.
+
+Lorsqu'un utilisateur accède à la page de visualisation cartographique, le navigateur charge d'abord les composants Leaflet et initialise une carte centrée sur le département d'Eure-et-Loir (coordonnées approximatives : latitude quarante-huit degrés quarante-cinq minutes, longitude un degré quarante-huit minutes) avec un niveau de zoom approprié (typiquement niveau neuf, offrant une vue d'ensemble du département). La carte affiche un fond cartographique constitué de tuiles au format raster (images PNG de deux cent cinquante-six pixels par deux cent cinquante-six pixels). Deux fonds de carte sont disponibles : le "Plan IGN" qui affiche la carte topographique classique de l'IGN avec routes, bâtiments, noms de lieux, et courbes de niveau ; et l' "Ortho" qui affiche des photographies aériennes récentes. L'utilisateur peut basculer entre ces deux fonds via un contrôle de couches présent dans l'interface.
+
+Conformément aux exigences de cloisonnement réseau, ces tuiles ne sont pas chargées depuis les serveurs en ligne de l'IGN mais depuis le serveur local de la DDT. Les tuiles ont été préalablement téléchargées via un script Python et stockées dans l'arborescence "/tiles/plan/" et "/tiles/ortho/" du serveur web. Leaflet construit les URLs des tuiles selon la convention "/tiles/plan/{z}/{x}/{y}.png" où "z" représente le niveau de zoom, "x" et "y" les coordonnées de la tuile dans le système de projection Web Mercator. Nginx sert ces fichiers en tant que contenu statique, avec des en-têtes de cache permettant au navigateur de les conserver localement pour améliorer les performances lors des consultations ultérieures.
+
+Parallèlement au chargement des tuiles de fond, le frontend envoie une requête vers l'endpoint "/api/projets" pour récupérer la liste de tous les projets avec leurs géométries. Le backend construit une requête SQL joignant les tables "projet" et "projet_geometry", filtre les projets supprimés, et retourne un tableau JSON contenant pour chaque projet son identifiant, son nom, son statut, et sa géométrie au format GeoJSON (un standard JSON pour représenter des géométries spatiales). Le frontend reçoit ce tableau et, pour chaque projet, utilise la fonction "L.geoJSON" de Leaflet pour convertir la géométrie GeoJSON en couche vectorielle Leaflet et l'afficher sur la carte.
+
+Les géométries sont stylisées en fonction du statut du projet. Un code couleur a été défini : les projets en statut "Identification" apparaissent en bleu clair, ceux en "Instruction" en orange, ceux en "Réalisation" en violet, et ceux "Terminés" en vert. L'épaisseur du trait est de deux pixels et l'opacité du remplissage est de trente pourcent, permettant de voir le fond de carte à travers les polygones. Lorsque l'utilisateur survole une géométrie avec la souris, celle-ci change légèrement d'apparence (opacité augmentée, trait renforcé) pour signaler l'interaction possible.
+
+Un clic sur une géométrie déclenche l'ouverture d'un panneau latéral affichant les détails du projet correspondant. Ce panneau présente le nom du projet, son statut, la liste de ses porteurs, et des boutons d'action permettant de modifier le projet, de générer un PDF, ou de demander sa suppression. L'utilisateur peut fermer ce panneau pour revenir à la vue cartographique globale.
+
+Au-delà de la simple consultation, l'interface cartographique permet de dessiner de nouvelles géométries ou de modifier celles existantes. Cette fonctionnalité utilise l'extension Leaflet Draw qui ajoute une barre d'outils avec plusieurs icônes : un polygone (pour dessiner une zone), un marqueur (pour placer un point), et une polyligne (pour tracer un linéaire). Lorsqu'un utilisateur crée ou modifie un projet via le formulaire de saisie, il peut cliquer sur l'icône correspondant au type de géométrie souhaité, puis dessiner directement sur la carte en cliquant pour placer les sommets du polygone ou de la ligne, ou en cliquant une seule fois pour placer un point. À tout moment, il peut annuler le dernier sommet ou valider la géométrie. Une fois la géométrie validée, Leaflet la convertit automatiquement au format GeoJSON et la transmet au formulaire de saisie.
+
+Un calcul automatique des communes traversées s'effectue dès qu'une géométrie est dessinée ou modifiée. Le frontend transmet la géométrie GeoJSON au backend via un appel API spécifique. Le backend effectue alors un calcul d'intersection spatiale : il compare la géométrie fournie avec un référentiel des communes (soit une table PostgreSQL pré-chargée contenant les contours de toutes les communes françaises, soit un appel à un service web géographique interne si disponible). Pour chaque commune dont le contour intersecte la géométrie du projet, le système récupère le code INSEE et le nom de la commune. La liste résultante est retournée au frontend qui l'affiche dans le formulaire de saisie, permettant à l'utilisateur de vérifier et si nécessaire d'ajuster la liste.
+
+Pour les polygones, le système calcule également l'aire en hectares en utilisant des fonctions de calcul de surface sur sphère (la Terre n'étant pas plate, un simple calcul cartésien serait imprécis). Pour les polylignes, la longueur en kilomètres est calculée en additionnant les distances géodésiques entre les sommets successifs. Ces informations quantitatives sont stockées dans la table "projet_geometry" et peuvent être affichées dans les listes de projets ou dans les exports PDF.
+
+Des fonctionnalités de filtrage spatial et attributaire enrichissent l'interface cartographique. L'utilisateur peut filtrer les projets affichés selon leur statut (ne montrer que les projets en réalisation, par exemple), selon le service DDT responsable, ou selon la thématique. Ces filtres s'appliquent dynamiquement : les géométries correspondant aux projets exclus par les filtres disparaissent de la carte, ne laissant que celles pertinentes. Un bouton "Réinitialiser les filtres" permet de revenir à la vue complète. Il est également possible de filtrer spatialement en dessinant un rectangle de sélection sur la carte : seuls les projets dont la géométrie intersecte ce rectangle sont alors affichés.
+
+---
+
+## 7. CONTRÔLE D'ACCÈS ET GESTION DES UTILISATEURS
+
+### 7.1 Distinction des rôles et matrice de permissions
+
+L'architecture de sécurité d'OMEGA repose sur une distinction claire entre deux rôles utilisateurs fondamentaux : les administrateurs et les utilisateurs standard. Cette dichotomie simple répond aux besoins identifiés lors de la conception tout en restant facile à comprendre et à administrer.
+
+Les administrateurs disposent d'un accès complet à l'ensemble des fonctionnalités du système. Ils peuvent créer, consulter, modifier et demander la suppression de n'importe quel projet, indépendamment de qui l'a créé. Ils ont accès à l'interface d'administration complète avec tous ses onglets : tableau de bord, historique d'audit, gestion des snapshots, traitement des demandes de suppression, consultation des versions par section, et analyse des journaux d'accès admin. Ils peuvent approuver ou rejeter les demandes de suppression soumises par les utilisateurs standard. Ils peuvent créer de nouveaux comptes utilisateurs, modifier les comptes existants (changer le rôle, désactiver un compte), et réinitialiser les mots de passe. Ils peuvent restaurer n'importe quel snapshot, même créé par un autre utilisateur. Ils peuvent exporter les journaux d'audit au format CSV pour des analyses externes. Ils peuvent effectuer des opérations de nettoyage manuel (suppression de snapshots anciens, par exemple). En résumé, les administrateurs ont un contrôle total sur le système et agissent comme les garants de son bon fonctionnement.
+
+Les utilisateurs standard disposent de droits plus restreints, adaptés à leur rôle opérationnel de gestion quotidienne des projets. Ils peuvent créer de nouveaux projets, en devenant automatiquement le créateur enregistré dans le champ "created_by". Ils peuvent consulter tous les projets existants (la visibilité n'est pas restreinte au niveau des projets individuels : tous les agents de la DDT peuvent voir tous les projets, facilitant ainsi la coordination et les passations de dossiers). Ils peuvent modifier les projets, qu'ils les aient créés ou non : cette flexibilité permet les collaborations et les prises en main de dossiers. Ils peuvent créer des snapshots de n'importe quel projet, mais ne peuvent consulter et restaurer que leurs propres snapshots (ceux qu'ils ont créés personnellement). Cette restriction garantit que chaque utilisateur dispose de son propre système de points de sauvegarde sans être pollué par les sauvegardes créées par d'autres. Ils peuvent générer des exports PDF de n'importe quel projet. Ils peuvent demander la suppression d'un projet en soumettant une demande motivée, mais ne peuvent pas approuver eux-mêmes cette demande : seul un administrateur le peut. Ils n'ont pas accès à l'interface d'administration : si un utilisateur standard tente d'accéder à l'URL "/admin", il est automatiquement redirigé vers la page d'accueil avec un message indiquant que l'accès est réservé aux administrateurs.
+
+Cette matrice de permissions est implémentée à deux niveaux complémentaires. Côté backend, chaque endpoint d'API vérifie le rôle de l'utilisateur avant d'exécuter l'action demandée. Par exemple, l'endpoint "/api/admin/stats" commence par extraire le token JWT de l'en-tête "Authorization", décoder ce token pour récupérer l'identifiant de l'utilisateur et son rôle, puis vérifier que le rôle est bien "administrateur" (role_id égal à un). Si cette vérification échoue, une réponse HTTP avec le code quatre cent trois (interdit) est immédiatement retournée, et l'endpoint n'exécute aucune logique métier. Cette vérification côté backend est la véritable barrière de sécurité : elle garantit que même si un utilisateur malveillant tentait de contourner l'interface en appelant directement les API, il serait bloqué.
+
+Côté frontend, l'application vérifie également le rôle de l'utilisateur pour adapter l'interface affichée. Par exemple, le menu de navigation ne contient un lien "Administration" que si l'utilisateur connecté a le rôle administrateur. De même, certains boutons (comme "Approuver la suppression" dans la vue détail d'une demande de suppression) ne sont affichés que pour les administrateurs. Ces vérifications côté frontend améliorent l'ergonomie en ne présentant que les fonctionnalités effectivement accessibles, mais ne constituent pas une barrière de sécurité : un utilisateur averti pourrait manipuler le code JavaScript dans son navigateur pour afficher des boutons normalement cachés, mais cliquer sur ces boutons déclencherait des appels API qui seraient de toute façon rejetés par le backend.
+
+### 7.2 Gestion du cycle de vie des comptes utilisateurs
+
+La gestion des comptes utilisateurs dans OMEGA suit un cycle de vie structuré garantissant la sécurité tout en facilitant l'administration.
+
+La création d'un compte utilisateur est une opération réservée aux administrateurs. Lorsqu'un nouvel agent rejoint la DDT ou qu'un agent existant a besoin d'accéder à OMEGA, un administrateur se connecte à l'interface d'administration et accède à la section "Gestion des Utilisateurs". Il clique sur "Créer un utilisateur" et remplit un formulaire indiquant le nom d'utilisateur (généralement construit selon le format prénom.nom, par exemple "jean.dupont"), le nom complet de la personne, son adresse email professionnelle, et le rôle à attribuer (administrateur ou utilisateur). Un mot de passe temporaire est généré automatiquement par le système (une chaîne aléatoire de douze caractères mélangeant lettres, chiffres et caractères spéciaux) et affiché une seule fois à l'administrateur. Ce dernier doit communiquer ce mot de passe à l'utilisateur concerné par un canal sécurisé (en personne, par téléphone, ou via le système de messagerie interne). Le mot de passe temporaire est immédiatement haché avec bcrypt avant d'être stocké dans la base de données. Le champ "first_login" est positionné à "true" pour indiquer que l'utilisateur n'a jamais changé son mot de passe.
+
+Lors de sa première connexion, l'utilisateur saisit le nom d'utilisateur et le mot de passe temporaire qui lui ont été communiqués. Le système vérifie les identifiants, génère un token JWT, puis détecte que le champ "first_login" est à "true". Au lieu de rediriger l'utilisateur vers la page d'accueil de l'application, le système affiche un formulaire de changement de mot de passe obligatoire. L'utilisateur doit saisir son mot de passe temporaire actuel (pour confirmation), puis saisir deux fois un nouveau mot de passe de son choix (la double saisie permet de détecter les erreurs de frappe). Le nouveau mot de passe doit respecter certaines règles de complexité : longueur minimale de huit caractères (douze recommandés), mélange de lettres et de chiffres conseillé. Une fois le nouveau mot de passe validé, il est haché avec bcrypt et remplace l'ancien dans la base de données, et le champ "first_login" passe à "false". L'utilisateur est alors redirigé vers la page d'accueil et peut commencer à utiliser l'application normalement.
+
+Ce mécanisme de changement obligatoire du mot de passe à la première connexion garantit que les mots de passe temporaires générés par les administrateurs ne restent jamais actifs durablement. Seul l'utilisateur connaît son mot de passe définitif, et même les administrateurs ne peuvent pas le connaître puisqu'il n'est jamais stocké en clair.
+
+Les administrateurs peuvent également modifier les comptes utilisateurs existants. Les modifications possibles incluent le changement de rôle (passer un utilisateur standard en administrateur ou inversement), la modification du nom complet ou de l'email, et la désactivation du compte. La désactivation s'effectue en positionnant le champ "actif" à "false" : l'utilisateur concerné ne peut plus se connecter (le système rejette ses tentatives de login avec un message "Compte désactivé"), mais son compte reste présent dans la base de données et les projets qu'il a créés conservent la référence vers lui dans le champ "created_by". Cette approche permet de tracer l'historique même après le départ d'un agent.
+
+Si un utilisateur oublie son mot de passe ou si son compte est bloqué pour une raison quelconque, un administrateur peut réinitialiser le mot de passe. Cette opération génère un nouveau mot de passe temporaire (communiqué à l'utilisateur), repositionne "first_login" à "true", et l'utilisateur devra à nouveau changer son mot de passe lors de sa prochaine connexion.
+
+La suppression complète d'un compte utilisateur n'est généralement pas effectuée, pour des raisons de traçabilité : si on supprimait physiquement un compte, les entrées du journal d'audit référençant cet utilisateur via "user_id" deviendraient incohérentes. La désactivation constitue l'alternative recommandée. Dans les rares cas où une suppression physique serait nécessaire (par exemple, un compte créé par erreur et jamais utilisé), elle doit être effectuée manuellement par un administrateur ayant accès direct à la base de données, après vérification qu'aucune donnée ne référence ce compte.
+
+---
+
+## 8. PROCÉDURES D'EXPLOITATION ET DE MAINTENANCE
+
+### 8.1 Démarrage et arrêt de l'application
+
+L'exploitation quotidienne d'OMEGA nécessite de connaître les procédures de démarrage et d'arrêt des différents composants du système. Ces procédures sont simples mais doivent être suivies dans le bon ordre pour éviter des incohérences.
+
+En environnement de production, l'architecture standard prévoit que trois services principaux s'exécutent en permanence : le serveur de base de données PostgreSQL, le serveur d'application backend Next.js, et le serveur web Nginx. Ces services sont gérés par systemd, le système d'initialisation standard des distributions Linux modernes.
+
+Le démarrage du système s'effectue généralement automatiquement lors du boot du serveur. PostgreSQL démarre en premier, puisque les autres composants en dépendent. Quelques secondes après que PostgreSQL a terminé son initialisation, systemd démarre le service OMEGA backend (nommé "omega-backend.service"). Le fichier de configuration systemd contient une directive "After=postgresql.service" garantissant que PostgreSQL est opérationnel avant que le backend ne tente de s'y connecter. Le backend Next.js démarre, se connecte à la base de données, et commence à écouter les connexions entrantes sur le port trois mille. Enfin, Nginx démarre et commence à servir les requêtes HTTP sur le port quatre-vingts, acheminant les requêtes API vers le backend et servant directement les fichiers statiques du frontend.
+
+Si pour une raison quelconque il est nécessaire de démarrer manuellement les services (par exemple, après une maintenance ayant nécessité leur arrêt), la procédure est la suivante. D'abord, on s'assure que PostgreSQL est démarré en exécutant la commande "sudo systemctl start postgresql". Cette commande retourne immédiatement, mais PostgreSQL peut prendre quelques secondes à être pleinement opérationnel. On vérifie son statut avec "sudo systemctl status postgresql" qui doit afficher "active (running)" en vert. Ensuite, on démarre le backend OMEGA avec "sudo systemctl start omega-backend". Là encore, on peut vérifier le statut avec "sudo systemctl status omega-backend". Les premières lignes de log doivent indiquer "Server listening on port 3000" et "Database connection established". Enfin, on démarre Nginx avec "sudo systemctl start nginx" et on vérifie qu'il est opérationnel.
+
+Un test fonctionnel rapide permet de vérifier que l'ensemble du système fonctionne correctement. On peut exécuter la commande "curl http://localhost:3000/api/health" depuis le serveur : si tout fonctionne, cette commande retourne une réponse JSON indiquant le statut "ok" et la version de l'application. On peut également tester l'accès via Nginx avec "curl http://localhost/api/health" qui doit retourner la même réponse. Finalement, depuis un navigateur sur un poste du réseau de la DDT, on peut accéder à l'URL de l'application (par exemple "http://omega.ddt28.local") : la page de connexion doit s'afficher normalement.
+
+L'arrêt du système s'effectue en ordre inverse. D'abord, on arrête Nginx avec "sudo systemctl stop nginx" pour cesser d'accepter de nouvelles requêtes utilisateurs. Ensuite, on arrête le backend avec "sudo systemctl stop omega-backend", ce qui termine proprement les connexions en cours et ferme les connexions à la base de données. Enfin, si nécessaire (par exemple, pour une maintenance de la base de données), on peut arrêter PostgreSQL avec "sudo systemctl stop postgresql". Cet ordre garantit qu'aucune requête utilisateur en cours de traitement ne soit brutalement interrompue.
+
+Les fichiers de configuration systemd incluent des directives de redémarrage automatique en cas de crash. Le paramètre "Restart=on-failure" indique à systemd de redémarrer automatiquement le service s'il s'arrête de manière anormale (code de sortie différent de zéro). Le paramètre "RestartSec=10s" impose un délai de dix secondes avant la tentative de redémarrage, évitant ainsi les boucles de redémarrage rapide si le problème est persistant. Ces mécanismes garantissent une haute disponibilité : en cas de crash ponctuel du backend (bug logiciel, saturation mémoire temporaire), le système se rétablit automatiquement en moins d'une minute.
+
+### 8.2 Sauvegarde et restauration des données
+
+La sauvegarde régulière des données constitue la mesure de protection la plus fondamentale contre les risques de perte. Un système de sauvegarde automatisé a été mis en place pour garantir qu'une copie récente des données est toujours disponible.
+
+Le script de sauvegarde s'exécute quotidiennement à deux heures du matin, moment où l'activité sur le système est minimale. Ce script utilise l'utilitaire "pg_dump" fourni avec PostgreSQL pour créer un export complet de la base de données. La commande exécutée est de la forme "pg_dump -U postgres -d omega -F c -f /opt/omega/backups/omega_YYYYMMDD_HHMMSS.dump" où "YYYYMMDD_HHMMSS" est remplacé par la date et l'heure effectives (par exemple "20251129_020000" pour le vingt-neuf novembre deux mille vingt-cinq à deux heures). L'option "-F c" spécifie le format "custom" de pg_dump qui est un format binaire compressé, plus compact et plus rapide à restaurer que le format SQL texte. Le fichier résultant est ensuite compressé avec gzip pour gagner encore en espace disque, produisant un fichier ".dump.gz".
+
+Ce fichier de sauvegarde est stocké dans un répertoire dédié sur un serveur de stockage distinct du serveur hébergeant la base de données. Cette séparation physique est cruciale : en cas de défaillance complète du serveur de base de données (panne matérielle, corruption du système de fichiers), les sauvegardes restent accessibles. Le serveur de stockage est généralement un NAS (Network Attached Storage) de l'infrastructure de la DDT, connecté au réseau interne et bénéficiant de ses propres mécanismes de redondance (RAID, sauvegardes régulières sur bandes magnétiques, etc.).
+
+Une politique de rétention des sauvegardes a été définie pour équilibrer la capacité de restaurer des états anciens et la limitation de l'espace disque consommé. Les sept dernières sauvegardes quotidiennes sont conservées (permettant de revenir à n'importe quel jour de la semaine écoulée). Les quatre dernières sauvegardes hebdomadaires (effectuées chaque dimanche) sont conservées (permettant de revenir à n'importe quelle semaine du mois écoulé). Les douze dernières sauvegardes mensuelles (effectuées le premier jour de chaque mois) sont conservées (permettant de revenir à n'importe quel mois de l'année écoulée). Cette organisation en cascade garantit qu'on peut restaurer un état récent avec précision, tout en conservant des points de restauration plus espacés pour les périodes plus anciennes.
+
+La procédure de restauration doit être parfaitement maîtrisée car elle sera utilisée en situation de crise, où le stress et l'urgence peuvent conduire à des erreurs. Un document détaillé décrit étape par étape les opérations à effectuer. Premièrement, on arrête le service backend OMEGA pour s'assurer qu'aucune application n'essaie d'écrire dans la base de données pendant la restauration. Deuxièmement, on se connecte au serveur PostgreSQL avec les privilèges d'administrateur (utilisateur "postgres"). Troisièmement, on supprime la base de données corrompue ou à remplacer avec la commande "DROP DATABASE omega". Quatrièmement, on recrée une base de données vierge avec "CREATE DATABASE omega OWNER omega_user ENCODING 'UTF8'". Cinquièmement, on décompresse le fichier de sauvegarde avec "gunzip /chemin/vers/omega_20251129_020000.dump.gz". Sixièmement, on restaure le contenu de la sauvegarde dans la base vierge avec "pg_restore -U postgres -d omega -v /chemin/vers/omega_20251129_020000.dump". L'option "-v" (verbose) affiche des messages détaillés permettant de suivre la progression de la restauration. Septièmement, une fois la restauration terminée, on vérifie l'intégrité des données restaurées en exécutant quelques requêtes SQL de contrôle (par exemple, "SELECT COUNT(*) FROM principale.projet" pour vérifier que les projets sont bien présents). Huitièmement, on redémarre le service backend OMEGA avec "sudo systemctl start omega-backend". Neuvièmement, on effectue des tests fonctionnels depuis l'interface web pour vérifier que l'application fonctionne normalement avec les données restaurées.
+
+Des tests de restauration à blanc sont effectués trimestriellement sur un serveur de test, permettant de vérifier que les sauvegardes sont bien exploitables et que la procédure documentée est correcte. Ces tests permettent également d'entraîner les équipes et de mesurer le temps nécessaire à une restauration complète (généralement entre une et deux heures selon la taille de la base).
+
+### 8.3 Surveillance et monitoring du système
+
+Un système de surveillance continue permet de détecter rapidement les anomalies et d'intervenir avant qu'elles ne conduisent à une indisponibilité du service. Cette surveillance s'articule autour de plusieurs axes complémentaires.
+
+La disponibilité de l'application est vérifiée toutes les minutes par un système de monitoring externe (Nagios, Zabbix, ou équivalent selon l'infrastructure de la DDT). Ce système effectue une requête HTTP GET vers l'endpoint "/api/health" et vérifie que la réponse a un code de statut deux cents et contient le JSON attendu avec "status": "ok". Si cette vérification échoue trois fois consécutivement (permettant d'éviter les fausses alertes dues à un incident réseau ponctuel), une alerte est déclenchée : un email est envoyé aux administrateurs et, selon la criticité configurée, une notification peut également être envoyée par SMS ou via un système d'astreinte. Les administrateurs peuvent alors se connecter au serveur et investiguer la cause du problème.
+
+Les ressources système (CPU, mémoire, espace disque) sont également surveillées. Des seuils d'alerte ont été définis : utilisation CPU supérieure à quatre-vingts pourcent pendant plus de cinq minutes, utilisation mémoire supérieure à quatre-vingt-dix pourcent, espace disque disponible inférieur à quinze pourcent. Lorsqu'un de ces seuils est franchi, une alerte est émise. Ces alertes permettent d'anticiper les problèmes : par exemple, si l'espace disque se remplit progressivement, on peut intervenir pour nettoyer des fichiers inutiles ou provisionner du stockage supplémentaire avant que le disque ne soit complètement plein et que l'application ne puisse plus fonctionner.
+
+Les journaux applicatifs (logs) sont collectés et analysés. Le backend Next.js écrit ses logs dans la sortie standard, qui est capturée par systemd et stockée dans le journal systemd. On peut consulter ces logs avec la commande "sudo journalctl -u omega-backend -f" (l'option "-f" permet de suivre les nouveaux messages en temps réel, à la manière de "tail -f"). Les logs indiquent les requêtes traitées, les erreurs éventuelles, les connexions et déconnexions à la base de données. Des patterns d'erreur peuvent être surveillés automatiquement : par exemple, une fréquence anormalement élevée de messages d'erreur "Database connection failed" pourrait indiquer un problème de connexion à PostgreSQL.
+
+Nginx produit également des logs, stockés dans "/var/log/nginx/omega-access.log" (toutes les requêtes HTTP reçues avec leur code de statut et leur durée de traitement) et "/var/log/nginx/omega-error.log" (erreurs et avertissements). Ces logs permettent d'analyser le trafic (quelles sont les pages les plus consultées, quelles sont les heures de pointe) et de détecter des comportements anormaux (attaques par force brute, tentatives d'accès à des URLs non existantes).
+
+PostgreSQL maintient ses propres logs, généralement dans "/var/log/postgresql/". Ces logs enregistrent les connexions, les déconnexions, les erreurs de requêtes, et peuvent être configurés pour enregistrer également les requêtes lentes (prenant plus d'une seconde à s'exécuter, par exemple). L'analyse de ces logs peut révéler des problèmes de performance nécessitant des optimisations.
+
+Un tableau de bord de monitoring, accessible aux administrateurs, agrège ces différentes métriques et présente une vue synthétique de l'état du système : statut de chaque composant (vert si opérationnel, orange si alerte mineure, rouge si critique), graphiques d'évolution des métriques sur les dernières vingt-quatre heures, liste des dernières alertes et événements notables.
+
+### 8.4 Maintenance préventive et corrective
+
+La maintenance du système OMEGA s'organise selon un calendrier régulier de tâches préventives, complété par des interventions correctives lorsque des problèmes sont détectés.
+
+Les tâches quotidiennes automatisées incluent la sauvegarde de la base de données (déjà décrite) et le nettoyage des snapshots de plus de quinze jours. Cette seconde tâche, exécutée à trois heures du matin, parcourt la table "projet_snapshot" pour identifier les snapshots anciens, supprime les entrées correspondantes dans "projet_snapshot_section", puis supprime les snapshots eux-mêmes. Le script génère un rapport indiquant combien de snapshots ont été supprimés, qui est conservé dans un fichier de log pour audit ultérieur si nécessaire.
+
+Chaque semaine, les administrateurs consacrent environ trente minutes à la vérification des logs d'erreur. Ils examinent les fichiers de logs du backend, de Nginx et de PostgreSQL pour identifier d'éventuelles erreurs récurrentes qui nécessiteraient une investigation. Par exemple, si de nombreuses requêtes échouent avec une erreur spécifique, cela pourrait indiquer un bug dans l'application ou une configuration incorrecte. Les administrateurs vérifient également l'espace disque disponible sur le serveur et sur l'espace de stockage des sauvegardes, s'assurant qu'aucune saturation n'approche.
+
+Chaque mois, plusieurs opérations de maintenance sont effectuées. PostgreSQL bénéficie d'un "VACUUM ANALYZE" qui nettoie les données obsolètes laissées par les suppressions et mises à jour (PostgreSQL utilise un modèle MVCC où les anciennes versions de lignes modifiées restent temporairement dans les fichiers de données) et met à jour les statistiques utilisées par l'optimiseur de requêtes. Cette opération s'effectue de préférence le dimanche matin à quatre heures, lorsque l'activité est nulle, et prend généralement entre dix et trente minutes selon la taille de la base. Les logs Nginx et applicatifs sont archivés et compressés (rotation des logs) pour éviter qu'ils ne consomment trop d'espace disque : les logs de plus de trente jours sont compressés, ceux de plus de six mois sont déplacés vers un espace d'archivage à froid, et ceux de plus de deux ans sont supprimés (sauf exigence légale contraire).
+
+Chaque trimestre, plusieurs tâches plus lourdes sont planifiées. Les dépendances npm (bibliothèques JavaScript utilisées par le backend et le frontend) sont auditées avec la commande "npm audit" qui identifie les vulnérabilités de sécurité connues dans les versions installées. Si des vulnérabilités critiques ou importantes sont détectées, les mises à jour correspondantes sont appliquées après tests sur un environnement de préproduction. Un test de restauration de sauvegarde est effectué sur un serveur de test, vérifiant que la procédure documentée fonctionne et que les données restaurées sont intègres. Ce test permet également de mesurer le temps de restauration effectif et de s'assurer que l'objectif RTO de quatre heures reste réaliste.
+
+Annuellement, un audit de sécurité complet est conduit. Cet audit inclut la revue des accès utilisateurs (désactivation des comptes d'agents ayant quitté la DDT, vérification que les rôles attribués sont toujours appropriés), l'analyse des logs d'accès admin pour détecter d'éventuelles activités suspectes, la vérification de la conformité RGPD (mise à jour du registre des traitements, vérification des durées de conservation, consultation du DPO), et un test de pénétration interne (tentative contrôlée d'exploiter des vulnérabilités pour vérifier qu'elles sont bien protégées).
+
+Les interventions correctives sont déclenchées par la détection d'anomalies via le système de monitoring ou par des signalements d'utilisateurs. Lorsqu'un problème est identifié, un ticket est créé (via un système de ticketing simple comme un fichier partagé ou un outil dédié si disponible) décrivant le problème, sa criticité (bloquant, majeur, mineur), et les étapes pour le reproduire. Les problèmes bloquants (application complètement indisponible) sont traités immédiatement avec mobilisation des ressources nécessaires. Les problèmes majeurs (fonctionnalité importante cassée mais application globalement utilisable) sont traités sous vingt-quatre heures. Les problèmes mineurs (bug cosmétique, comportement inattendu dans un cas rare) sont planifiés pour la prochaine fenêtre de maintenance. Chaque intervention corrective est documentée : nature du problème, cause identifiée, solution appliquée, tests effectués pour vérifier la correction. Cette documentation constitue une base de connaissance précieuse pour les interventions futures.
+
+---
+
+## 9. ÉVOLUTION DE L'APPLICATION ET ROADMAP
+
+### 9.1 Versioning applicatif et gestion des releases
+
+L'application OMEGA suit un schéma de versionnement sémantique standard de la forme "MAJEUR.MINEUR.CORRECTIF". La version actuelle, déployée en novembre deux mille vingt-cinq, est la version un point zéro point zéro. Ce numéro de version indique qu'il s'agit de la première release majeure de l'application, sans qu'aucune évolution mineure ou correctif n'ait encore été publié.
+
+Le numéro MAJEUR est incrémenté lors de changements incompatibles avec les versions précédentes, nécessitant typiquement une migration manuelle des données ou une reconfiguration importante. Par exemple, une refonte complète de l'architecture de base de données, un changement de framework majeur, ou la suppression de fonctionnalités existantes pourrait justifier le passage à la version deux point zéro point zéro.
+
+Le numéro MINEUR est incrémenté lors de l'ajout de nouvelles fonctionnalités compatibles avec les versions précédentes. Par exemple, l'ajout d'un système de notifications en temps réel, l'implémentation d'une API RESTful publique pour intégration avec d'autres systèmes, ou l'ajout d'analyses spatiales avancées conduirait à passer de la version un point zéro à la version un point un.
+
+Le numéro CORRECTIF est incrémenté lors de corrections de bugs ou d'améliorations mineures ne changeant pas les fonctionnalités. Par exemple, la correction d'un bug empêchant l'export PDF dans certaines circonstances, l'amélioration des performances d'une requête lente, ou la mise à jour d'une dépendance pour corriger une vulnérabilité de sécurité conduirait à passer de un point zéro point zéro à un point zéro point un.
+
+Chaque release est accompagnée d'un fichier CHANGELOG documentant les changements apportés. Ce fichier suit une structure standardisée avec quatre catégories : "Ajouté" (nouvelles fonctionnalités), "Modifié" (changements dans des fonctionnalités existantes), "Corrigé" (bugs résolus), et "Sécurité" (correctifs de vulnérabilités). Chaque entrée est rédigée de manière claire et compréhensible pour les utilisateurs, évitant le jargon technique excessif.
+
+Le code source de l'application est hébergé dans un dépôt Git (sur le GitLab interne de la DDT). La branche "main" contient toujours la version stable actuellement en production. La branche "develop" contient les développements en cours pour la prochaine version. Les nouvelles fonctionnalités sont développées dans des branches dédiées (par exemple "feature/notifications-temps-reel") qui sont fusionnées dans "develop" une fois terminées et testées. Lorsqu'une release est prête, la branche "develop" est fusionnée dans "main" et un tag Git est créé avec le numéro de version (par exemple "v1.1.0"). Ce tag marque un point précis dans l'historique du code correspondant exactement à ce qui a été déployé en production.
+
+### 9.2 Évolutions prévues et roadmap
+
+Bien que l'application OMEGA version un point zéro satisfasse les besoins initiaux identifiés, plusieurs évolutions sont déjà envisagées pour enrichir ses fonctionnalités et améliorer l'expérience utilisateur. Ces évolutions sont organisées en vagues successives correspondant à différentes versions majeures ou mineures.
+
+La version un point un, prévue pour le premier trimestre de l'année deux mille vingt-six, se concentrera sur des améliorations mineures facilitant l'utilisation quotidienne. Un système de notifications en temps réel sera implémenté via WebSocket, permettant aux administrateurs d'être alertés immédiatement lorsqu'une nouvelle demande de suppression est soumise, sans avoir à rafraîchir manuellement l'interface d'administration. Une interface complète de gestion des utilisateurs sera ajoutée dans l'interface d'administration, permettant aux administrateurs de créer, modifier et désactiver des comptes sans passer par des requêtes SQL manuelles. Le tableau de bord sera enrichi avec des widgets configurables permettant à chaque utilisateur de personnaliser sa page d'accueil (affichage des projets récents, des projets dont il est responsable, des statistiques d'activité personnelles, etc.). La fonctionnalité d'export sera étendue pour produire des fichiers Excel en plus du CSV, offrant un meilleur formatage et des fonctionnalités de tri et filtrage directement exploitables. Enfin, les capacités de recherche seront améliorées avec des filtres combinables (rechercher tous les projets en statut "Instruction" ET relevant de la thématique "ENR" ET situés dans la commune de Chartres) et une recherche full-text permettant de trouver des projets par mots-clés dans leurs descriptions ou commentaires de suivi.
+
+La version deux point zéro, envisagée pour le troisième trimestre deux mille vingt-six, introduira des fonctionnalités majeures transformant significativement l'expérience utilisateur. Un workflow de validation multi-niveaux sera implémenté, permettant de définir des circuits d'approbation complexes : par exemple, un projet créé par un agent doit être validé par son chef de service, puis par le directeur adjoint, avant d'être considéré comme officiellement enregistré. Un système de gestion documentaire avancé permettra d'uploader des fichiers (PDF, images, documents Office) directement dans l'application plutôt que de simplement référencer des liens vers des fichiers stockés ailleurs. Ces fichiers seront stockés dans un répertoire dédié sur le serveur et associés aux projets via des entrées en base de données. Des analyses spatiales avancées seront implémentées, probablement via l'activation de l'extension PostGIS : calcul automatique des intersections entre l'emprise d'un projet et les zones réglementées (zones protégées Natura deux mille, périmètres de protection de captage d'eau, zones inondables, etc.), génération automatique de statistiques spatiales (surface cumulée des projets éoliens dans le département, densité de projets par commune, etc.). Un système de génération automatisée de rapports périodiques sera mis en place : chaque semaine, un rapport PDF récapitulant l'activité de la semaine (nouveaux projets créés, projets modifiés, demandes de suppression traitées) sera généré automatiquement et envoyé par email aux responsables. Une API RESTful publique (mais accessible uniquement depuis le réseau interne de la DDT) sera exposée, permettant à d'autres systèmes d'information de la DDT d'interroger OMEGA ou d'y créer des projets programmatiquement. Enfin, une Progressive Web App sera développée, permettant de consulter les projets depuis un smartphone ou une tablette, y compris en mode hors ligne grâce à un système de cache et de synchronisation différée.
+
+La version trois point zéro, horizon deux mille vingt-sept, représente une vision plus prospective et stratégique. L'intelligence artificielle pourrait être intégrée pour suggérer automatiquement certaines informations lors de la création d'un projet : par exemple, en fonction de la géométrie dessinée, le système pourrait suggérer la thématique la plus probable (un polygone de grande taille en zone rurale suggère un projet éolien ou photovoltaïque, un point localisé en centre-ville suggère de l'urbanisme, etc.). L'intégration SIG serait approfondie avec l'implémentation d'analyses spatiales complexes (zones tampon, calculs de visibilité depuis des points d'observation, modèles numériques de terrain pour évaluer l'impact paysager de projets éoliens). Un portail citoyen pourrait être développé, permettant au grand public de consulter une version anonymisée des projets en cours (sans les informations confidentielles ou personnelles), renforçant ainsi la transparence de l'action publique. Des applications mobiles natives pour iOS et Android pourraient être développées, offrant une expérience utilisateur optimisée pour la consultation terrain : un agent effectuant une visite de site pourrait consulter le dossier du projet directement depuis son smartphone, ajouter des photos géolocalisées, ou enregistrer une note vocale qui serait automatiquement transcrite et ajoutée aux suivis. Enfin, l'architecture pourrait évoluer vers un modèle multi-tenant permettant à plusieurs DDT d'utiliser la même instance d'OMEGA avec une ségrégation complète de leurs données, mutuali sant ainsi les coûts d'hébergement et de maintenance.
+
+Ces évolutions futures restent évidemment conditionnées à l'expression de besoins effectifs de la part des utilisateurs, à la disponibilité des ressources humaines et financières, et aux priorités stratégiques de la DDT. La roadmap sera régulièrement réévaluée et ajustée en fonction du retour d'expérience sur l'utilisation de l'application.
+
+### 9.3 Procédure de mise à jour vers une nouvelle version
+
+Lorsqu'une nouvelle version d'OMEGA est prête à être déployée en production, une procédure rigoureuse doit être suivie pour minimiser les risques et garantir une transition en douceur.
+
+La première étape consiste en une préparation minutieuse. Le fichier CHANGELOG est consulté pour comprendre exactement ce qui a changé dans la nouvelle version. Si des migrations de base de données sont nécessaires (création de nouvelles tables, modification de colonnes existantes, etc.), le script de migration correspondant est examiné pour comprendre son impact. Une sauvegarde complète de la base de données de production est effectuée immédiatement avant la mise à jour, en plus de la sauvegarde quotidienne normale. Cette sauvegarde "pré-mise-à-jour" est clairement identifiée et conservée séparément pendant au moins un mois. Les fichiers de l'application actuelle (frontend et backend) sont également sauvegardés en créant une archive tar.gz datée. Ces sauvegardes permettront un rollback rapide en cas de problème grave avec la nouvelle version.
+
+La fenêtre de maintenance est planifiée et communiquée aux utilisateurs au moins une semaine à l'avance. Un email est envoyé à tous les utilisateurs indiquant la date et l'heure de la maintenance (typiquement un dimanche matin de deux heures à six heures), la durée estimée d'indisponibilité (généralement deux heures maximum), et une description succincte des évolutions apportées par la nouvelle version. Le jour de la maintenance, trente minutes avant le début, un second email de rappel est envoyé.
+
+À l'heure prévue, les administrateurs se connectent au serveur et arrêtent l'application. Le service backend est arrêté avec "sudo systemctl stop omega-backend". Nginx peut rester actif mais affichera des erreurs cinq cents pour toutes les requêtes API puisque le backend ne répond plus. Certains administrateurs préfèrent afficher une page de maintenance personnalisée : pour cela, ils configurent temporairement Nginx pour retourner une page HTML statique indiquant "Maintenance en cours, retour prévu à XX:XX" pour toutes les requêtes.
+
+Les nouveaux fichiers de l'application sont alors déployés. Si le code est géré via Git, il suffit de se positionner dans le répertoire de l'application et d'exécuter "git pull origin main" puis "git checkout v1.1.0" (en remplaçant un point un point zéro par le numéro de version effectif). Alternativement, si les fichiers sont livrés sous forme d'archive, celle-ci est extraite en écrasant les fichiers existants. Les dépendances sont mises à jour avec "npm install" dans les répertoires backend et frontend, ce qui télécharge et installe les nouvelles versions des bibliothèques si nécessaire.
+
+Les migrations de base de données sont appliquées avec "npx sequelize-cli db:migrate" dans le répertoire backend. Cet outil détecte automatiquement quelles migrations n'ont pas encore été appliquées (en consultant une table spéciale "SequelizeMeta" qui trace les migrations déjà exécutées) et les applique dans l'ordre. Si une migration échoue, l'outil s'arrête et affiche un message d'erreur détaillé. Dans ce cas, il faut investiguer la cause (généralement une contrainte de données non respectée ou une modification concurrente de la structure), corriger le problème, et relancer la migration.
+
+Si la nouvelle version du frontend nécessite un rebuild (parce que du code JavaScript a changé), on exécute "npm run build" dans le répertoire frontend, produisant une nouvelle version du dossier "build/". Ce nouveau build doit être copié vers l'emplacement servi par Nginx si ce n'est pas déjà le cas.
+
+Les services sont alors redémarrés. Le backend d'abord avec "sudo systemctl start omega-backend", puis Nginx avec "sudo systemctl restart nginx" (ou "reload" si seule la configuration a changé). Les administrateurs consultent immédiatement les logs pour vérifier qu'aucune erreur ne survient au démarrage.
+
+Une série de tests fonctionnels est alors effectuée depuis l'interface web. Les administrateurs se connectent avec un compte test, créent un projet test, le modifient, créent un snapshot, génèrent un export PDF, et le suppriment. Ils testent également les nouvelles fonctionnalités introduites par la version (par exemple, si la version un point un ajoute les notifications temps réel, ils vérifient que créer une demande de suppression depuis un compte utilisateur déclenche bien une notification visible dans l'interface admin). Si tous ces tests réussissent, la mise à jour est considérée comme réussie.
+
+Un email est envoyé aux utilisateurs confirmant que la maintenance est terminée et que l'application est à nouveau disponible. Cet email rappelle les principales nouveautés de la version déployée et invite les utilisateurs à consulter le manuel utilisateur mis à jour si nécessaire.
+
+Si malgré tous les tests un problème grave est découvert après la mise en production (par exemple, un bug bloquant empêchant de créer des projets), une procédure de rollback peut être déclenchée. Cette procédure consiste à restaurer l'état antérieur : arrêt des services, restauration de la sauvegarde de base de données pré-mise-à-jour avec pg_restore, restauration des anciens fichiers applicatifs depuis l'archive tar.gz, redémarrage des services. Cette opération doit pouvoir s'effectuer en moins de trente minutes. Les utilisateurs sont informés du problème et de la décision de rollback, et la mise à jour est replanifiée après correction du bug en environnement de développement.
+
+---
+
+## 10. AUDIT, CONFORMITÉ ET AMÉLIORATION CONTINUE
+
+### 10.1 Audit de sécurité annuel
+
+Chaque année, un audit de sécurité complet est conduit pour vérifier que l'application continue de respecter les exigences de sécurité et pour identifier d'éventuelles vulnérabilités ou améliorations possibles.
+
+Cet audit commence par une revue des accès utilisateurs. La liste complète des comptes utilisateurs est exportée depuis la base de données, et pour chaque compte, on vérifie s'il correspond à un agent actuellement en poste à la DDT. Les comptes correspondant à des agents ayant quitté la DDT doivent être désactivés pour éviter qu'ils ne restent actifs indéfiniment. On vérifie également que les rôles attribués (administrateur ou utilisateur standard) sont toujours appropriés : par exemple, un agent promu à un poste de responsable pourrait légitimement être promu administrateur, tandis qu'un administrateur ayant changé de fonction pourrait être rétrogradé en utilisateur standard. Les comptes n'ayant eu aucune activité depuis plus de six mois (aucune connexion enregistrée) sont identifiés et discutés : s'agit-il d'agents n'utilisant jamais l'application (auquel cas on pourrait désactiver leur compte), ou simplement d'utilisateurs occasionnels ?
+
+L'analyse des logs d'accès admin constitue la deuxième partie de l'audit. Tous les logs de la table "admin_access_log" de l'année écoulée sont exportés et analysés, souvent avec des scripts automatisés recherchant des patterns suspects. Les administrateurs recherchent notamment des tentatives de connexion répétées avec échec (codes HTTP quatre cent un ou quatre cent trois), qui pourraient indiquer une tentative d'intrusion. Ils examinent les accès effectués depuis des adresses IP inhabituelles (si un administrateur se connecte habituellement depuis telle adresse IP du bureau et qu'une connexion provient soudain d'une adresse complètement différente, cela mérite investigation). Ils vérifient que toutes les actions critiques (approbation de suppression, restauration de snapshot, modification de compte utilisateur) ont été effectuées par des administrateurs légitimes et dans des contextes cohérents.
+
+La mise à jour des dépendances et la correction des vulnérabilités connues constituent la troisième partie. La commande "npm audit" est exécutée dans les répertoires backend et frontend, produisant un rapport détaillé des vulnérabilités connues dans les versions actuelles des bibliothèques installées. Pour chaque vulnérabilité de criticité élevée ou critique, une mise à jour de la bibliothèque concernée est planifiée. Les vulnérabilités de criticité moyenne ou faible sont également traitées si la mise à jour est simple et sans risque de régression. Pour les vulnérabilités ne pouvant pas être corrigées immédiatement (par exemple, parce que la nouvelle version de la bibliothèque introduit des changements incompatibles nécessitant d'adapter le code applicatif), un plan d'action est documenté avec un échéancier.
+
+Un test de pénétration interne peut être conduit, consistant à tenter d'exploiter des vulnérabilités potentielles de manière contrôlée. Par exemple, un administrateur jouant le rôle d'attaquant pourrait tenter une injection SQL en saisissant du code malveillant dans un champ de formulaire, vérifier que le système rejette effectivement cette tentative, et documenter le résultat. Il pourrait tenter d'accéder à des ressources interdites en manipulant les URLs, vérifier qu'une authentification est bien exigée, etc. Ces tests permettent de valider concrètement l'efficacité des mesures de sécurité implémentées.
+
+Un test de restauration complet à partir d'une sauvegarde ancienne (par exemple, une sauvegarde vieille de trois mois) est effectué sur un serveur de test. Ce test vérifie que les sauvegardes anciennes restent exploitables même après plusieurs évolutions de l'application, et que la procédure de restauration documentée fonctionne toujours. La durée de restauration est chronométrée et comparée à l'objectif RTO de quatre heures.
+
+Enfin, un rapport d'audit est rédigé, synthétisant les constats, les vulnérabilités identifiées, les recommandations d'amélioration, et le plan d'action associé. Ce rapport est présenté à la direction de la DDT et au DPO, et ses recommandations sont priorisées et planifiées pour l'année suivante.
+
+### 10.2 Conformité RGPD et protection des données
+
+La conformité au RGPD n'est pas un état figé atteint une fois pour toutes lors du lancement de l'application, mais un processus continu nécessitant des revues régulières.
+
+Chaque année, le registre des activités de traitement est mis à jour. Ce document recense tous les traitements de données personnelles effectués via OMEGA : finalités, catégories de données traitées, catégories de personnes concernées (agents DDT, porteurs de projets), destinataires des données, durées de conservation, mesures de sécurité. Si de nouvelles catégories de données ont été ajoutées durant l'année (par exemple, si la version un point un a ajouté un champ "numéro de téléphone portable" pour les agents), le registre est mis à jour en conséquence. Le DPO examine ce registre actualisé et valide que les traitements restent licites et proportionnés.
+
+Les durées de conservation effectives sont vérifiées. Le registre indique qu'un projet supprimé (soft delete) doit être conservé cinq ans, puis supprimé physiquement. Des requêtes SQL sont exécutées pour identifier les projets supprimés depuis plus de cinq ans, et si de tels projets existent, une procédure de suppression physique est lancée (après validation juridique que toutes les obligations d'archivage légal sont bien remplies). De même, le registre indique que les logs d'audit doivent être conservés trois ans : des scripts de purge sont exécutés pour supprimer les entrées de plus de trois ans.
+
+Les demandes d'exercice de droits RGPD reçues durant l'année sont recensées et analysées. Si un porteur de projet a exercé son droit d'accès (demandant à connaître quelles données le concernant sont stockées dans OMEGA), la procédure suivie est documentée : l'administrateur a extrait de la base de données toutes les occurrences du nom et de l'email de cette personne, a généré un document PDF récapitulatif, et l'a transmis à l'intéressé. Si un droit à l'effacement a été exercé, la justification du refus (obligations d'archivage légal) ou de l'acceptation (soft delete rendant les données invisibles) est documentée. Ces cas d'usage réels permettent d'améliorer les procédures pour les demandes futures.
+
+Une analyse d'impact relative à la protection des données pourrait être conduite si des évolutions significatives sont planifiées. Par exemple, si la version deux point zéro devait ajouter un système de géolocalisation en temps réel des agents (pour savoir quel agent est le plus proche d'un site de projet donné), cette fonctionnalité introduirait un risque nouveau pour la vie privée des agents et nécessiterait une analyse d'impact formelle avant implémentation.
+
+### 10.3 Retour d'expérience et amélioration continue
+
+L'amélioration continue d'OMEGA repose sur une écoute attentive des utilisateurs et une analyse régulière de l'utilisation effective de l'application.
+
+Un dispositif de recueil de retours utilisateurs est mis en place. Un formulaire simple accessible depuis l'interface permet à tout utilisateur de signaler un bug, de suggérer une amélioration, ou de poser une question. Ces retours sont centralisés et triés par les administrateurs. Les bugs bloquants sont traités en priorité, les améliorations les plus demandées sont ajoutées à la roadmap pour les prochaines versions, et les questions récurrentes alimentent la FAQ.
+
+Des sessions de retour d'expérience sont organisées semestriellement, réunissant un échantillon représentatif d'utilisateurs (agents de différents services, de différents niveaux d'ancienneté, certains utilisateurs fréquents et d'autres occasionnels). Ces sessions d'une à deux heures permettent de recueillir des avis qualitatifs sur l'utilisation de l'application : quelles sont les fonctionnalités les plus utiles ? Les moins utiles ? Quelles sont les difficultés rencontrées ? Quelles améliorations ergonomiques seraient appréciées ? Ces échanges riches produisent souvent des idées d'amélioration auxquelles les concepteurs n'auraient pas pensé spontanément.
+
+Les statistiques d'utilisation extraites du journal d'audit et des logs d'accès sont analysées pour comprendre les usages réels. Quelles sont les fonctionnalités les plus utilisées ? (Si l'export PDF est massivement utilisé alors que la restauration de snapshots est très rare, cela indique des priorités pour les optimisations futures.) Quels sont les moments de pic d'activité ? (Si la majorité des créations de projets se concentrent sur certains mois de l'année, on peut anticiper des besoins de performance accrus à ces périodes.) Y a-t-il des fonctionnalités jamais utilisées ? (Si personne n'utilise jamais la fonctionnalité de dessin de polylignes, peut-être est-elle trop complexe ou son utilité n'est pas claire, et la documentation ou l'interface devrait être améliorée.)
+
+Les évolutions sont priorisées selon plusieurs critères : l'impact attendu sur la satisfaction et la productivité des utilisateurs, la complexité technique de l'implémentation, la cohérence avec la vision stratégique de l'application, et les ressources disponibles. Un backlog priorisé est maintenu, listant toutes les améliorations envisagées avec leur priorité et leur statut (planifié pour la prochaine version, à l'étude, reporté). Ce backlog est partagé avec les utilisateurs via une page intranet ou lors des sessions de retour d'expérience, leur permettant de comprendre ce qui est prévu et de commenter les priorités.
+
+---
+
+**FIN DU CAHIER DES CHARGES**
+
+---
+
+**Document validé le** : [Date à compléter]
+**Validé par** : [Nom et fonction à compléter]
+**Signature** : ___________________
+
+---
+
+## ANNEXES
+
+### Annexe A : Glossaire des termes techniques
+
+**API (Application Programming Interface)** : Interface de programmation permettant à des applications de communiquer entre elles. Dans OMEGA, l'API backend expose des endpoints REST permettant au frontend de manipuler les données.
+
+**Audit trail** : Journal d'audit immuable enregistrant toutes les modifications effectuées dans le système, avec identification de l'auteur, horodatage, et description précise des changements.
+
+**Backend** : Partie serveur de l'application, invisible pour l'utilisateur final, responsable de la logique métier, de l'accès aux données, et de la sécurité. Dans OMEGA, implémenté avec Next.js.
+
+**Bcrypt** : Algorithme de hachage cryptographique spécifiquement conçu pour sécuriser les mots de passe, incorporant un sel aléatoire et un facteur de coût ajustable.
+
+**Frontend** : Partie client de l'application, s'exécutant dans le navigateur de l'utilisateur, responsable de l'interface et de l'expérience utilisateur. Dans OMEGA, implémenté avec React.
+
+**GeoJSON** : Format d'échange de données géospatiales basé sur JSON, standard de facto pour représenter des géométries (points, lignes, polygones) sur le web.
+
+**JWT (JSON Web Token)** : Standard de tokens d'authentification encodés en JSON et signés cryptographiquement, permettant de vérifier l'identité d'un utilisateur sans maintenir de session côté serveur.
+
+**Leaflet** : Bibliothèque JavaScript open-source pour créer des cartes interactives sur le web, alternative légère à Google Maps.
+
+**Next.js** : Framework React pour le développement d'applications web, offrant notamment le rendu côté serveur et l'optimisation des performances. Utilisé ici pour le backend API.
+
+**ORM (Object-Relational Mapping)** : Technique permettant de manipuler des données relationnelles (tables SQL) sous forme d'objets dans un langage de programmation. Sequelize est l'ORM utilisé dans OMEGA.
+
+**Paranoid mode** : Mode de Sequelize activant le soft delete : les enregistrements supprimés ne sont pas physiquement effacés mais marqués avec un timestamp "deleted_at".
+
+**PostgreSQL** : Système de gestion de base de données relationnelle open-source, réputé pour sa robustesse, sa conformité aux standards SQL, et ses fonctionnalités avancées.
+
+**Puppeteer** : Bibliothèque Node.js permettant de contrôler programmatiquement un navigateur Chrome en mode headless, utilisée dans OMEGA pour générer des PDF.
+
+**React** : Bibliothèque JavaScript développée par Facebook pour construire des interfaces utilisateur interactives et réactives.
+
+**RGPD (Règlement Général sur la Protection des Données)** : Règlement européen encadrant le traitement des données personnelles, imposant notamment la minimisation des données, la sécurisation, et le respect des droits des personnes.
+
+**RPO (Recovery Point Objective)** : Durée maximale acceptable de perte de données en cas de sinistre. Pour OMEGA, fixé à vingt-quatre heures (fréquence des sauvegardes).
+
+**RTO (Recovery Time Objective)** : Durée maximale acceptable d'indisponibilité du service en cas de sinistre. Pour OMEGA, fixé à quatre heures.
+
+**Sequelize** : ORM pour Node.js supportant PostgreSQL, MySQL, SQLite et d'autres bases de données.
+
+**Snapshot** : Sauvegarde complète de l'état d'un projet à un instant donné, permettant une restauration ultérieure.
+
+**Soft delete** : Technique de suppression logique où les enregistrements supprimés restent physiquement présents dans la base mais sont marqués comme supprimés et filtrés des requêtes normales.
+
+**Systemd** : Système d'initialisation et gestionnaire de services standard sur les distributions Linux modernes, utilisé pour gérer les services OMEGA.
+
+**Tuile cartographique** : Image raster de deux cent cinquante-six par deux cent cinquante-six pixels représentant une portion de carte à un niveau de zoom donné, les tuiles s'assemblant pour former une carte continue.
+
+### Annexe B : Contacts et responsabilités
+
+| Rôle | Nom | Email | Téléphone |
+|------|-----|-------|-----------|
+| **Chef de projet DDT** | [À compléter] | [À compléter] | [À compléter] |
+| **Administrateur système principal** | [À compléter] | [À compléter] | [À compléter] |
+| **Administrateur système secondaire** | [À compléter] | [À compléter] | [À compléter] |
+| **Développeur principal** | [À compléter] | [À compléter] | [À compléter] |
+| **DPO (Délégué à la Protection des Données)** | [À compléter] | [À compléter] | [À compléter] |
+| **Responsable sécurité des SI** | [À compléter] | [À compléter] | [À compléter] |
+
+### Annexe C : Références documentaires
+
+**Normes et réglementations** :
+- Règlement Général sur la Protection des Données (RGPD) - Règlement UE 2016/679
+- Référentiel Général de Sécurité (RGS) - Version 2.0
+- Code des relations entre le public et l'administration (obligations d'archivage)
+
+**Documentation technique des technologies utilisées** :
+- Documentation React : https://react.dev
+- Documentation Next.js : https://nextjs.org/docs
+- Documentation Sequelize : https://sequelize.org
+- Documentation Leaflet : https://leafletjs.com
+- Documentation PostgreSQL : https://www.postgresql.org/docs/
+- Documentation Puppeteer : https://pptr.dev
+
+**Documentation projet** :
+- Manuel utilisateur OMEGA (PDF, trente pages)
+- Guide administrateur OMEGA (PDF, vingt pages)
+- FAQ OMEGA (dix questions fréquentes)
+- Vidéos de démonstration (cinq vidéos de trois à cinq minutes)
+- RAPPORT_CONFORMITE_DDT.md (audit de cloisonnement réseau)
+- VERSIONING_SYSTEM.md (documentation système de versioning)
+- README_TUILES_DDT.md (configuration tuiles cartographiques locales)
+
+### Annexe D : Estimations de volumétrie et dimensionnement
+
+**Projections de croissance** :
+
+Année un (deux mille vingt-six) :
+- Projets : deux cents à cinq cents
+- Utilisateurs actifs : vingt à trente
+- Snapshots stockés : deux mille à cinq mille
+- Entrées audit_log : dix mille à cinquante mille
+- Espace base de données : cinq cents mégaoctets à un gigaoctet
+
+Année cinq (deux mille trente) :
+- Projets : mille à deux mille
+- Utilisateurs actifs : quarante à cinquante
+- Snapshots stockés : dix mille à vingt mille
+- Entrées audit_log : cent mille à cinq cent mille
+- Espace base de données : deux gigaoctets à cinq gigaoctets
+
+**Ressources serveur recommandées** :
+
+Année un :
+- Serveur unique : quatre cœurs CPU, huit gigaoctets RAM, cent gigaoctets SSD
+
+Année cinq :
+- Option 1 (serveur unique) : huit cœurs CPU, seize gigaoctets RAM, deux cents gigaoctets SSD
+- Option 2 (serveurs séparés) : Frontend : deux cœurs, quatre gigaoctets RAM, cinquante gigaoctets SSD + Backend/BDD : six cœurs, douze gigaoctets RAM, cent cinquante gigaoctets SSD
+
+**Espace requis pour tuiles cartographiques locales** :
+- Fond Plan IGN (zoom huit à quatorze) : huit cents mégaoctets
+- Fond Ortho (zoom huit à quatorze) : un point deux gigaoctets
+- Total : environ deux gigaoctets
+
+**Fréquence de sauvegarde et rétention** :
+- Sauvegarde quotidienne : environ cent à cinq cents mégaoctets compressés par sauvegarde
+- Rétention quotidienne : sept jours (sept sauvegardes)
+- Rétention hebdomadaire : quatre semaines (quatre sauvegardes)
+- Rétention mensuelle : douze mois (douze sauvegardes)
+- Espace total sauvegardes : cinq à quinze gigaoctets
