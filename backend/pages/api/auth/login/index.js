@@ -9,6 +9,7 @@ import { successResponse, errorResponse } from '../../../../utils/response';
 import { checkLoginRateLimit, recordLoginAttempt } from '../../../../lib/rateLimiter';
 import { logSecurityEvent, SecurityEventType } from '../../../../lib/securityLogger';
 import { validateUsername } from '../../../../lib/inputValidation';
+import { getClientIp } from '../../../../utils/ip';
 
 const { User, RoleEnum } = db;
 
@@ -31,9 +32,7 @@ export default async function handler(req, res) {
     const { username: rawUsername, password } = req.body;
 
     // Extraire l'IP du client
-    ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-                req.headers['x-real-ip'] ||
-                'unknown';
+    ipAddress = getClientIp(req);
 
     // Validation basique des entrées
     if (!rawUsername || !password) {

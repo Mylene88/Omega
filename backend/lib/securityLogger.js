@@ -7,6 +7,7 @@
  */
 
 import db from '../models/index.js';
+import { getClientIp } from '../utils/ip.js';
 
 // Types d'événements de sécurité
 export const SecurityEventType = {
@@ -109,10 +110,7 @@ export async function logSecurityEvent(event) {
 
     if (request) {
       const headers = request.headers || {};
-      extractedIp = headers['x-forwarded-for'] ||
-                    headers['x-real-ip'] ||
-                    request.socket?.remoteAddress ||
-                    'unknown';
+      extractedIp = getClientIp(request);
       extractedUserAgent = headers['user-agent'] || 'unknown';
     }
 

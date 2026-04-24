@@ -5,6 +5,7 @@
  */
 
 const db = require('../models');
+const { getClientIp } = require('../utils/ip');
 
 /**
  * Enregistre une action dans l'audit log
@@ -300,10 +301,7 @@ async function getProjectSnapshots(idProjet, limit = 50) {
  */
 function extractRequestInfo(req) {
   const headers = req.headers || {};
-  const userIp = headers['x-forwarded-for'] ||
-                 headers['x-real-ip'] ||
-                 req.socket?.remoteAddress ||
-                 'unknown';
+  const userIp = getClientIp(req);
   const userAgent = headers['user-agent'] || 'unknown';
 
   return { userIp, userAgent };

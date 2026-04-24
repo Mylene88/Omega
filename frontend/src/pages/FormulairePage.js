@@ -702,20 +702,24 @@ export default function FormulairePage() {
                     </>
                 )}
 
-                <button
-                    type="button"
-                    onClick={handleSaveProject}
-                    disabled={isSaving || isGeneratingId}
-                    style={{
-                        marginTop: '1rem', padding: '0.75rem 1.5rem',
-                        backgroundColor: isSaving ? '#9CA3AF' : '#3B82F6',
-                        color: 'white', border: 'none', borderRadius: '0.5rem',
-                        cursor: (isSaving || isGeneratingId) ? 'not-allowed' : 'pointer',
-                        fontWeight: 'bold',
-                    }}
-                >
-                    {isSaving ? 'Enregistrement en cours...' : 'Enregistrer le projet'}
-                </button>
+                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                        type="button"
+                        onClick={handleSaveProject}
+                        disabled={isSaving || isGeneratingId}
+                        style={{
+                            padding: '0.75rem 1.5rem',
+                            backgroundColor: isSaving ? '#9CA3AF' : '#3B82F6',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '0.5rem',
+                            cursor: (isSaving || isGeneratingId) ? 'not-allowed' : 'pointer',
+                            fontWeight: 'bold',
+                        }}
+                    >
+                        {isSaving ? 'Enregistrement en cours...' : 'Enregistrer le projet'}
+                    </button>
+                </div>
             </div>
 
             {/* Colonne droite - Carte */}

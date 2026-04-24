@@ -335,55 +335,63 @@ export default function VueListe({
                                         </div>
                                     </div>
 
-                                    {/* Type de porteur */}
-                                    <div
-                                        className="card-info-item clickable-section"
-                                        onClick={(e) => handleSectionClick(e, p, 'porteurs')}
-                                        style={{ cursor: 'pointer' }}
-                                        title="Cliquer pour voir les porteurs du projet"
-                                    >
-                                        <span className="card-info-icon">👥</span>
-                                        <div className="card-info-content">
-                                            <span className="card-info-label">Porteur</span>
-                                            <span className="card-info-value">
-                                                {nombrePorteurs} porteur{nombrePorteurs > 1 ? 's' : ''}
-                                            </span>
-                                        </div>
-                                    </div>
-
-
-                                    {/* Service Référent */}
-                                    {serviceReferent && (
-                                        <div
-                                            className="card-info-item clickable-section"
-                                            onClick={(e) => handleSectionClick(e, p, 'suivis')}
-                                            style={{ cursor: 'pointer' }}
-                                            title="Cliquer pour voir les suivis"
-                                        >
-                                            <span className="card-info-icon">🏛️</span>
-                                            <div className="card-info-content">
-                                                <span className="card-info-label">Service Référent</span>
-                                                <span className="card-info-value">{serviceReferent}</span>
+                                    {/* Ligne: Porteur | Service Référent | Thématiques */}
+                                    <div className="card-info-item full-width">
+                                        <div className="card-info-row">
+                                            {/* Porteur */}
+                                            <div
+                                                className="card-info-item-inline clickable-section"
+                                                onClick={(e) => handleSectionClick(e, p, 'porteurs')}
+                                                style={{ cursor: 'pointer' }}
+                                                title="Cliquer pour voir les porteurs du projet"
+                                            >
+                                                <span className="card-info-icon">👥</span>
+                                                <div className="card-info-content">
+                                                    <span className="card-info-label">Porteur</span>
+                                                    <span className="card-info-value">
+                                                        {nombrePorteurs} porteur{nombrePorteurs > 1 ? 's' : ''}
+                                                    </span>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
 
-                                    {/* Thématiques - Toujours affiché */}
-                                    <div
-                                        className="card-info-item clickable-section"
-                                        onClick={(e) => handleSectionClick(e, p, 'thematiques')}
-                                        style={{ cursor: 'pointer' }}
-                                        title="Cliquer pour voir les thématiques"
-                                    >
-                                        <span className="card-info-icon">🎯</span>
-                                        <div className="card-info-content">
-                                            <span className="card-info-label">Thématiques</span>
-                                            <span className="card-info-value">
-                                                {nombreThematiques > 0
-                                                    ? `${nombreThematiques} thématique${nombreThematiques > 1 ? 's' : ''}`
-                                                    : <em style={{ color: '#999' }}>Aucune thématique pour ce projet</em>
-                                                }
-                                            </span>
+                                            {/* Séparateur */}
+                                            <span className="card-info-separator">|</span>
+
+                                            {/* Service Référent */}
+                                            <div
+                                                className="card-info-item-inline clickable-section"
+                                                onClick={(e) => handleSectionClick(e, p, 'suivis')}
+                                                style={{ cursor: 'pointer' }}
+                                                title="Cliquer pour voir les suivis"
+                                            >
+                                                <span className="card-info-icon">🏛️</span>
+                                                <div className="card-info-content">
+                                                    <span className="card-info-label">Service Référent</span>
+                                                    <span className="card-info-value">{serviceReferent}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Séparateur */}
+                                            <span className="card-info-separator">|</span>
+
+                                            {/* Thématiques */}
+                                            <div
+                                                className="card-info-item-inline clickable-section"
+                                                onClick={(e) => handleSectionClick(e, p, 'thematiques')}
+                                                style={{ cursor: 'pointer' }}
+                                                title="Cliquer pour voir les thématiques"
+                                            >
+                                                <span className="card-info-icon">🎯</span>
+                                                <div className="card-info-content">
+                                                    <span className="card-info-label">Thématiques</span>
+                                                    <span className="card-info-value">
+                                                        {nombreThematiques > 0
+                                                            ? `${nombreThematiques} thématique${nombreThematiques > 1 ? 's' : ''}`
+                                                            : <em style={{ color: '#999' }}>Aucune</em>
+                                                        }
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 

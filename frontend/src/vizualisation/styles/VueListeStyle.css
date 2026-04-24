@@ -1469,6 +1469,76 @@
     grid-column: 1 / -1;
 }
 
+/* Ligne horizontale pour Porteur | Service | Thématiques */
+.card-info-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    flex-wrap: wrap;
+}
+
+.card-info-item-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+    flex: 1;
+    min-width: 150px;
+}
+
+.card-info-item-inline:hover {
+    background: var(--bg-tertiary);
+}
+
+.card-info-item-inline .card-info-icon {
+    font-size: 18px;
+}
+
+.card-info-item-inline .card-info-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.card-info-item-inline .card-info-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.card-info-item-inline .card-info-value {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.card-info-separator {
+    color: var(--text-muted);
+    font-size: 16px;
+    opacity: 0.4;
+}
+
+@media (max-width: 768px) {
+    .card-info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .card-info-separator {
+        display: none;
+    }
+    
+    .card-info-item-inline {
+        width: 100%;
+    }
+}
+
 .card-info-icon {
     font-size: 20px;
     flex-shrink: 0;

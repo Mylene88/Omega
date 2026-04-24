@@ -1,12 +1,7 @@
-// frontend/src/pages/Auth/Login.js
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LoginForm from '../../components/auth/LoginForm/LoginForm';
-import AuthInfoBox from "../../components/common/Auth/AuthInfoBox";
-import AuthHeader from "../../components/common/Auth/AuthHeader";
 import '../../styles/globals.css';
-
 
 const Login = () => {
   const navigate = useNavigate();
@@ -45,12 +40,12 @@ const Login = () => {
 
   if (isCheckingAuth) {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
-            <p className="text-gray-600 font-medium">Vérification de votre session...</p>
-          </div>
+      <div style={{ minHeight: '100vh', backgroundColor: '#000091', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ animation: 'spin 1s linear infinite', borderRadius: '50%', height: '48px', width: '48px', border: '4px solid white', borderTopColor: 'transparent', margin: '0 auto 16px' }}></div>
+          <p style={{ color: 'white', fontWeight: '500' }}>Vérification de votre session...</p>
         </div>
+      </div>
     );
   }
 
@@ -59,38 +54,63 @@ const Login = () => {
   };
 
   return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8 relative">
-        <div className="max-w-md w-full space-y-6 mx-auto flex-grow flex flex-col justify-center">
-          {/* En-tête */}
-          <AuthHeader
-              title="Portail de gestion de projets"
-              subtitle="Connectez-vous pour accéder à votre espace"
+    <div style={{ minHeight: '100vh', display: 'flex' }}>
+      {/* Left Panel - Blue with Logo and Info */}
+      <div style={{
+        width: '50%',
+        backgroundColor: '#000091',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '80px 48px',
+        color: 'white'
+      }}>
+        {/* French Republic Logo */}
+        {/*<div style={{ marginBottom: '48px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <img
+            src="https://cdn.builder.io/api/v1/image/assets%2F2af24fd0e4044d3bbd5b2f47c5e24db5%2Fe9318300183944c6b32768fd287337b8?format=webp&width=400&height=300"
+            alt="République Française"
+            style={{
+              width: '220px',
+              height: 'auto',
+              marginBottom: '16px',
+              objectFit: 'contain'
+            }}
           />
+        </div>*/}
 
-          {/* Formulaire */}
-          <div className="bg-white shadow-xl rounded-2xl p-8 border border-gray-100">
-            <LoginForm />
-          </div>
-
-          {/* Info première connexion */}
-          <AuthInfoBox variant="info" title="Première connexion ?">
-            Utilisez le mot de passe provisoire fourni. Vous serez invité à le modifier pour sécuriser votre compte.
-          </AuthInfoBox>
+        {/* Title and Subtitle */}
+        <h1 style={{
+          fontSize: '36px',
+          fontWeight: '700',
+          textAlign: 'center',
+          marginBottom: '24px',
+          lineHeight: '1.2'
+        }}>
+          Portail de gestion de projets
+        </h1>
+        <div style={{ textAlign: 'center', color: '#E0E7FF' }}>
+          <p style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>DDT 28 - Direction Départementale des Térritoires d'Eure-et-Loir </p>
+          {/*<p style={{ fontSize: '18px', fontWeight: '600' }}>des Territoires</p>*/}
         </div>
-
-        {/* Bouton Admin en bas à gauche */}
-        <button
-          onClick={handleAdminAccess}
-          className="absolute bottom-6 left-6 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow-lg transition-all duration-300 flex items-center gap-2 z-10"
-          title="Accès administration"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-          </svg>
-          Admin
-        </button>
-
       </div>
+
+      {/* Right Panel - Login Form */}
+      <div style={{
+        width: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '48px',
+        backgroundColor: 'white'
+      }}>
+        <div style={{ width: '100%', maxWidth: '400px' }}>
+          <LoginForm />
+
+        </div>
+      </div>
+    </div>
   );
 };
 

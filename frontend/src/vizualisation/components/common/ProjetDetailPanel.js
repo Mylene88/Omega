@@ -9,8 +9,10 @@ export default function ProjetDetailPanel({
                                               expandedSections,
                                               onToggleSection,
                                               onClose,
-                                              sectionToScroll
+                                              sectionToScroll,
+                                              sectionScrollNonce
                                           }) {
+    const detailContentRef = React.useRef(null);
 
     // 🔍 LOG: Afficher les données du projet pour debug
     React.useEffect(() => {
@@ -20,21 +22,39 @@ export default function ProjetDetailPanel({
         }
     }, [selectedProjectDetails]);
 
-    // ✅ Scroll automatique vers la section ouverte
+    // ✅ Scroll automatique vers la section ouverte (dans le panneau de droite uniquement)
     React.useEffect(() => {
-        if (sectionToScroll && expandedSections[sectionToScroll]) {
-            // Attendre que le DOM soit mis à jour et que l'animation d'ouverture soit terminée
-            setTimeout(() => {
-                const sectionElement = document.getElementById(`section-${sectionToScroll}`);
-                if (sectionElement) {
-                    sectionElement.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
-            }, 150); // Petit délai pour laisser l'animation de déroulement se terminer
+        if (!sectionToScroll || !expandedSections[sectionToScroll] || loadingDetails || !selectedProjectDetails) {
+            return;
         }
-    }, [sectionToScroll, expandedSections]);
+
+        const timer = setTimeout(() => {
+            const detailContent = detailContentRef.current;
+            const sectionElement = detailContent?.querySelector(`#section-${sectionToScroll}`);
+
+            if (!detailContent || !sectionElement) {
+                return;
+            }
+
+            const contentRect = detailContent.getBoundingClientRect();
+            const sectionRect = sectionElement.getBoundingClientRect();
+            const offsetWithinContainer = sectionRect.top - contentRect.top;
+            const targetTop = Math.max(detailContent.scrollTop + offsetWithinContainer - 8, 0);
+
+            detailContent.scrollTo({
+                top: targetTop,
+                behavior: 'smooth'
+            });
+        }, 120);
+
+        return () => clearTimeout(timer);
+    }, [
+        sectionToScroll,
+        sectionScrollNonce,
+        expandedSections,
+        loadingDetails,
+        selectedProjectDetails
+    ]);
 
     const formatFieldLabel = (fieldName) => {
         return fieldName
@@ -64,7 +84,7 @@ export default function ProjetDetailPanel({
                     <h3>📋 Détails du projet</h3>
                     <button className="close-detail-btn" onClick={onClose} title="Fermer le détail">×</button>
                 </div>
-                <div className="liste-detail-content">
+                <div className="liste-detail-content" ref={detailContentRef}>
                     <div className="sidebar-loading">
                         <div className="spinner" />
                         <p>Chargement...</p>
@@ -81,7 +101,7 @@ export default function ProjetDetailPanel({
                     <h3>📋 Détails du projet</h3>
                     <button className="close-detail-btn" onClick={onClose} title="Fermer le détail">×</button>
                 </div>
-                <div className="liste-detail-content">
+                <div className="liste-detail-content" ref={detailContentRef}>
                     <div className="empty-state">
                         <p className="empty-message">Impossible de charger les détails</p>
                     </div>
@@ -97,7 +117,7 @@ export default function ProjetDetailPanel({
                 <button className="close-detail-btn" onClick={onClose} title="Fermer le détail">×</button>
             </div>
 
-            <div className="liste-detail-content">
+            <div className="liste-detail-content" ref={detailContentRef}>
                 {/* 1. Informations générales */}
                 <div className="accordion-section" id="section-infos">
                     <button

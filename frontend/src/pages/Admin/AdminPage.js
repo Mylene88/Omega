@@ -21,12 +21,20 @@ const AdminPage = () => {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [deletedProjects, setDeletedProjects] = useState([]);
+  const [securityLogs, setSecurityLogs] = useState([]);
+  const [securityLogsTotal, setSecurityLogsTotal] = useState(0);
   const [filters, setFilters] = useState({
     limit: 100,
     tableName: '',
     action: '',
     dateFrom: '',
     dateTo: ''
+  });
+  const [securityFilters, setSecurityFilters] = useState({
+    limit: 100,
+    offset: 0,
+    event_type: '',
+    username: ''
   });
 
   // État pour le formulaire de création d'utilisateur
@@ -57,6 +65,7 @@ const AdminPage = () => {
   // États pour la pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
 
   // Vérifier l'authentification admin
   useEffect(() => {
@@ -105,6 +114,8 @@ const AdminPage = () => {
       fetchRoles();
     } else if (activeTab === 'deleted-projects') {
       fetchDeletedProjects();
+    } else if (activeTab === 'security-logs') {
+      fetchSecurityLogs();
     }
   }, [activeTab]);
 
@@ -115,6 +126,21 @@ const AdminPage = () => {
       fetchAuditLogs();
     }
   }, [filters]);
+
+  // Auto-refresh security logs when filters change
+  useEffect(() => {
+    if (activeTab === 'security-logs') {
+      console.log('🔄 [ADMIN] Filtres modifiés, rechargement des logs de sécurité');
+      fetchSecurityLogs();
+    }
+  }, [securityFilters]);
+
+  // Revenir à la première page lors d'une recherche utilisateur
+  useEffect(() => {
+    if (activeTab === 'users') {
+      setCurrentPage(1);
+    }
+  }, [userSearchQuery, activeTab]);
 
   const fetchStats = async () => {
     console.log('📊 [ADMIN] Début du chargement des statistiques');
@@ -280,12 +306,49 @@ const AdminPage = () => {
       if (!response.ok) throw new Error('Erreur lors du chargement des projets supprimés');
 
       const data = await response.json();
-      console.log('📋 [ADMIN] Projets supprimés reçus:', data.data?.length || 0);
-
+      console.log('✅ [ADMIN] Projets supprimés chargés:', data.data);
       setDeletedProjects(data.data || []);
-      console.log('✅ [ADMIN] Projets supprimés chargés avec succès');
     } catch (err) {
-      console.error('❌ [ADMIN] Erreur lors du chargement des projets supprimés:', err);
+      console.error('❌ [ADMIN] Erreur projets supprimés:', err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fonction pour charger les logs de sécurité
+  const fetchSecurityLogs = async () => {
+    console.log('🔒 [ADMIN] Chargement des logs de sécurité');
+    setIsLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const params = new URLSearchParams({
+        limit: securityFilters.limit.toString(),
+        offset: securityFilters.offset.toString()
+      });
+      
+      if (securityFilters.event_type) {
+        params.append('event_type', securityFilters.event_type);
+      }
+      if (securityFilters.username) {
+        params.append('username', securityFilters.username);
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/security-logs?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Erreur lors du chargement des logs de sécurité');
+
+      const data = await response.json();
+      console.log('✅ [ADMIN] Logs de sécurité chargés:', data.data);
+      setSecurityLogs(data.data.logs || []);
+      setSecurityLogsTotal(data.data.total || 0);
+    } catch (err) {
+      console.error('❌ [ADMIN] Erreur logs de sécurité:', err);
       setError(err.message);
     } finally {
       setIsLoading(false);
@@ -491,12 +554,27 @@ const AdminPage = () => {
 
   // Gérer la sélection de tous les utilisateurs
   const handleSelectAll = (e) => {
+    const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id_user;
+    const normalize = (value) => String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+    const normalizedQuery = normalize(userSearchQuery).trim();
+
+    const visibleSelectableUserIds = users
+      .filter((user) => {
+        if (!normalizedQuery) return true;
+        const username = normalize(user.username);
+        const nomComplet = normalize(user.nom_complet || `${user.prenom || ''} ${user.nom || ''}`.trim());
+        return username.includes(normalizedQuery) || nomComplet.includes(normalizedQuery);
+      })
+      .filter(u => u.id_user !== currentUserId)
+      .map(u => u.id_user);
+
     if (e.target.checked) {
-      const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id_user;
-      const selectableUsers = users.filter(u => u.id_user !== currentUserId).map(u => u.id_user);
-      setSelectedUserIds(selectableUsers);
+      setSelectedUserIds(prev => [...new Set([...prev, ...visibleSelectableUserIds])]);
     } else {
-      setSelectedUserIds([]);
+      setSelectedUserIds(prev => prev.filter(id => !visibleSelectableUserIds.includes(id)));
     }
   };
 
@@ -702,7 +780,13 @@ const AdminPage = () => {
         restoredAt: data.data?.restoredAt
       });
 
-      alert(`✅ Projet restauré avec succès !\n\n⚠️ IMPORTANT : Pour voir les changements, vous devez :\n1. Actualiser la page de visualisation (F5)\n2. Ou fermer et rouvrir le projet dans la vue liste\n\nLes modifications ont bien été appliquées en base de données.`);
+      alert(`✅ Projet restauré avec succès !
+
+⚠️ IMPORTANT : Pour voir les changements, vous devez :
+1. Actualiser la page de visualisation (F5)
+2. Ou fermer et rouvrir le projet dans la vue liste
+
+Les modifications ont bien été appliquées en base de données.`);
 
       console.log('🔄 [ADMIN] Rechargement de la liste des snapshots...');
       fetchSnapshots(); // Recharger les snapshots
@@ -784,6 +868,48 @@ const AdminPage = () => {
     return colors[action] || '#9E9E9E';
   };
 
+  const normalizeSearchValue = (value) => String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+  const normalizedUserSearchQuery = normalizeSearchValue(userSearchQuery).trim();
+
+  const filteredUsers = users.filter((user) => {
+    if (!normalizedUserSearchQuery) return true;
+
+    const normalizedUsername = normalizeSearchValue(user.username);
+    const normalizedNomComplet = normalizeSearchValue(
+      user.nom_complet || `${user.prenom || ''} ${user.nom || ''}`.trim()
+    );
+
+    return (
+      normalizedUsername.includes(normalizedUserSearchQuery) ||
+      normalizedNomComplet.includes(normalizedUserSearchQuery)
+    );
+  });
+
+  const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id_user;
+  const selectableFilteredUserIds = filteredUsers
+    .filter((user) => user.id_user !== currentUserId)
+    .map((user) => user.id_user);
+  const areAllFilteredUsersSelected = selectableFilteredUserIds.length > 0 &&
+    selectableFilteredUserIds.every((id) => selectedUserIds.includes(id));
+
+  const totalFilteredUsers = filteredUsers.length;
+  const totalUserPages = Math.max(1, Math.ceil(totalFilteredUsers / itemsPerPage));
+  const adjustedCurrentPage = Math.min(currentPage, totalUserPages);
+  const paginatedUsers = filteredUsers.slice(
+    (adjustedCurrentPage - 1) * itemsPerPage,
+    adjustedCurrentPage * itemsPerPage
+  );
+  const firstVisibleUserIndex = totalFilteredUsers === 0
+    ? 0
+    : ((adjustedCurrentPage - 1) * itemsPerPage) + 1;
+  const lastVisibleUserIndex = totalFilteredUsers === 0
+    ? 0
+    : Math.min(adjustedCurrentPage * itemsPerPage, totalFilteredUsers);
+
   return (
       <div className="admin-page">
         {/* Header */}
@@ -809,6 +935,12 @@ const AdminPage = () => {
               onClick={() => setActiveTab('users')}
           >
             👥 Utilisateurs
+          </button>
+          <button
+              className={`tab ${activeTab === 'security-logs' ? 'active' : ''}`}
+              onClick={() => setActiveTab('security-logs')}
+          >
+            🔒 Historique de connexion
           </button>
           <button
               className={`tab ${activeTab === 'audit' ? 'active' : ''}`}
@@ -1189,197 +1321,416 @@ const AdminPage = () => {
                         <>
                           {/* Contrôles de pagination */}
                           <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
                             marginBottom: '1rem',
                             padding: '1rem',
                             background: 'white',
                             borderRadius: '8px',
                             border: '1px solid var(--border-color)'
                           }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                                Afficher:
-                              </span>
-                              <select
-                                  value={itemsPerPage}
-                                  onChange={(e) => {
-                                    setItemsPerPage(Number(e.target.value));
-                                    setCurrentPage(1); // Retour à la première page
-                                  }}
-                                  style={{
-                                    padding: '0.5rem',
-                                    borderRadius: '6px',
-                                    border: '1px solid var(--border-color)',
-                                    fontSize: '0.9rem'
-                                  }}
-                              >
-                                <option value={10}>10</option>
-                                <option value={25}>25</option>
-                                <option value={50}>50</option>
-                                <option value={100}>100</option>
-                                <option value={150}>150</option>
-                                <option value={users.length}>Tous ({users.length})</option>
-                              </select>
-                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                                éléments par page
-                              </span>
-                            </div>
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                              {users.length === 0 ? 'Aucun' : `${((currentPage - 1) * itemsPerPage) + 1}-${Math.min(currentPage * itemsPerPage, users.length)}`} sur {users.length} utilisateur(s)
-                            </div>
-                          </div>
-
-                          {/* Table avec scroll horizontal */}
-                          <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
-                            <table className="users-table">
-                              <thead>
-                              <tr>
-                                <th className="th-checkbox">
-                                  <input
-                                      type="checkbox"
-                                      onChange={handleSelectAll}
-                                      checked={selectedUserIds.length > 0 && selectedUserIds.length === users.filter(u => u.id_user !== JSON.parse(localStorage.getItem('user') || '{}').id_user).length}
-                                  />
-                                </th>
-                                <th className="th-id">ID</th>
-                                <th className="th-username">Username</th>
-                                <th className="th-nom">Nom complet</th>
-                                <th className="th-role">Rôle</th>
-                                <th className="th-date">Créé le</th>
-                                <th className="th-actions">Actions</th>
-                              </tr>
-                              </thead>
-                              <tbody>
-                              {users
-                                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                                  .map(user => {
-                                    const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id_user;
-                                    const isCurrentUser = user.id_user === currentUserId;
-
-                                    return (
-                                        <tr key={user.id_user} style={{ opacity: isCurrentUser ? 0.6 : 1 }}>
-                                          <td className="td-checkbox">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedUserIds.includes(user.id_user)}
-                                                onChange={() => handleSelectUser(user.id_user)}
-                                                disabled={isCurrentUser}
-                                            />
-                                          </td>
-                                          <td className="td-id">{user.id_user}</td>
-                                          <td className="td-username">
-                                            {user.username}
-                                            {isCurrentUser && <span style={{ marginLeft: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>(Vous)</span>}
-                                          </td>
-                                          <td className="td-nom">{user.nom_complet}</td>
-                                          <td className="td-role">
-                                            <span className="role-badge">{user.role_libelle}</span>
-                                          </td>
-                                          <td className="td-date">{formatDateTimeFr(user.created_at)}</td>
-                                          <td className="td-actions">
-                                            <button
-                                                className="btn-filter"
-                                                onClick={() => handleOpenEditUser(user)}
-                                                style={{
-                                                  background: '#94a3b8',
-                                                  color: 'white',
-                                                  padding: '0.4rem 0.8rem',
-                                                  fontSize: '0.85rem'
-                                                }}
-                                                title="Modifier cet utilisateur"
-                                            >
-                                              ✏️
-                                            </button>
-                                          </td>
-                                        </tr>
-                                    );
-                                  })}
-                              </tbody>
-                            </table>
-                          </div>
-
-                          {/* Boutons de pagination */}
-                          {users.length > itemsPerPage && (
-                              <div style={{
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                padding: '1rem',
-                                background: 'white',
-                                borderRadius: '8px',
-                                border: '1px solid var(--border-color)'
-                              }}>
-                                <button
-                                    onClick={() => setCurrentPage(1)}
-                                    disabled={currentPage === 1}
-                                    className="btn-filter"
-                                    style={{
-                                      padding: '0.5rem 0.75rem',
-                                      fontSize: '0.85rem',
-                                      opacity: currentPage === 1 ? 0.5 : 1,
-                                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
-                                    }}
-                                >
-                                  ⏮️ Premier
-                                </button>
-                                <button
-                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                    disabled={currentPage === 1}
-                                    className="btn-filter"
-                                    style={{
-                                      padding: '0.5rem 0.75rem',
-                                      fontSize: '0.85rem',
-                                      opacity: currentPage === 1 ? 0.5 : 1,
-                                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
-                                    }}
-                                >
-                                  ◀️ Précédent
-                                </button>
-
-                                <span style={{
-                                  padding: '0.5rem 1rem',
-                                  color: 'var(--text-secondary)',
-                                  fontSize: '0.9rem',
-                                  fontWeight: '600'
-                                }}>
-                                  Page {currentPage} / {Math.ceil(users.length / itemsPerPage)}
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'flex-start',
+                              alignItems: 'center',
+                              gap: '1.75rem',
+                              flexWrap: 'nowrap'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: '0 1 640px', minWidth: 0, maxWidth: '640px' }}>
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                                  Recherche:
                                 </span>
-
-                                <button
-                                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(users.length / itemsPerPage), prev + 1))}
-                                    disabled={currentPage >= Math.ceil(users.length / itemsPerPage)}
-                                    className="btn-filter"
+                                <input
+                                    type="text"
+                                    value={userSearchQuery}
+                                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                                    placeholder="Username ou nom complet"
                                     style={{
+                                      flex: 1,
+                                      minWidth: '220px',
                                       padding: '0.5rem 0.75rem',
-                                      fontSize: '0.85rem',
-                                      opacity: currentPage >= Math.ceil(users.length / itemsPerPage) ? 0.5 : 1,
-                                      cursor: currentPage >= Math.ceil(users.length / itemsPerPage) ? 'not-allowed' : 'pointer'
+                                      borderRadius: '6px',
+                                      border: '1px solid var(--border-color)',
+                                      fontSize: '0.9rem'
                                     }}
-                                >
-                                  Suivant ▶️
-                                </button>
-                                <button
-                                    onClick={() => setCurrentPage(Math.ceil(users.length / itemsPerPage))}
-                                    disabled={currentPage >= Math.ceil(users.length / itemsPerPage)}
-                                    className="btn-filter"
-                                    style={{
-                                      padding: '0.5rem 0.75rem',
-                                      fontSize: '0.85rem',
-                                      opacity: currentPage >= Math.ceil(users.length / itemsPerPage) ? 0.5 : 1,
-                                      cursor: currentPage >= Math.ceil(users.length / itemsPerPage) ? 'not-allowed' : 'pointer'
-                                    }}
-                                >
-                                  Dernier ⏭️
-                                </button>
+                                />
+                                {userSearchQuery.trim() && (
+                                    <button
+                                        type="button"
+                                        className="btn-filter"
+                                        onClick={() => setUserSearchQuery('')}
+                                        style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
+                                    >
+                                      Effacer
+                                    </button>
+                                )}
                               </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'nowrap', flexShrink: 0, marginLeft: '0.5rem' }}>
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                  Afficher:
+                                </span>
+                                <select
+                                    value={itemsPerPage}
+                                    onChange={(e) => {
+                                      setItemsPerPage(Number(e.target.value));
+                                      setCurrentPage(1); // Retour à la première page
+                                    }}
+                                    style={{
+                                      padding: '0.5rem',
+                                      borderRadius: '6px',
+                                      border: '1px solid var(--border-color)',
+                                      fontSize: '0.9rem'
+                                    }}
+                                >
+                                  <option value={10}>10</option>
+                                  <option value={25}>25</option>
+                                  <option value={50}>50</option>
+                                  <option value={100}>100</option>
+                                  <option value={150}>150</option>
+                                  {totalFilteredUsers > 0 && (
+                                      <option value={totalFilteredUsers}>Tous ({totalFilteredUsers})</option>
+                                  )}
+                                </select>
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                                  éléments par page
+                                </span>
+                              </div>
+                            </div>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.75rem', textAlign: 'right' }}>
+                              {totalFilteredUsers === 0 ? 'Aucun résultat' : `${firstVisibleUserIndex}-${lastVisibleUserIndex} / ${totalFilteredUsers}`}
+                            </div>
+                          </div>
+
+                          {totalFilteredUsers > 0 ? (
+                              <>
+                                {/* Table avec scroll horizontal */}
+                                <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
+                                  <table className="users-table">
+                                    <thead>
+                                    <tr>
+                                      <th className="th-checkbox">
+                                        <input
+                                            type="checkbox"
+                                            onChange={handleSelectAll}
+                                            checked={areAllFilteredUsersSelected}
+                                        />
+                                      </th>
+                                      <th className="th-username">Username</th>
+                                      <th className="th-nom">Nom complet</th>
+                                      <th className="th-role">Rôle</th>
+                                      <th className="th-date">Créé le</th>
+                                      <th className="th-actions">Actions</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {paginatedUsers.map(user => {
+                                      const isCurrentUser = user.id_user === currentUserId;
+
+                                      return (
+                                          <tr key={user.id_user} style={{ opacity: isCurrentUser ? 0.6 : 1 }}>
+                                            <td className="td-checkbox">
+                                              <input
+                                                  type="checkbox"
+                                                  checked={selectedUserIds.includes(user.id_user)}
+                                                  onChange={() => handleSelectUser(user.id_user)}
+                                                  disabled={isCurrentUser}
+                                              />
+                                            </td>
+                                            <td className="td-username">
+                                              {user.username}
+                                              {isCurrentUser && <span style={{ marginLeft: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>(Vous)</span>}
+                                            </td>
+                                            <td className="td-nom">{user.nom_complet}</td>
+                                            <td className="td-role">
+                                              <span className="role-badge">{user.role_libelle}</span>
+                                            </td>
+                                            <td className="td-date">{formatDateTimeFr(user.created_at)}</td>
+                                            <td className="td-actions">
+                                              <button
+                                                  className="btn-filter"
+                                                  onClick={() => handleOpenEditUser(user)}
+                                                  style={{
+                                                    background: '#94a3b8',
+                                                    color: 'white',
+                                                    padding: '0.4rem 0.8rem',
+                                                    fontSize: '0.85rem'
+                                                  }}
+                                                  title="Modifier cet utilisateur"
+                                              >
+                                                ✏️
+                                              </button>
+                                            </td>
+                                          </tr>
+                                      );
+                                    })}
+                                    </tbody>
+                                  </table>
+                                </div>
+
+                                {/* Boutons de pagination */}
+                                {totalFilteredUsers > itemsPerPage && (
+                                    <div style={{
+                                      display: 'flex',
+                                      justifyContent: 'center',
+                                      alignItems: 'center',
+                                      gap: '0.5rem',
+                                      padding: '1rem',
+                                      background: 'white',
+                                      borderRadius: '8px',
+                                      border: '1px solid var(--border-color)'
+                                    }}>
+                                      <button
+                                          onClick={() => setCurrentPage(1)}
+                                          disabled={adjustedCurrentPage === 1}
+                                          className="btn-filter"
+                                          style={{
+                                            padding: '0.5rem 0.75rem',
+                                            fontSize: '0.85rem',
+                                            opacity: adjustedCurrentPage === 1 ? 0.5 : 1,
+                                            cursor: adjustedCurrentPage === 1 ? 'not-allowed' : 'pointer'
+                                          }}
+                                      >
+                                        ⏮️ Premier
+                                      </button>
+                                      <button
+                                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                          disabled={adjustedCurrentPage === 1}
+                                          className="btn-filter"
+                                          style={{
+                                            padding: '0.5rem 0.75rem',
+                                            fontSize: '0.85rem',
+                                            opacity: adjustedCurrentPage === 1 ? 0.5 : 1,
+                                            cursor: adjustedCurrentPage === 1 ? 'not-allowed' : 'pointer'
+                                          }}
+                                      >
+                                        ◀️ Précédent
+                                      </button>
+
+                                      <span style={{
+                                        padding: '0.5rem 1rem',
+                                        color: 'var(--text-secondary)',
+                                        fontSize: '0.9rem',
+                                        fontWeight: '600'
+                                      }}>
+                                        Page {adjustedCurrentPage} / {totalUserPages}
+                                      </span>
+
+                                      <button
+                                          onClick={() => setCurrentPage(prev => Math.min(totalUserPages, prev + 1))}
+                                          disabled={adjustedCurrentPage >= totalUserPages}
+                                          className="btn-filter"
+                                          style={{
+                                            padding: '0.5rem 0.75rem',
+                                            fontSize: '0.85rem',
+                                            opacity: adjustedCurrentPage >= totalUserPages ? 0.5 : 1,
+                                            cursor: adjustedCurrentPage >= totalUserPages ? 'not-allowed' : 'pointer'
+                                          }}
+                                      >
+                                        Suivant ▶️
+                                      </button>
+                                      <button
+                                          onClick={() => setCurrentPage(totalUserPages)}
+                                          disabled={adjustedCurrentPage >= totalUserPages}
+                                          className="btn-filter"
+                                          style={{
+                                            padding: '0.5rem 0.75rem',
+                                            fontSize: '0.85rem',
+                                            opacity: adjustedCurrentPage >= totalUserPages ? 0.5 : 1,
+                                            cursor: adjustedCurrentPage >= totalUserPages ? 'not-allowed' : 'pointer'
+                                          }}
+                                      >
+                                        Dernier ⏭️
+                                      </button>
+                                    </div>
+                                )}
+                              </>
+                          ) : (
+                              <div className="empty-state">Aucun utilisateur ne correspond à la recherche</div>
                           )}
                         </>
                     ) : (
                         <div className="empty-state">Aucun utilisateur trouvé</div>
                     )}
+                  </div>
+                </div>
+              </div>
+          )}
+
+          {/* Tab: Historique de connexion */}
+          {activeTab === 'security-logs' && !isLoading && (
+              <div className="security-logs-container">
+                <div className="stats-section">
+                  <h2>Historique des connexions et tentatives</h2>
+                  
+                  {/* Filtres */}
+                  <div className="audit-filters" style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                    <input
+                        type="text"
+                        placeholder="Filtrer par utilisateur"
+                        value={securityFilters.username}
+                        onChange={(e) => setSecurityFilters({ ...securityFilters, username: e.target.value })}
+                        style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #d1d5db' }}
+                    />
+                    <select
+                        value={securityFilters.event_type}
+                        onChange={(e) => setSecurityFilters({ ...securityFilters, event_type: e.target.value })}
+                        style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #d1d5db' }}
+                    >
+                      <option value="">Tous les événements</option>
+                      <option value="LOGIN_SUCCESS">Connexion réussie</option>
+                      <option value="LOGIN_FAILED">Connexion échouée</option>
+                      <option value="FIRST_LOGIN">Première connexion</option>
+                      <option value="LOGIN_BLOCKED">Connexion bloquée</option>
+                      <option value="RATE_LIMIT_EXCEEDED">Limite de tentatives</option>
+                      <option value="INVALID_INPUT">Entrée invalide</option>
+                    </select>
+                    <button
+                        onClick={fetchSecurityLogs}
+                        className="btn-primary"
+                        style={{ padding: '0.5rem 1rem', borderRadius: '4px' }}
+                    >
+                      🔄 Actualiser
+                    </button>
+                  </div>
+
+                  {/* Stats */}
+                  <div style={{ marginBottom: '1rem', color: '#6b7280' }}>
+                    Affichage de {securityLogs.length} sur {securityLogsTotal} logs
+                  </div>
+
+                  {/* Table */}
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="audit-table" style={{ 
+                      width: '100%',
+                      borderCollapse: 'separate',
+                      borderSpacing: 0
+                    }}>
+                      <thead>
+                      <tr>
+                        <th style={{ padding: '1rem' }}>Date & Heure</th>
+                        <th style={{ padding: '1rem' }}>Utilisateur</th>
+                        <th style={{ padding: '1rem' }}>Événement</th>
+                        <th style={{ padding: '1rem' }}>Sévérité</th>
+                        <th style={{ padding: '1rem' }}>IP</th>
+                        <th style={{ padding: '1rem' }}>Statut</th>
+                        <th style={{ padding: '1rem' }}>Détails</th>
+                      </tr>
+                      </thead>
+                      <tbody>
+                      {securityLogs.length === 0 ? (
+                          <tr>
+                            <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
+                              Aucun log de sécurité
+                            </td>
+                          </tr>
+                      ) : (
+                          securityLogs.map((log) => (
+                              <tr key={log.id}>
+                                <td style={{ padding: '1rem', verticalAlign: 'top' }}>{formatDateTimeFr(log.timestamp)}</td>
+                                <td style={{ padding: '1rem', verticalAlign: 'top' }}>
+                                  <strong>{log.user_full_name || log.username || 'N/A'}</strong>
+                                </td>
+                                <td style={{ padding: '1rem', verticalAlign: 'top' }}>
+                                    <span style={{
+                                      padding: '0.25rem 0.5rem',
+                                      borderRadius: '4px',
+                                      fontSize: '0.85rem',
+                                      backgroundColor:
+                                          log.event_type === 'LOGIN_SUCCESS' ? '#d1fae5' :
+                                              log.event_type === 'FIRST_LOGIN' ? '#dbeafe' :
+                                                  log.event_type === 'LOGIN_FAILED' ? '#fee2e2' :
+                                                      log.event_type === 'LOGIN_BLOCKED' ? '#fecaca' :
+                                                          '#f3f4f6',
+                                      color:
+                                          log.event_type === 'LOGIN_SUCCESS' ? '#065f46' :
+                                              log.event_type === 'FIRST_LOGIN' ? '#1e40af' :
+                                                  log.event_type === 'LOGIN_FAILED' ? '#b91c1c' :
+                                                      log.event_type === 'LOGIN_BLOCKED' ? '#991b1b' :
+                                                          '#374151'
+                                    }}>
+                                      {log.event_type.replace(/_/g, ' ')}
+                                    </span>
+                                </td>
+                                <td style={{ padding: '1rem', verticalAlign: 'top' }}>
+                                    <span style={{
+                                      padding: '0.25rem 0.5rem',
+                                      borderRadius: '4px',
+                                      fontSize: '0.85rem',
+                                      backgroundColor:
+                                          log.severity === 'CRITICAL' ? '#fecaca' :
+                                              log.severity === 'ERROR' ? '#fee2e2' :
+                                                  log.severity === 'WARNING' ? '#fef3c7' :
+                                                      '#dbeafe',
+                                      color:
+                                          log.severity === 'CRITICAL' ? '#991b1b' :
+                                              log.severity === 'ERROR' ? '#b91c1c' :
+                                                  log.severity === 'WARNING' ? '#92400e' :
+                                                      '#1e40af'
+                                    }}>
+                                      {log.severity}
+                                    </span>
+                                </td>
+                                <td style={{ padding: '1rem', verticalAlign: 'top' }}>
+                                  <code style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                                    {log.ip_address || 'N/A'}
+                                  </code>
+                                </td>
+                                <td style={{ padding: '1rem', verticalAlign: 'top' }}>
+                                  {log.status === 'SUCCESS' ? (
+                                      <span style={{ color: '#10b981' }}>✓ Succès</span>
+                                  ) : log.status === 'FAILURE' ? (
+                                      <span style={{ color: '#ef4444' }}>✗ Échec</span>
+                                  ) : (
+                                      <span style={{ color: '#6b7280' }}>-</span>
+                                  )}
+                                </td>
+                                <td style={{ padding: '1rem', verticalAlign: 'top', maxWidth: '300px' }}>
+                                  {log.details && typeof log.details === 'object' ? (
+                                      <details style={{ cursor: 'pointer' }}>
+                                        <summary style={{ fontSize: '0.85rem', color: '#6b7280' }}>Voir détails</summary>
+                                        <pre style={{
+                                          fontSize: '0.75rem',
+                                          backgroundColor: '#f3f4f6',
+                                          padding: '0.5rem',
+                                          borderRadius: '4px',
+                                          marginTop: '0.5rem',
+                                          overflow: 'auto',
+                                          maxHeight: '200px'
+                                        }}>
+                                          {JSON.stringify(log.details, null, 2)}
+                                        </pre>
+                                      </details>
+                                  ) : (
+                                      <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>-</span>
+                                  )}
+                                </td>
+                              </tr>
+                          ))
+                      )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                    <button
+                        onClick={() => setSecurityFilters({ ...securityFilters, offset: Math.max(0, securityFilters.offset - securityFilters.limit) })}
+                        disabled={securityFilters.offset === 0}
+                        className="btn-secondary"
+                        style={{ padding: '0.5rem 1rem' }}
+                    >
+                      ← Précédent
+                    </button>
+                    <span style={{ padding: '0.5rem 1rem', color: '#6b7280' }}>
+                      {Math.floor(securityFilters.offset / securityFilters.limit) + 1} / {Math.ceil(securityLogsTotal / securityFilters.limit)}
+                    </span>
+                    <button
+                        onClick={() => setSecurityFilters({ ...securityFilters, offset: securityFilters.offset + securityFilters.limit })}
+                        disabled={securityFilters.offset + securityFilters.limit >= securityLogsTotal}
+                        className="btn-secondary"
+                        style={{ padding: '0.5rem 1rem' }}
+                    >
+                      Suivant →
+                    </button>
                   </div>
                 </div>
               </div>

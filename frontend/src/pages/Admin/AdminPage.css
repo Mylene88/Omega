@@ -48,6 +48,10 @@
   align-items: center;
 }
 
+.header-search {
+  min-width: 260px;
+}
+
 .admin-header h1 {
   margin: 0;
   font-size: 1.75rem;
@@ -115,8 +119,7 @@
 }
 
 .admin-content {
-  max-width: 1400px;
-  margin: 0 auto;
+  /*max-width: 1400px;*/
   background: var(--bg-secondary);
   border-radius: 8px;
   padding: 2rem;
@@ -387,7 +390,7 @@
 }
 
 .btn-download {
-  background: linear-gradient(135deg, #000091 0%, #1212FF 100%);
+  background: linear-gradient(135deg, #94a3b8, #64748b);
   color: white;
   border: none;
   padding: 0.625rem 1.25rem;
@@ -1077,7 +1080,7 @@
 
 .users-table th {
   padding: 0.75rem 1rem;
-  text-align: left;
+  /*text-align: left;*/
   font-weight: 600;
   color: var(--text-primary);
   font-size: 0.875rem;
@@ -1154,7 +1157,7 @@
 }
 
 .users-container {
-  max-width: 1400px;
+  /*max-width: 1400px;*/
   margin: 0 auto;
   padding: 0 2rem;
 }
@@ -1312,6 +1315,18 @@
   font-size: 0.8125rem;
   font-weight: 600;
   text-transform: capitalize;
+}
+
+.status-badge.status-active {
+  background: #d1fae5;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.status-badge.status-inactive {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
 }
 
 /* Boutons d'action dans les tables */

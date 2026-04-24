@@ -5,6 +5,7 @@
 import { logAudit, createSnapshot } from '../../../../lib/auditHelper';
 import { requireAdmin } from '../../../../lib/adminAuthHelper';
 import db from '../../../../models';
+import { getClientIp } from '../../../../utils/ip';
 
 /**
  * POST /api/admin/restore
@@ -306,7 +307,7 @@ export default async function handler(req, res) {
       oldValues: null,
       newValues: { snapshot_id: snapshotId, snapshot_date: snapshot.created_at },
       userId,
-      userIp: req.headers['x-forwarded-for'] || req.headers['x-real-ip'],
+      userIp: getClientIp(req),
       userAgent: req.headers['user-agent'],
       transaction
     });

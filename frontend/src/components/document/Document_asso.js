@@ -338,17 +338,6 @@ export default function DocumentManager({
             )}
           </div>
 
-          <div className={styles.helpText}>
-            <strong>💡 Types de liens acceptés :</strong>
-            <ul>
-              <li><strong>Liens web :</strong> https://example.com/document.pdf (s'ouvrent directement)</li>
-              <li><strong>Liens internes :</strong> \\serveur\dossier\fichier.pdf, C:/dossier/fichier.pdf</li>
-            </ul>
-            <div className={styles.helpNote}>
-              ⚠️ <strong>Liens internes :</strong> Les navigateurs bloquent l'accès direct aux fichiers locaux/réseau.
-              Utilisez le bouton <strong>📋 Copier</strong> puis collez le chemin dans l'Explorateur Windows.
-            </div>
-          </div>
         </div>
       </div>
   );

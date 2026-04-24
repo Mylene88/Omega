@@ -5,6 +5,7 @@
 
 const jwt = require('jsonwebtoken');
 const db = require('../models');
+const { getClientIp } = require('../utils/ip');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'votre_secret_jwt_super_securise_a_changer';
 
@@ -13,10 +14,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'votre_secret_jwt_super_securise_a_
  */
 function extractRequestInfo(req) {
   const headers = req.headers || {};
-  const ip = headers['x-forwarded-for'] ||
-             headers['x-real-ip'] ||
-             req.socket?.remoteAddress ||
-             'unknown';
+  const ip = getClientIp(req);
   const userAgent = headers['user-agent'] || 'unknown';
 
   return { ip, userAgent };

@@ -1,5 +1,3 @@
-// frontend/src/components/auth/LoginForm/LoginForm.js
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, LoadingSpinner } from '../../common';
@@ -11,6 +9,7 @@ const LoginForm = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [showForgotPasswordTooltip, setShowForgotPasswordTooltip] = useState(false);
     const navigate = useNavigate();
 
     const handleInputChange = (e) => {
@@ -55,7 +54,6 @@ const LoginForm = () => {
                 localStorage.setItem('token', data.data.token);
                 localStorage.setItem('user', JSON.stringify(data.data.user));
                 navigate('/dashboard');
-
             }
         } catch (error) {
             console.error('Erreur lors de la connexion:', error);
@@ -66,28 +64,54 @@ const LoginForm = () => {
     };
 
     return (
-        <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-            {/* Contenu principal centré */}
-            <main className="flex flex-1 flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-12">
-                <div className="max-w-lg w-full bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-12 border border-white/20">
+        <div style={{ width: '100%' }}>
+            {/* White Card Container */}
+            <div style={{
+                backgroundColor: 'white',
+                border: '1px solid #d1d5db',
+                borderRadius: '8px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                padding: '32px'
+            }}>
+                {/* Heading */}
+                <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                    <h1 style={{
+                        fontSize: '24px',
+                        fontWeight: '700',
+                        color: '#000091',
+                        marginBottom: '8px'
+                    }}>
+                        Connexion
+                    </h1>
+                    <p style={{
+                        color: '#6b7280',
+                        fontSize: '14px',
+                        fontWeight: '500'
+                    }}>
+                        Accédez à votre espace sécurisé
+                    </p>
+                </div>
 
-                    {/* En-tête */}
-                    <div className="text-center mb-10">
-                        <div className="mx-auto w-20 h-20 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mb-6 shadow-lg">
-                            <span className="text-3xl text-white font-bold">Ω</span>
-                        </div>
-                        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
-                            Connexion
-                        </h1>
-                        <p className="text-gray-500 font-medium">Accédez à votre espace sécurisé</p>
-                    </div>
-
-                    <form onSubmit={handleSubmit} className="space-y-8">
-                        {/* Groupe Username */}
-                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100 shadow-sm">
-                            <label htmlFor="username" className="block text-base font-bold text-blue-700 mb-4">
-                                👤 Nom d'utilisateur
-                            </label>
+                {/* Form Content */}
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginBottom: '24px' }}>
+                    {/* Username Field */}
+                    <div>
+                        <label htmlFor="username" style={{
+                            display: 'block',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            color: '#1f2937',
+                            marginBottom: '8px'
+                        }}>
+                            Nom d'utilisateur
+                        </label>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                            <span style={{
+                                position: 'absolute',
+                                left: '12px',
+                                color: '#9ca3af',
+                                fontSize: '18px'
+                            }}></span>
                             <input
                                 id="username"
                                 name="username"
@@ -97,71 +121,236 @@ const LoginForm = () => {
                                 value={formData.username}
                                 onChange={handleInputChange}
                                 disabled={loading}
-                                className="w-full px-6 py-4 bg-white border-2 border-blue-200 rounded-xl focus:ring-4 focus:ring-blue-400 focus:border-blue-500 transition-all duration-300 text-lg placeholder-gray-400 shadow-inner"
+                                style={{
+                                    width: '100%',
+                                    paddingLeft: '40px',
+                                    paddingRight: '16px',
+                                    paddingTop: '10px',
+                                    paddingBottom: '10px',
+                                    border: '1px solid #000091',
+                                    borderRadius: '8px',
+                                    fontSize: '14px',
+                                    color: '#374151',
+                                    outline: 'none',
+                                    transition: 'all 0.2s'
+                                }}
                                 placeholder="Saisissez votre identifiant"
+                                onFocus={(e) => e.target.style.boxShadow = '0 0 0 3px rgba(0, 82, 204, 0.1)'}
+                                onBlur={(e) => e.target.style.boxShadow = 'none'}
                             />
                         </div>
+                    </div>
 
-                        {/* Groupe Password avec label à gauche */}
-                        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-100 shadow-sm">
-                            <div className="flex items-center gap-30">
-                                <label htmlFor="password" className="text-base font-bold text-indigo-700 whitespace-nowrap">
-                                    🔒 Mot de passe
-                                </label>
-                                <div className="relative flex-1">
-                                    <input
-                                        id="password"
-                                        name="password"
-                                        type={showPassword ? 'text' : 'password'}
-                                        autoComplete="current-password"
-                                        required
-                                        value={formData.password}
-                                        onChange={handleInputChange}
-                                        disabled={loading}
-                                        className="w-full px-6 py-4 bg-white border-2 border-indigo-200 rounded-xl focus:ring-4 focus:ring-indigo-400 focus:border-indigo-500 transition-all duration-300 text-lg placeholder-gray-400 shadow-inner pr-24"
-                                        placeholder="Saisissez votre mot de passe"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute inset-y-0 right-0 px-6 ml-3 flex items-center text-gray-500 hover:text-indigo-600 transition-colors duration-200 text-xl"
-                                        disabled={loading}
-                                        aria-label={showPassword ? 'Cacher mot de passe' : 'Afficher mot de passe'}
-                                    >
-                                        {showPassword ? '👁️' : '🙈'}
-                                    </button>
-                                </div>
-                            </div>
+                    {/* Password Field */}
+                    <div>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: '8px'
+                        }}>
+                            <label htmlFor="password" style={{
+                                fontSize: '14px',
+                                fontWeight: '600',
+                                color: '#1f2937'
+                            }}>
+                                Mot de passe
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                style={{
+                                    fontSize: '12px',
+                                    color: '#6b7280',
+                                    fontWeight: '500',
+                                    border: 'none',
+                                    background: 'none',
+                                    cursor: 'pointer',
+                                    padding: 0
+                                }}
+                                disabled={loading}
+                                onMouseEnter={(e) => e.target.style.color = '#374151'}
+                                onMouseLeave={(e) => e.target.style.color = '#6b7280'}
+                                aria-label={showPassword ? 'Cacher mot de passe' : 'Afficher mot de passe'}
+                            >
+                                {showPassword ? 'Masquer' : 'Afficher'}
+                            </button>
                         </div>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                            <span style={{
+                                position: 'absolute',
+                                left: '12px',
+                                color: '#9ca3af',
+                                fontSize: '18px'
+                            }}></span>
+                            <input
+                                id="password"
+                                name="password"
+                                type={showPassword ? 'text' : 'password'}
+                                autoComplete="current-password"
+                                required
+                                value={formData.password}
+                                onChange={handleInputChange}
+                                disabled={loading}
+                                style={{
+                                    width: '100%',
+                                    paddingLeft: '40px',
+                                    paddingRight: '16px',
+                                    paddingTop: '10px',
+                                    paddingBottom: '10px',
+                                    border: '1px solid #d1d5db',
+                                    borderRadius: '8px',
+                                    fontSize: '14px',
+                                    color: '#374151',
+                                    outline: 'none',
+                                    transition: 'all 0.2s'
+                                }}
+                                placeholder="Saisissez votre mot de passe"
+                                onFocus={(e) => e.target.style.boxShadow = '0 0 0 3px rgba(0, 82, 204, 0.1)'}
+                                onBlur={(e) => e.target.style.boxShadow = 'none'}
+                            />
+                        </div>
+                    </div>
 
-                        {/* Message d'erreur avec style amélioré */}
-                        {error && (
-                            <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
-                                <div className="flex">
-                                    <span className="text-red-400 mr-3 text-xl">⚠️</span>
-                                    <ErrorMessage message={error} className="text-red-700 font-medium" />
-                                </div>
+                    {/* Forgot Password Link */}
+                    <div style={{ textAlign: 'center', position: 'relative' }}>
+                        <button
+                            type="button"
+                            style={{
+                                fontSize: '12px',
+                                color: '#374151',
+                                fontWeight: '500',
+                                border: 'none',
+                                background: 'none',
+                                cursor: 'pointer',
+                                padding: 0,
+                                position: 'relative'
+                            }}
+                            disabled={loading}
+                            onMouseEnter={(e) => {
+                                e.target.style.color = '#1f2937';
+                                setShowForgotPasswordTooltip(true);
+                            }}
+                            onMouseLeave={(e) => {
+                                e.target.style.color = '#374151';
+                                setShowForgotPasswordTooltip(false);
+                            }}
+                            onClick={() => setShowForgotPasswordTooltip(!showForgotPasswordTooltip)}
+                        >
+                            Mot de passe oublié?
+                        </button>
+                        
+                        {/* Tooltip */}
+                        {showForgotPasswordTooltip && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                marginTop: '8px',
+                                backgroundColor: '#1f2937',
+                                color: 'white',
+                                padding: '12px 16px',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                fontWeight: '500',
+                                whiteSpace: 'nowrap',
+                                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                                zIndex: 1000,
+                                maxWidth: '280px',
+                                whiteSpace: 'normal',
+                                textAlign: 'center',
+                                lineHeight: '1.5'
+                            }}>
+                                <div style={{
+                                    position: 'absolute',
+                                    bottom: '100%',
+                                    left: '50%',
+                                    transform: 'translateX(-50%)',
+                                    width: 0,
+                                    height: 0,
+                                    borderLeft: '8px solid transparent',
+                                    borderRight: '8px solid transparent',
+                                    borderBottom: '8px solid #1f2937'
+                                }}></div>
+                                📧 Contactez un administrateur.<br/>
+                                Il vous fournira un nouveau mot de passe provisoire.
                             </div>
                         )}
+                    </div>
 
-                        {/* Bouton de connexion amélioré */}
-                        <Button
-                            type="submit"
-                            disabled={loading || !formData.username.trim() || !formData.password.trim()}
-                            className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white font-bold py-5 px-8 rounded-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center shadow-xl hover:shadow-2xl transform hover:scale-[1.02]"
-                        >
-                            {loading ? (
-                                <>
-                                    <LoadingSpinner className="h-6 w-6 text-white mr-3" />
-                                    <span className="text-lg">Connexion en cours...</span>
-                                </>
-                            ) : (
-                                <span className="text-lg">➤ Se connecter</span>
-                            )}
-                        </Button>
-                    </form>
+                    {/* Error Message */}
+                    {error && (
+                        <div style={{
+                            backgroundColor: '#fef2f2',
+                            borderLeft: '4px solid #ef4444',
+                            padding: '16px',
+                            borderRadius: '4px'
+                        }}>
+                            <ErrorMessage message={error} style={{ color: '#b91c1c', fontSize: '14px' }} />
+                        </div>
+                    )}
+
+                    {/* Submit Button */}
+                    <Button
+                        type="submit"
+                        disabled={loading || !formData.username.trim() || !formData.password.trim()}
+                        style={{
+                            width: '100%',
+                            backgroundColor: loading || !formData.username.trim() || !formData.password.trim() ? '#000091' : '#000091',
+                            opacity: loading || !formData.username.trim() || !formData.password.trim() ? 0.6 : 1,
+                            color: 'white',
+                            fontWeight: '700',
+                            paddingTop: '12px',
+                            paddingBottom: '12px',
+                            border: 'none',
+                            borderRadius: '8px',
+                            cursor: loading || !formData.username.trim() || !formData.password.trim() ? 'not-allowed' : 'pointer',
+                            fontSize: '16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        {loading ? (
+                            <>
+                                <LoadingSpinner style={{ width: '20px', height: '20px', color: 'white' }} />
+                                <span>Connexion en cours...</span>
+                            </>
+                        ) : (
+                            <span>Se connecter</span>
+                        )}
+                    </Button>
+                </form>
+
+                {/* First Login Info Box */}
+                <div style={{
+                    backgroundColor: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    textAlign: 'center'
+                }}>
+                    <h3 style={{
+                        fontSize: '14px',
+                        fontWeight: '700',
+                        color: '#000091',
+                        marginBottom: '8px'
+                    }}>
+                        Première connexion ?
+                    </h3>
+                    <p style={{
+                        fontSize: '12px',
+                        color: '#374151',
+                        lineHeight: '1.5',
+                        margin: 0
+                    }}>
+                        Utilisez le mot de passe provisoire fourni. Vous serez invité à le modifier pour sécuriser votre compte.
+                    </p>
                 </div>
-            </main>
+            </div>
         </div>
     );
 };

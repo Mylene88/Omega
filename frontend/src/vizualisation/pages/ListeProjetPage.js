@@ -31,6 +31,7 @@ export default function ListeProjetPage() {
     const [selectedProjectDetails, setSelectedProjectDetails] = useState(null);
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [sectionToScroll, setSectionToScroll] = useState(null);
+    const [sectionScrollNonce, setSectionScrollNonce] = useState(0);
 
     const { expandedSections, toggleSection, openSection } = useAccordion({
         infos: true,
@@ -49,6 +50,7 @@ export default function ListeProjetPage() {
         if (sectionToOpen && openSection) {
             openSection(sectionToOpen);
             setSectionToScroll(sectionToOpen);
+            setSectionScrollNonce((prev) => prev + 1);
         } else {
             setSectionToScroll(null);
         }
@@ -232,6 +234,7 @@ export default function ListeProjetPage() {
                         onToggleSection={toggleSection}
                         onClose={() => setSelectedProjectId(null)}
                         sectionToScroll={sectionToScroll}
+                        sectionScrollNonce={sectionScrollNonce}
                     />
                 )}
             </div>

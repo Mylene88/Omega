@@ -203,7 +203,7 @@
     position: absolute;
     top: 0;
     right: 0;
-    width: 500px;
+    width: 640px;
     height: 100%;
     z-index: 1000;
     pointer-events: none; /* La carte reste cliquable derrière */
@@ -279,7 +279,7 @@
 /* ==================== RESPONSIVE SIDEBAR ==================== */
 @media (max-width: 1024px) {
     .sidebar-overlay {
-        width: 400px;
+        width: 520px;
     }
 }
 
@@ -443,4 +443,3 @@
   line-height: 1.5 !important;
   max-width: 100% !important;
 }
-
