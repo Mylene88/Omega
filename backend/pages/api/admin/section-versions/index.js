@@ -179,30 +179,29 @@ export default async function handler(req, res) {
       }
     });
 
-    // 2. Pour chaque combinaison, garder max 10 versions
+    // 2. Pour chaque couple (utilisateur, section), garder max 10 versions
     const allCombinations = await db.SectionVersion.findAll({
       attributes: [
-        'id_projet',
         'user_id',
         'section_name'
       ],
-      group: ['id_projet', 'user_id', 'section_name'],
+      group: ['user_id', 'section_name'],
       raw: true
     });
 
     let totalExcessVersions = 0;
 
     for (const combo of allCombinations) {
-      const { id_projet, user_id, section_name } = combo;
+      const { user_id, section_name } = combo;
 
       const count = await db.SectionVersion.count({
-        where: { id_projet, user_id, section_name }
+        where: { user_id, section_name }
       });
 
       if (count > 10) {
         const versionsToKeep = await db.SectionVersion.findAll({
-          where: { id_projet, user_id, section_name },
-          order: [['snapshot_date', 'DESC']],
+          where: { user_id, section_name },
+          order: [['snapshot_date', 'DESC'], ['id_version', 'DESC']],
           limit: 10,
           attributes: ['id_version']
         });
@@ -211,7 +210,6 @@ export default async function handler(req, res) {
 
         const deleted = await db.SectionVersion.destroy({
           where: {
-            id_projet,
             user_id,
             section_name,
             id_version: {

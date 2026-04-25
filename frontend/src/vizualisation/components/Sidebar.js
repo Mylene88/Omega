@@ -120,39 +120,33 @@ export default function Sidebar({ projectId, onClose }) {
                         referent_tel: p.referent?.telephone
                     })),
 
-                    // ✅ Thématiques : DÉDUPLIQUÉES PAR ID + DÉPLIÉES (une ligne par modèle)
+                    // ✅ Thématiques : DÉDUPLIQUÉES PAR ID + REGROUPÉES PAR MODÈLE
                     thematiques: (() => {
-                        // Étape 1: Dédupliquer par ID (comme dans ProjetDetailPanel)
-                        const thematiquesUniques = (thematiques || []).reduce((acc, them) => {
-                            if (!acc[them.id]) {
-                                acc[them.id] = them;
+                        const source = Array.isArray(thematiques) ? thematiques : [];
+                        const uniqueById = new Map();
+
+                        source.forEach((them, index) => {
+                            const key = them?.id ?? `fallback-${index}`;
+                            if (!uniqueById.has(key)) {
+                                uniqueById.set(key, them);
                             }
-                            return acc;
-                        }, {});
-
-                        const thematiquesDeduplicates = Object.values(thematiquesUniques);
-
-                        // Étape 2: Déplier pour avoir une entrée par modèle (flatMap)
-                        const thematiquesDepliees = thematiquesDeduplicates.flatMap((them) => {
-                            if (!them.donnees || Object.keys(them.donnees).length === 0) {
-                                return [];
-                            }
-
-                            return Object.entries(them.donnees)
-                                .filter(([modeleKey, donneesArray]) =>
-                                    Array.isArray(donneesArray) && donneesArray.length > 0
-                                )
-                                .map(([modeleKey, donneesArray]) => ({
-                                    libelle: them.libelle,
-                                    modeleKey: modeleKey,
-                                    displayName: them.fieldsMetadataByModel?.[modeleKey]?.displayName || modeleKey,
-                                    donnees: donneesArray,
-                                    modeleMetadata: them.fieldsMetadataByModel?.[modeleKey]?.fields || [],
-                                    originalThem: them
-                                }));
                         });
 
-                        return thematiquesDepliees;
+                        return Array.from(uniqueById.values()).map((them) => {
+                            const modelesAvecDonnees = Object.entries(them?.donnees || {})
+                                .filter(([, donneesArray]) => Array.isArray(donneesArray) && donneesArray.length > 0)
+                                .map(([modeleKey, donneesArray]) => ({
+                                    modeleKey,
+                                    displayName: them?.fieldsMetadataByModel?.[modeleKey]?.displayName || modeleKey,
+                                    donnees: donneesArray,
+                                    modeleMetadata: them?.fieldsMetadataByModel?.[modeleKey]?.fields || []
+                                }));
+
+                            return {
+                                ...them,
+                                modelesAvecDonnees
+                            };
+                        });
                     })(),
                     // Docs
                     documents: (documents || []).map((d) => ({
@@ -441,160 +435,160 @@ export default function Sidebar({ projectId, onClose }) {
                             {expandedSections.thematiques && (
                                 <div className="accordion-content">
                                     {info.thematiques?.length > 0 ? (
-                                        info.thematiques.map((depliee, idx) => (
-                            <div key={idx} className="thematique-item-detailed">
-                                {/* ✅ En-tête : Catégorie - Modèle */}
-                                <div className="thematique-header-main">
-                                    <h3 className="thematique-nom-principal">
-                                        {depliee.libelle} - {depliee.displayName}
-                                    </h3>
-                                </div>
+                                        info.thematiques.map((them, themIdx) => (
+                                            <div key={them.id || `them-${themIdx}`} className="thematique-item-detailed">
+                                                <div className="thematique-header-main">
+                                                    <h3 className="thematique-nom-principal">
+                                                        {them.libelle || `Thématique #${themIdx + 1}`}
+                                                    </h3>
+                                                </div>
 
-                                {/* ✅ DONNÉES DU MODÈLE */}
-                                <div className="thematique-donnees">
-                                    {depliee.donnees.map((donnee, dIdx) => (
-                                        <div key={dIdx} className="donnee-item">
-                                            {/* ✅ AFFICHAGE DE TOUS LES CHAMPS DEPUIS METADATA */}
-                                            {depliee.modeleMetadata && depliee.modeleMetadata.length > 0 ? (
-                                                depliee.modeleMetadata
-                                                                    .filter(field => {
-                                                                        // Exclure les champs système
-                                                                        const excludedFields = [
-                                                                            'id',
-                                                                            'idthematique',
-                                                                            'id_thematique',
-                                                                            'idprojet',
-                                                                            'id_project',
-                                                                            'dateCreation',
-                                                                            'dateMiseAJour',
-                                                                            'created_at',
-                                                                            'updated_at',
-                                                                            'updatedby',
-                                                                            'updated_by',
-                                                                            'createdby',
-                                                                            'created_by',
-                                                                            'creePar'
-                                                                        ];
+                                                <div className="thematique-donnees">
+                                                    {them.modelesAvecDonnees?.length > 0 ? (
+                                                        them.modelesAvecDonnees.map((modeleEntry) => (
+                                                            <div key={`${them.id || themIdx}-${modeleEntry.modeleKey}`} className="modele-section">
+                                                                <h4 className="modele-title">{modeleEntry.displayName}</h4>
 
-                                                                        // Exclure les IDs (primary keys)
-                                                                        const isIdField = field.name.startsWith('id_');
+                                                                {modeleEntry.donnees.map((donnee, dIdx) => (
+                                                                    <div key={dIdx} className="donnee-item">
+                                                                        {modeleEntry.modeleMetadata && modeleEntry.modeleMetadata.length > 0 ? (
+                                                                            modeleEntry.modeleMetadata
+                                                                                .filter(field => {
+                                                                                    const excludedFields = [
+                                                                                        'id',
+                                                                                        'idthematique',
+                                                                                        'id_thematique',
+                                                                                        'idprojet',
+                                                                                        'id_project',
+                                                                                        'dateCreation',
+                                                                                        'dateMiseAJour',
+                                                                                        'created_at',
+                                                                                        'updated_at',
+                                                                                        'updatedby',
+                                                                                        'updated_by',
+                                                                                        'createdby',
+                                                                                        'created_by',
+                                                                                        'creePar'
+                                                                                    ];
+                                                                                    const isIdField = field.name.startsWith('id_');
+                                                                                    return !excludedFields.includes(field.name) && !isIdField;
+                                                                                })
+                                                                                .map((field) => {
+                                                                                    const value = donnee[field.name];
 
-                                                                        return !excludedFields.includes(field.name) && !isIdField;
-                                                                    })
-                                                                    .map((field) => {
-                                                                        const value = donnee[field.name];
-
-                                                                        // ✅ Formater la valeur (ou afficher "Non renseigné")
-                                                                        let displayValue;
-                                                                        if (value === null || value === undefined || value === '') {
-                                                                            displayValue = <em style={{ color: '#999' }}>Non renseigné</em>;
-                                                                        } else if (typeof value === 'boolean') {
-                                                                            displayValue = value ? 'Oui' : 'Non';
-                                                                        } else if (Array.isArray(value)) {
-                                                                            // ✅ Gérer les tableaux d'objets (champs à choix multiples) avec badges
-                                                                            if (value.length === 0) {
-                                                                                displayValue = <em style={{ color: '#999' }}>Non renseigné</em>;
-                                                                            } else {
-                                                                                displayValue = (
-                                                                                    <div className="field-badges">
-                                                                                        {value.map((item, idx) => {
-                                                                                            const text = typeof item === 'object' && item !== null
-                                                                                                ? (item.label || item.value || item.nom || item.name || JSON.stringify(item))
-                                                                                                : String(item);
-                                                                                            return (
-                                                                                                <span key={idx} className="field-badge">
-                                                                                                    {text}
-                                                                                                </span>
+                                                                                    let displayValue;
+                                                                                    if (value === null || value === undefined || value === '') {
+                                                                                        displayValue = <em style={{ color: '#999' }}>Non renseigné</em>;
+                                                                                    } else if (typeof value === 'boolean') {
+                                                                                        displayValue = value ? 'Oui' : 'Non';
+                                                                                    } else if (Array.isArray(value)) {
+                                                                                        if (value.length === 0) {
+                                                                                            displayValue = <em style={{ color: '#999' }}>Non renseigné</em>;
+                                                                                        } else {
+                                                                                            displayValue = (
+                                                                                                <div className="field-badges">
+                                                                                                    {value.map((item, idx) => {
+                                                                                                        const text = typeof item === 'object' && item !== null
+                                                                                                            ? (item.label || item.value || item.nom || item.name || JSON.stringify(item))
+                                                                                                            : String(item);
+                                                                                                        return (
+                                                                                                            <span key={idx} className="field-badge">
+                                                                                                                {text}
+                                                                                                            </span>
+                                                                                                        );
+                                                                                                    })}
+                                                                                                </div>
                                                                                             );
-                                                                                        })}
-                                                                                    </div>
-                                                                                );
-                                                                            }
-                                                                        } else if (typeof value === 'object' && value !== null) {
-                                                                            displayValue = value.label || value.value || value.nom || value.name || JSON.stringify(value);
-                                                                        } else {
-                                                                            displayValue = String(value);
-                                                                        }
+                                                                                        }
+                                                                                    } else if (typeof value === 'object' && value !== null) {
+                                                                                        displayValue = value.label || value.value || value.nom || value.name || JSON.stringify(value);
+                                                                                    } else {
+                                                                                        displayValue = String(value);
+                                                                                    }
 
-                                                                        return (
-                                                                            <div key={field.name} className="donnee-field">
-                                                                                <span className="field-label">
-                                                                                    {field.label}:
-                                                                                </span>
-                                                                                <span className="field-value">
-                                                                                    {displayValue}
-                                                                                </span>
-                                                                            </div>
-                                                                        );
-                                                                    })
-                                                            ) : (
-                                                                // Fallback si pas de metadata : afficher les données existantes uniquement
-                                                                Object.entries(donnee)
-                                                                    .filter(([key]) => {
-                                                                        const excludedFields = [
-                                                                            'id', 'idthematique', 'id_thematique', 'idprojet', 'id_project',
-                                                                            'dateCreation', 'dateMiseAJour', 'created_at', 'updated_at',
-                                                                            'updatedby', 'updated_by', 'createdby', 'created_by', 'creePar'
-                                                                        ];
-                                                                        const isIdField = key.startsWith('id_');
-                                                                        return !excludedFields.includes(key) && !isIdField;
-                                                                    })
-                                                                    .map(([key, value]) => {
-                                                                        if (value === null || value === undefined || value === '') {
-                                                                            return null;
-                                                                        }
-
-                                                                        let displayValue;
-                                                                        if (typeof value === 'boolean') {
-                                                                            displayValue = value ? 'Oui' : 'Non';
-                                                                        } else if (Array.isArray(value)) {
-                                                                            // ✅ Gérer les tableaux d'objets (champs à choix multiples) avec badges
-                                                                            if (value.length === 0) {
-                                                                                return null;
-                                                                            }
-                                                                            displayValue = (
-                                                                                <div className="field-badges">
-                                                                                    {value.map((item, idx) => {
-                                                                                        const text = typeof item === 'object' && item !== null
-                                                                                            ? (item.label || item.value || item.nom || item.name || JSON.stringify(item))
-                                                                                            : String(item);
-                                                                                        return (
-                                                                                            <span key={idx} className="field-badge">
-                                                                                                {text}
+                                                                                    return (
+                                                                                        <div key={field.name} className="donnee-field">
+                                                                                            <span className="field-label">
+                                                                                                {field.label}:
                                                                                             </span>
+                                                                                            <span className="field-value">
+                                                                                                {displayValue}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                    );
+                                                                                })
+                                                                        ) : (
+                                                                            Object.entries(donnee)
+                                                                                .filter(([key]) => {
+                                                                                    const excludedFields = [
+                                                                                        'id', 'idthematique', 'id_thematique', 'idprojet', 'id_project',
+                                                                                        'dateCreation', 'dateMiseAJour', 'created_at', 'updated_at',
+                                                                                        'updatedby', 'updated_by', 'createdby', 'created_by', 'creePar'
+                                                                                    ];
+                                                                                    const isIdField = key.startsWith('id_');
+                                                                                    return !excludedFields.includes(key) && !isIdField;
+                                                                                })
+                                                                                .map(([key, value]) => {
+                                                                                    if (value === null || value === undefined || value === '') {
+                                                                                        return null;
+                                                                                    }
+
+                                                                                    let displayValue;
+                                                                                    if (typeof value === 'boolean') {
+                                                                                        displayValue = value ? 'Oui' : 'Non';
+                                                                                    } else if (Array.isArray(value)) {
+                                                                                        if (value.length === 0) {
+                                                                                            return null;
+                                                                                        }
+                                                                                        displayValue = (
+                                                                                            <div className="field-badges">
+                                                                                                {value.map((item, idx) => {
+                                                                                                    const text = typeof item === 'object' && item !== null
+                                                                                                        ? (item.label || item.value || item.nom || item.name || JSON.stringify(item))
+                                                                                                        : String(item);
+                                                                                                    return (
+                                                                                                        <span key={idx} className="field-badge">
+                                                                                                            {text}
+                                                                                                        </span>
+                                                                                                    );
+                                                                                                })}
+                                                                                            </div>
                                                                                         );
-                                                                                    })}
-                                                                                </div>
-                                                                            );
-                                                                        } else if (typeof value === 'object' && value !== null) {
-                                                                            displayValue = value.label || value.value || value.nom || value.name || JSON.stringify(value);
-                                                                        } else {
-                                                                            displayValue = String(value);
-                                                                        }
+                                                                                    } else if (typeof value === 'object' && value !== null) {
+                                                                                        displayValue = value.label || value.value || value.nom || value.name || JSON.stringify(value);
+                                                                                    } else {
+                                                                                        displayValue = String(value);
+                                                                                    }
 
-                                                                        return (
-                                                                            <div key={key} className="donnee-field">
-                                                                                <span className="field-label">
-                                                                                    {getFieldLabel(key, depliee.originalThem)}:
-                                                                                </span>
-                                                                                <span className="field-value">
-                                                                                    {displayValue}
-                                                                                </span>
-                                                                            </div>
-                                                                        );
-                                                                    })
-                                                            )}
+                                                                                    return (
+                                                                                        <div key={key} className="donnee-field">
+                                                                                            <span className="field-label">
+                                                                                                {getFieldLabel(key, them)}:
+                                                                                            </span>
+                                                                                            <span className="field-value">
+                                                                                                {displayValue}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                    );
+                                                                                })
+                                                                        )}
 
-                                                            {/* Séparateur entre les enregistrements */}
-                                                            {depliee.donnees.length > 1 && dIdx < depliee.donnees.length - 1 && (
-                                                                <div className="donnee-separator"></div>
-                                                            )}
+                                                                        {modeleEntry.donnees.length > 1 && dIdx < modeleEntry.donnees.length - 1 && (
+                                                                            <div className="donnee-separator"></div>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="empty-state" style={{ padding: '12px 0' }}>
+                                                            <p className="empty-message">Aucune donnée de modèle pour cette thématique</p>
                                                         </div>
-                                                    ))}
-                                </div>
-                            </div>
-                        ))
-                    ) : (
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
                         <div className="empty-state">
                             <p className="empty-message">Aucune thématique associée</p>
                         </div>

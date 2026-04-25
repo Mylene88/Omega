@@ -8,6 +8,39 @@
 import { requireAdmin } from '../../../../lib/adminAuthHelper';
 import db from '../../../../models';
 
+const asArray = (data, wrapperKey) => {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data[wrapperKey])) return data[wrapperKey];
+  return [];
+};
+
+const asObject = (data, wrapperKey = null) => {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
+  if (wrapperKey && data[wrapperKey] && typeof data[wrapperKey] === 'object' && !Array.isArray(data[wrapperKey])) {
+    return data[wrapperKey];
+  }
+  return data;
+};
+
+const normalizeSuivis = (rawSuivis) => {
+  const source = asArray(rawSuivis, 'suivis');
+
+  return source
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+
+      const contenu = entry.suivi ?? entry.contenu ?? entry.texte ?? entry.description ?? null;
+      if (!contenu || !String(contenu).trim()) return null;
+
+      return {
+        suivi: String(contenu).trim(),
+        created_by: entry.created_by ?? entry.cree_par ?? entry.ajoute_par ?? null,
+        created_at: entry.created_at ?? entry.dateCreation ?? entry.date_ajout ?? null
+      };
+    })
+    .filter(Boolean);
+};
+
 /**
  * POST /api/section-versions/restore
  * Restaurer une version spécifique d'une section
@@ -89,17 +122,18 @@ export default async function handler(req, res) {
       switch (section_name) {
         case 'projet_info':
           console.log('   📝 Restauration des informations du projet...');
-          // Restaurer les informations du projet
+          // Compatibilité: accepter les anciens champs statut_id/id_service_ddt.
+          const projetInfo = asObject(section_data);
           await db.Projet.update(
             {
-              nom_projet: section_data.nom_projet,
-              description: section_data.description,
-              statut_id: section_data.statut_id,
-              date_ident_projet: section_data.date_ident_projet,
-              projet_signale: section_data.projet_signale,
-              charte_accueil: section_data.charte_accueil,
-              id_service_ddt: section_data.id_service_ddt,
-              referent_ddt: section_data.referent_ddt,
+              nom_projet: projetInfo.nom_projet,
+              description: projetInfo.description,
+              statut_projet_id: projetInfo.statut_projet_id ?? projetInfo.statut_id ?? null,
+              date_ident_projet: projetInfo.date_ident_projet,
+              projet_signale: projetInfo.projet_signale,
+              charte_accueil: projetInfo.charte_accueil,
+              service_id: projetInfo.service_id ?? projetInfo.id_service_ddt ?? null,
+              referent_ddt: projetInfo.referent_ddt,
               updated_by: adminUserId,
               updated_at: new Date()
             },
@@ -113,21 +147,26 @@ export default async function handler(req, res) {
 
         case 'porteurs':
           console.log('   📝 Restauration des porteurs...');
-          // Supprimer les porteurs actuels
           await db.ProjetPorteur.destroy({
             where: { id_projet },
             transaction
           });
-          // Recréer les porteurs depuis la version
-          if (Array.isArray(section_data.porteurs)) {
-            for (const porteur of section_data.porteurs) {
+
+          const porteurs = asArray(section_data, 'porteurs');
+          if (porteurs.length > 0) {
+            for (const porteur of porteurs) {
               await db.ProjetPorteur.create({
-                ...porteur,
                 id_projet,
-                created_by: adminUserId
+                type_porteur_id: porteur.type_porteur_id ?? null,
+                autre_type_porteur: porteur.autre_type_porteur ?? null,
+                nom_structure: porteur.nom_structure || '',
+                referent_nom: porteur.referent_nom ?? null,
+                referent_fonction: porteur.referent_fonction ?? null,
+                referent_email: porteur.referent_email ?? null,
+                referent_tel: porteur.referent_tel ?? null
               }, { transaction });
             }
-            console.log(`   ✅ ${section_data.porteurs.length} porteur(s) restauré(s)`);
+            console.log(`   ✅ ${porteurs.length} porteur(s) restauré(s)`);
           } else {
             console.log('   ℹ️  Aucun porteur à restaurer');
           }
@@ -135,21 +174,22 @@ export default async function handler(req, res) {
 
         case 'suivis':
           console.log('   📝 Restauration des suivis...');
-          // Supprimer les suivis actuels
           await db.ProjetSuivi.destroy({
             where: { id_projet },
             transaction
           });
-          // Recréer les suivis depuis la version
-          if (Array.isArray(section_data.suivis)) {
-            for (const suivi of section_data.suivis) {
+
+          const suivis = normalizeSuivis(section_data);
+          if (suivis.length > 0) {
+            for (const suivi of suivis) {
               await db.ProjetSuivi.create({
-                ...suivi,
                 id_projet,
-                created_by: adminUserId
+                suivi: suivi.suivi,
+                created_by: suivi.created_by || adminUserId,
+                created_at: suivi.created_at || new Date()
               }, { transaction });
             }
-            console.log(`   ✅ ${section_data.suivis.length} suivi(s) restauré(s)`);
+            console.log(`   ✅ ${suivis.length} suivi(s) restauré(s)`);
           } else {
             console.log('   ℹ️  Aucun suivi à restaurer');
           }
@@ -157,21 +197,23 @@ export default async function handler(req, res) {
 
         case 'thematiques':
           console.log('   📝 Restauration des thématiques...');
-          // Supprimer les thématiques actuelles
           await db.ProjetInThematique.destroy({
             where: { id_projet },
             transaction
           });
-          // Recréer les thématiques depuis la version
-          if (Array.isArray(section_data.thematiques)) {
-            for (const them of section_data.thematiques) {
+
+          const thematiques = asArray(section_data, 'thematiques');
+          if (thematiques.length > 0) {
+            for (const them of thematiques) {
+              if (!them.id_thematique) continue;
               await db.ProjetInThematique.create({
-                ...them,
                 id_projet,
-                ajoute_par: adminUserId
+                id_thematique: them.id_thematique,
+                ajoute_par: them.ajoute_par || adminUserId,
+                date_ajout: them.date_ajout || new Date()
               }, { transaction });
             }
-            console.log(`   ✅ ${section_data.thematiques.length} thématique(s) restaurée(s)`);
+            console.log(`   ✅ ${thematiques.length} thématique(s) restaurée(s)`);
           } else {
             console.log('   ℹ️  Aucune thématique à restaurer');
           }
@@ -179,21 +221,21 @@ export default async function handler(req, res) {
 
         case 'documents':
           console.log('   📝 Restauration des documents...');
-          // Supprimer les documents actuels
           await db.Document.destroy({
             where: { id_projet },
             transaction
           });
-          // Recréer les documents depuis la version
-          if (Array.isArray(section_data.documents)) {
-            for (const doc of section_data.documents) {
+
+          const documents = asArray(section_data, 'documents');
+          if (documents.length > 0) {
+            for (const doc of documents) {
               await db.Document.create({
-                ...doc,
                 id_projet,
-                created_by: adminUserId
+                lien_local: doc.lien_local || null,
+                lien_web: doc.lien_web || null
               }, { transaction });
             }
-            console.log(`   ✅ ${section_data.documents.length} document(s) restauré(s)`);
+            console.log(`   ✅ ${documents.length} document(s) restauré(s)`);
           } else {
             console.log('   ℹ️  Aucun document à restaurer');
           }
@@ -201,17 +243,25 @@ export default async function handler(req, res) {
 
         case 'geometrie':
           console.log('   📝 Restauration de la géométrie...');
-          // Supprimer la géométrie actuelle
           await db.ProjetGeometry.destroy({
             where: { id_projet },
             transaction
           });
-          // Recréer la géométrie depuis la version
-          if (section_data.geometry) {
+
+          const geometry = asObject(section_data, 'geometry');
+          if (Object.keys(geometry).length > 0) {
             await db.ProjetGeometry.create({
-              ...section_data.geometry,
               id_projet,
-              created_by: adminUserId
+              geom_type: geometry.geom_type || null,
+              geom: geometry.geom || null,
+              area_m2: geometry.area_m2 || null,
+              length_m: geometry.length_m || null,
+              communes_traversees: Array.isArray(geometry.communes_traversees) ? geometry.communes_traversees : [],
+              codes_insee: Array.isArray(geometry.codes_insee) ? geometry.codes_insee : [],
+              epci: Array.isArray(geometry.epci) ? geometry.epci : [],
+              arrondissements: Array.isArray(geometry.arrondissements) ? geometry.arrondissements : [],
+              deputes: Array.isArray(geometry.deputes) ? geometry.deputes : [],
+              maires: Array.isArray(geometry.maires) ? geometry.maires : []
             }, { transaction });
             console.log('   ✅ Géométrie restaurée');
           } else {

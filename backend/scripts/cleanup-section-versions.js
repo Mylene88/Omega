@@ -29,26 +29,24 @@ async function cleanupSectionVersions() {
 
     console.log(`✅ ${deletedOldVersions} version(s) de plus de 15 jours supprimée(s)`);
 
-    // 2. Pour chaque combinaison (projet, user, section), garder max 10 versions
+    // 2. Pour chaque combinaison (user, section), garder max 10 versions
     const allCombinations = await db.SectionVersion.findAll({
       attributes: [
-        'id_projet',
         'user_id',
         'section_name'
       ],
-      group: ['id_projet', 'user_id', 'section_name'],
+      group: ['user_id', 'section_name'],
       raw: true
     });
 
     let totalExcessVersions = 0;
 
     for (const combo of allCombinations) {
-      const { id_projet, user_id, section_name } = combo;
+      const { user_id, section_name } = combo;
 
       // Compter combien de versions existent pour cette combinaison
       const count = await db.SectionVersion.count({
         where: {
-          id_projet,
           user_id,
           section_name
         }
@@ -58,11 +56,10 @@ async function cleanupSectionVersions() {
         // Récupérer les versions à garder (les 10 plus récentes)
         const versionsToKeep = await db.SectionVersion.findAll({
           where: {
-            id_projet,
             user_id,
             section_name
           },
-          order: [['snapshot_date', 'DESC']],
+          order: [['snapshot_date', 'DESC'], ['id_version', 'DESC']],
           limit: 10,
           attributes: ['id_version']
         });
@@ -72,7 +69,6 @@ async function cleanupSectionVersions() {
         // Supprimer toutes les autres versions
         const deleted = await db.SectionVersion.destroy({
           where: {
-            id_projet,
             user_id,
             section_name,
             id_version: {
@@ -82,7 +78,7 @@ async function cleanupSectionVersions() {
         });
 
         totalExcessVersions += deleted;
-        console.log(`  📦 Projet ${id_projet}, User ${user_id}, Section ${section_name}: ${deleted} version(s) en excès supprimée(s)`);
+        console.log(`  📦 User ${user_id}, Section ${section_name}: ${deleted} version(s) en excès supprimée(s)`);
       }
     }
 

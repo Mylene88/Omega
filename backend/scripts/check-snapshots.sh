@@ -36,14 +36,13 @@ SELECT COUNT(*) as anciennes_versions
 FROM principale.section_version
 WHERE snapshot_date < NOW() - INTERVAL '30 days';
 
--- Versions en excès (plus de 10 par section/utilisateur/projet)
+-- Versions en excès (plus de 10 par section/utilisateur)
 SELECT
-  id_projet,
   user_id,
   section_name,
   COUNT(*) as nb_versions
 FROM principale.section_version
-GROUP BY id_projet, user_id, section_name
+GROUP BY user_id, section_name
 HAVING COUNT(*) > 10;
 
 EOF

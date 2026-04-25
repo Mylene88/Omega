@@ -7,6 +7,31 @@ import { requireAdmin } from '../../../../lib/adminAuthHelper';
 import db from '../../../../models';
 import { getClientIp } from '../../../../utils/ip';
 
+const asArray = (value, wrapperKey = null) => {
+  if (Array.isArray(value)) return value;
+  if (wrapperKey && value && Array.isArray(value[wrapperKey])) return value[wrapperKey];
+  return [];
+};
+
+const normalizeSuivis = (rawSuivis) => {
+  const source = asArray(rawSuivis, 'suivis');
+
+  return source
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+
+      const contenu = entry.suivi ?? entry.contenu ?? entry.texte ?? entry.description ?? null;
+      if (!contenu || !String(contenu).trim()) return null;
+
+      return {
+        suivi: String(contenu).trim(),
+        created_by: entry.created_by ?? entry.cree_par ?? entry.ajoute_par ?? null,
+        created_at: entry.created_at ?? entry.dateCreation ?? entry.date_ajout ?? null
+      };
+    })
+    .filter(Boolean);
+};
+
 /**
  * POST /api/admin/restore
  * Restaure un projet à partir d'un snapshot
@@ -37,7 +62,8 @@ export default async function handler(req, res) {
     const userId = adminCheck.userId;
 
     const body = req.body;
-    const { snapshotId, createBackup = false } = body;  // Désactivé par défaut pour éviter les conflits de version
+    const { snapshotId, createBackup = true } = body;
+    const shouldCreateBackup = createBackup !== false;
 
     if (!snapshotId) {
       await transaction.rollback();
@@ -50,7 +76,7 @@ export default async function handler(req, res) {
     // Récupérer le snapshot avec ses sections
     console.log('\n=== 🔄 DÉBUT RESTAURATION ===');
     console.log(`Snapshot ID: ${snapshotId}`);
-    console.log(`Créer backup: ${createBackup ? 'Oui' : 'Non'}`);
+    console.log(`Créer backup: ${shouldCreateBackup ? 'Oui' : 'Non'}`);
     console.log(`User ID: ${userId}`);
 
     const snapshot = await db.ProjetSnapshot.findByPk(snapshotId, {
@@ -97,8 +123,9 @@ export default async function handler(req, res) {
           snapshotData.porteurs = section.section_data;
           console.log(`      ✅ ${section.section_data.length} porteur(s)`);
         } else if (section.section_name === 'suivis') {
-          snapshotData.suivis = section.section_data;
-          console.log(`      ✅ ${section.section_data.length} suivi(s)`);
+          const normalizedSuivis = normalizeSuivis(section.section_data);
+          snapshotData.suivis = normalizedSuivis;
+          console.log(`      ✅ ${normalizedSuivis.length} suivi(s)`);
         } else if (section.section_name === 'thematiques') {
           snapshotData.thematiques = section.section_data;
           console.log(`      ✅ ${section.section_data.length} thématique(s)`);
@@ -145,13 +172,10 @@ export default async function handler(req, res) {
       }, { status: 404 });
     }
 
-    // ⚠️ BACKUP DÉSACTIVÉ : Créer un backup de l'état actuel avant restauration
-    // Désactivé car cela cause des conflits de contrainte unique sur (id_projet, user_id, version_number)
-    // Lors de la restauration, vous restaurez un snapshot existant, donc vous avez déjà un backup.
-    if (createBackup) {
-      console.log('\n⚠️  Backup avant restauration désactivé (snapshot existant = backup)');
-      // Le code ci-dessous est commenté pour éviter les conflits
-      /*
+    // Créer un backup de l'état actuel avant restauration
+    let backupSnapshot = null;
+    if (shouldCreateBackup) {
+      console.log('\n📸 Création du backup avant restauration...');
       const currentProjet = await db.Projet.findByPk(idProjet, {
         include: [
           { model: db.ProjetPorteur, as: 'porteurs' },
@@ -163,7 +187,7 @@ export default async function handler(req, res) {
         transaction
       });
 
-      await createSnapshot({
+      backupSnapshot = await createSnapshot({
         idProjet,
         projetData: currentProjet.toJSON(),
         description: `Backup automatique avant restauration du snapshot #${snapshotId}`,
@@ -171,7 +195,7 @@ export default async function handler(req, res) {
         transaction,
         skipRotation: true
       });
-      */
+      console.log(`   ✅ Backup créé (snapshot #${backupSnapshot?.id_snapshot || 'inconnu'})`);
     }
 
     // 1. Mettre à jour les informations de base du projet
@@ -229,12 +253,13 @@ export default async function handler(req, res) {
     // 3. Restaurer les suivis
     console.log('3️⃣  Restauration des suivis...');
     await db.ProjetSuivi.destroy({ where: { id_projet: idProjet }, transaction });
-    if (snapshotData.suivis && snapshotData.suivis.length > 0) {
-      const suivisData = snapshotData.suivis.map(s => ({
+    const normalizedSuivis = normalizeSuivis(snapshotData.suivis);
+    if (normalizedSuivis.length > 0) {
+      const suivisData = normalizedSuivis.map((s) => ({
         id_projet: idProjet,
         suivi: s.suivi,
-        created_by: s.created_by,
-        created_at: s.created_at
+        created_by: s.created_by || userId,
+        created_at: s.created_at || new Date()
       }));
       await db.ProjetSuivi.bulkCreate(suivisData, { transaction });
       console.log(`   ✅ ${suivisData.length} suivi(s) restauré(s)`);
@@ -325,6 +350,7 @@ export default async function handler(req, res) {
       data: {
         idProjet,
         snapshotId,
+        backupSnapshotId: backupSnapshot?.id_snapshot || null,
         snapshotDate: snapshot.created_at,
         restoredAt: new Date().toISOString()
       }

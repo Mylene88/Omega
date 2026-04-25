@@ -801,8 +801,8 @@ export default async function handler(req, res) {
         }
       }
 
-      // 5. Mettre à jour les suivis
-      if (Array.isArray(body.suivis) && body.suivis.length > 0) {
+      // 5. Mettre à jour les suivis (remplacement complet)
+      if (Array.isArray(body.suivis)) {
         if (userId) {
           try {
             const suivisAvant = await ProjetSuivi.findAll({
@@ -815,7 +815,7 @@ export default async function handler(req, res) {
               userId,
               sectionName: 'suivis',
               sectionData: { suivis: suivisAvant },
-              description: 'Version automatique avant ajout de suivis',
+              description: 'Version automatique avant modification des suivis',
               transaction
             });
             console.log('📋 Version de suivis créée');
@@ -824,13 +824,28 @@ export default async function handler(req, res) {
           }
         }
 
-        const suivisRecords = body.suivis.map(s => ({
-          id_projet: id,
-          suivi: s.suivi,
-          created_by: s.created_by || body.updated_by
-        }));
-        await ProjetSuivi.bulkCreate(suivisRecords, { transaction });
-        console.log(`✅ ${suivisRecords.length} suivis ajoutés`);
+        await ProjetSuivi.destroy({ where: { id_projet: id }, transaction });
+
+        const suivisRecords = body.suivis
+          .map((s) => {
+            const contenu = s?.suivi ?? s?.contenu ?? s?.texte ?? s?.description ?? null;
+            if (!contenu || !String(contenu).trim()) return null;
+
+            return {
+              id_projet: id,
+              suivi: String(contenu).trim(),
+              created_by: s.created_by || body.updated_by || userId || null,
+              created_at: s.created_at || s.dateCreation || new Date()
+            };
+          })
+          .filter(Boolean);
+
+        if (suivisRecords.length > 0) {
+          await ProjetSuivi.bulkCreate(suivisRecords, { transaction });
+          console.log(`✅ ${suivisRecords.length} suivis mis à jour`);
+        } else {
+          console.log('ℹ️  Aucun suivi à enregistrer après remplacement');
+        }
       }
 
       // 6. Mettre à jour la géométrie

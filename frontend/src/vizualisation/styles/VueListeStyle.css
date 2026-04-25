@@ -140,7 +140,7 @@
 }
 
 .vue-liste-split.with-detail .vue-liste-left {
-    flex: 1 1 calc(100% - 480px);
+    flex: 1 1 calc(100% - 720px);
 }
 
 /* ==================== GRID DE PROJETS ==================== */
@@ -400,8 +400,8 @@
 
 /* ==================== PANNEAU DÉTAIL ==================== */
 .liste-detail-pane {
-    width: 900px;
-    flex: 0 0 900px;
+    width: 720px;
+    flex: 0 0 720px;
     background: var(--bg-primary);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-xl);
@@ -2404,4 +2404,3 @@
     font-size: var(--font-size-small) !important;
     font-weight: var(--font-weight-bold) !important;
 }
-

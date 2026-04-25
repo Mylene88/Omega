@@ -76,37 +76,58 @@ async function logAudit({
  * @param {Object} params.transaction - Transaction Sequelize (optionnel)
  * @returns {Promise<Object>} Le snapshot créé
  */
-async function createSnapshot({
-  idProjet,
-  projetData,
-  description = null,
-  userId,
-  transaction = null,
-  skipRotation = false  // Nouveau paramètre pour désactiver la rotation (backups de restauration)
-}) {
+function isUniqueConstraintError(error) {
+  return error?.name === 'SequelizeUniqueConstraintError' || error?.original?.code === '23505';
+}
+
+function normalizeSnapshotVersion(rawVersion) {
+  const parsedVersion = parseInt(rawVersion, 10);
+  if (!Number.isInteger(parsedVersion) || parsedVersion < 1) {
+    return 1;
+  }
+  if (parsedVersion > 10) {
+    return ((parsedVersion - 1) % 10) + 1;
+  }
+  return parsedVersion;
+}
+
+function normalizeSnapshotSections(projetData = {}) {
+  const thematiques = Array.isArray(projetData.thematiques)
+    ? projetData.thematiques
+    : (Array.isArray(projetData.projet_in_thematiques) ? projetData.projet_in_thematiques : []);
+
+  const geometry = Array.isArray(projetData.geometry)
+    ? (projetData.geometry[0] || {})
+    : (projetData.geometry || {});
+
+  return [
+    {
+      section_name: 'projet_info',
+      section_data: {
+        nom_projet: projetData.nom_projet || null,
+        description: projetData.description || null,
+        statut_projet_id: projetData.statut_projet_id || null,
+        date_ident_projet: projetData.date_ident_projet || null,
+        projet_signale: projetData.projet_signale ?? false,
+        charte_accueil: projetData.charte_accueil ?? false,
+        demande_suppression: projetData.demande_suppression ?? false,
+        service_id: projetData.service_id || null,
+        referent_ddt: projetData.referent_ddt || null
+      }
+    },
+    { section_name: 'porteurs', section_data: Array.isArray(projetData.porteurs) ? projetData.porteurs : [] },
+    { section_name: 'suivis', section_data: Array.isArray(projetData.suivis) ? projetData.suivis : [] },
+    { section_name: 'thematiques', section_data: thematiques },
+    { section_name: 'documents', section_data: Array.isArray(projetData.documents) ? projetData.documents : [] },
+    { section_name: 'geometrie', section_data: geometry }
+  ];
+}
+
+async function getNextSnapshotVersion({ idProjet, userId, transaction = null }) {
+  let rawVersion = null;
+
   try {
-    console.log('\n=== 📸 CRÉATION DE SNAPSHOT ===');
-    console.log(`Projet ID: ${idProjet}`);
-    console.log(`User ID: ${userId}`);
-    console.log(`Description: ${description || 'Aucune'}`);
-    console.log(`Skip Rotation: ${skipRotation ? 'Oui (backup de restauration)' : 'Non'}`);
-
-    if (!userId) {
-      throw new Error('userId est requis pour créer un snapshot');
-    }
-
-    // Vérifier les données du projet
-    console.log('📦 Données du projet reçues:');
-    console.log(`  - nom_projet: ${projetData.nom_projet}`);
-    console.log(`  - porteurs: ${projetData.porteurs?.length || 0} entrée(s)`);
-    console.log(`  - suivis: ${projetData.suivis?.length || 0} entrée(s)`);
-    console.log(`  - projet_in_thematiques: ${projetData.projet_in_thematiques?.length || 0} entrée(s)`);
-    console.log(`  - documents: ${projetData.documents?.length || 0} entrée(s)`);
-    console.log(`  - geometry: ${projetData.geometry ? 'Présente' : 'Absente'}`);
-
-    // Obtenir le prochain numéro de version
-    console.log('🔢 Calcul du numéro de version...');
-    const versionNumber = await db.sequelize.query(
+    const result = await db.sequelize.query(
       'SELECT principale.get_next_version_number(:idProjet, :userId) as version',
       {
         replacements: { idProjet, userId },
@@ -114,8 +135,65 @@ async function createSnapshot({
         transaction
       }
     );
+    rawVersion = result?.[0]?.version;
+  } catch (error) {
+    console.warn('⚠️  Impossible d\'utiliser la fonction SQL get_next_version_number, fallback applicatif:', error.message);
+  }
 
-    const nextVersion = versionNumber[0].version;
+  if (rawVersion === null || rawVersion === undefined) {
+    const maxVersion = await db.ProjetSnapshot.max('version_number', {
+      where: {
+        id_projet: idProjet,
+        user_id: userId
+      },
+      transaction
+    });
+    rawVersion = (maxVersion || 0) + 1;
+  }
+
+  return normalizeSnapshotVersion(rawVersion);
+}
+
+async function createSnapshot({
+  idProjet,
+  projetData,
+  description = null,
+  userId,
+  transaction = null,
+  skipRotation = false
+}) {
+  try {
+    console.log('\n=== 📸 CRÉATION DE SNAPSHOT ===');
+    console.log(`Projet ID: ${idProjet}`);
+    console.log(`User ID: ${userId}`);
+    console.log(`Description: ${description || 'Aucune'}`);
+    console.log(`Mode backup: ${skipRotation ? 'Oui' : 'Non'}`);
+
+    if (!idProjet) {
+      throw new Error('idProjet est requis pour créer un snapshot');
+    }
+    if (!userId) {
+      throw new Error('userId est requis pour créer un snapshot');
+    }
+    if (!projetData || typeof projetData !== 'object') {
+      throw new Error('projetData est requis pour créer un snapshot');
+    }
+
+    const sections = normalizeSnapshotSections(projetData);
+    const sectionByName = Object.fromEntries(sections.map((section) => [section.section_name, section.section_data]));
+
+    // Vérifier les données du projet
+    console.log('📦 Données du projet reçues:');
+    console.log(`  - nom_projet: ${sectionByName.projet_info.nom_projet}`);
+    console.log(`  - porteurs: ${sectionByName.porteurs.length} entrée(s)`);
+    console.log(`  - suivis: ${sectionByName.suivis.length} entrée(s)`);
+    console.log(`  - thematiques: ${sectionByName.thematiques.length} entrée(s)`);
+    console.log(`  - documents: ${sectionByName.documents.length} entrée(s)`);
+    console.log(`  - geometry: ${Object.keys(sectionByName.geometrie || {}).length > 0 ? 'Présente' : 'Absente'}`);
+
+    // Obtenir le prochain numéro de version
+    console.log('🔢 Calcul du numéro de version...');
+    const nextVersion = await getNextSnapshotVersion({ idProjet, userId, transaction });
     console.log(`  ✅ Prochaine version: ${nextVersion}`);
 
     // Marquer toutes les versions précédentes comme non-courantes
@@ -127,38 +205,28 @@ async function createSnapshot({
       }
     );
 
-    // ✅ Si on réutilise un numéro de version (rotation), supprimer l'ancien snapshot
-    // Cela arrive quand on dépasse 10 versions et qu'on revient à 1
-    // SAUF si skipRotation=true (backups de restauration)
-    if (!skipRotation) {
-      console.log('🔍 Vérification de rotation de version...');
-      const existingSnapshot = await db.ProjetSnapshot.findOne({
-        where: {
-          id_projet: idProjet,
-          user_id: userId,
-          version_number: nextVersion
-        },
-        transaction
-      });
+    // Garantir l'insertion même si la version SQL retourne un numéro déjà utilisé.
+    const conflictingSnapshot = await db.ProjetSnapshot.findOne({
+      where: {
+        id_projet: idProjet,
+        user_id: userId,
+        version_number: nextVersion
+      },
+      transaction
+    });
 
-      if (existingSnapshot) {
-        console.log(`🔄 Rotation de version détectée - Suppression du snapshot v${nextVersion} existant`);
-        // Supprimer d'abord les sections associées
-        if (db.ProjetSnapshotSection) {
-          await db.ProjetSnapshotSection.destroy({
-            where: { id_snapshot: existingSnapshot.id_snapshot },
-            transaction
-          });
-          console.log('  ✅ Sections de l\'ancien snapshot supprimées');
-        }
-        // Puis supprimer le snapshot
-        await existingSnapshot.destroy({ transaction });
-        console.log('  ✅ Ancien snapshot supprimé');
-      } else {
-        console.log('  ℹ️  Pas de rotation nécessaire');
+    if (conflictingSnapshot) {
+      console.log(`🔄 Version ${nextVersion} déjà utilisée, remplacement du snapshot précédent (#${conflictingSnapshot.id_snapshot})`);
+      if (skipRotation) {
+        console.log('   ℹ️  Mode backup actif: rotation forcée pour éviter un conflit de contrainte');
       }
-    } else {
-      console.log('⏭️  Rotation désactivée (backup de restauration)');
+      if (db.ProjetSnapshotSection) {
+        await db.ProjetSnapshotSection.destroy({
+          where: { id_snapshot: conflictingSnapshot.id_snapshot },
+          transaction
+        });
+      }
+      await conflictingSnapshot.destroy({ transaction });
     }
 
     // Créer le snapshot
@@ -174,31 +242,40 @@ async function createSnapshot({
 
     const options = transaction ? { transaction } : {};
     console.log('\n💾 Création du snapshot en base de données...');
-    const snapshot = await db.ProjetSnapshot.create(snapshotData, options);
+    let snapshot;
+    try {
+      snapshot = await db.ProjetSnapshot.create(snapshotData, options);
+    } catch (error) {
+      // Dernière protection en cas de création concurrente.
+      if (!isUniqueConstraintError(error)) {
+        throw error;
+      }
+      console.warn('⚠️  Conflit concurrent détecté lors de la création du snapshot, nouvelle tentative...');
+      const lateConflict = await db.ProjetSnapshot.findOne({
+        where: {
+          id_projet: idProjet,
+          user_id: userId,
+          version_number: nextVersion
+        },
+        transaction
+      });
+      if (lateConflict) {
+        if (db.ProjetSnapshotSection) {
+          await db.ProjetSnapshotSection.destroy({
+            where: { id_snapshot: lateConflict.id_snapshot },
+            transaction
+          });
+        }
+        await lateConflict.destroy({ transaction });
+      }
+      snapshot = await db.ProjetSnapshot.create(snapshotData, options);
+    }
     console.log(`  ✅ Snapshot créé avec ID: ${snapshot.id_snapshot}`);
 
     // Créer les sections (si projetData fourni)
-    if (projetData && db.ProjetSnapshotSection) {
+    if (db.ProjetSnapshotSection) {
       try {
         console.log('\n📋 Création des sections du snapshot...');
-        const sections = [
-          { section_name: 'projet_info', section_data: {
-            nom_projet: projetData.nom_projet,
-            description: projetData.description,
-            statut_projet_id: projetData.statut_projet_id,
-            date_ident_projet: projetData.date_ident_projet,
-            projet_signale: projetData.projet_signale,
-            charte_accueil: projetData.charte_accueil,
-            service_id: projetData.service_id,
-            referent_ddt: projetData.referent_ddt
-          }},
-          { section_name: 'porteurs', section_data: projetData.porteurs || [] },
-          { section_name: 'suivis', section_data: projetData.suivis || [] },
-          { section_name: 'thematiques', section_data: projetData.projet_in_thematiques || [] },
-          { section_name: 'documents', section_data: projetData.documents || [] },
-          { section_name: 'geometrie', section_data: projetData.geometry || {} }
-        ];
-
         for (const section of sections) {
           const sectionDataLength = Array.isArray(section.section_data)
             ? section.section_data.length

@@ -5,7 +5,33 @@
 
 import { requireAdmin } from '../../../../../lib/adminAuthHelper';
 import db from '../../../../../models';
+import { createSnapshot } from '../../../../../lib/auditHelper';
 const { ProjetSnapshot, ProjetSnapshotSection } = db;
+
+const asArray = (value, wrapperKey = null) => {
+  if (Array.isArray(value)) return value;
+  if (wrapperKey && value && Array.isArray(value[wrapperKey])) return value[wrapperKey];
+  return [];
+};
+
+const normalizeSuivis = (rawSuivis) => {
+  const source = asArray(rawSuivis, 'suivis');
+
+  return source
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+
+      const contenu = entry.suivi ?? entry.contenu ?? entry.texte ?? entry.description ?? null;
+      if (!contenu || !String(contenu).trim()) return null;
+
+      return {
+        suivi: String(contenu).trim(),
+        created_by: entry.created_by ?? entry.cree_par ?? entry.ajoute_par ?? null,
+        created_at: entry.created_at ?? entry.dateCreation ?? entry.date_ajout ?? null
+      };
+    })
+    .filter(Boolean);
+};
 
 export default async function handler(req, res) {
   /**
@@ -26,7 +52,8 @@ export default async function handler(req, res) {
       console.log(`Admin User ID: ${adminUserId}`);
 
       const body = req.body;
-      const { id_snapshot, sections, reason } = body;
+      const { id_snapshot, sections, reason, createBackup = true } = body;
+      const shouldCreateBackup = createBackup !== false;
 
       console.log(`Snapshot ID: ${id_snapshot}`);
       console.log(`Sections: ${sections?.join(', ')}`);
@@ -56,6 +83,31 @@ export default async function handler(req, res) {
 
       const id_projet = snapshot.id_projet;
       console.log(`Projet ID: ${id_projet}`);
+
+      let backupSnapshot = null;
+      if (shouldCreateBackup) {
+        console.log('📸 Création du backup avant restauration partielle...');
+        const currentProjet = await db.Projet.findByPk(id_projet, {
+          include: [
+            { model: db.ProjetPorteur, as: 'porteurs' },
+            { model: db.ProjetSuivi, as: 'suivis' },
+            { model: db.Document, as: 'documents' },
+            { model: db.ProjetGeometry, as: 'geometry' },
+            { model: db.ProjetInThematique, as: 'projet_in_thematiques' }
+          ]
+        });
+
+        if (currentProjet) {
+          backupSnapshot = await createSnapshot({
+            idProjet: id_projet,
+            projetData: currentProjet.toJSON(),
+            description: `Backup automatique avant restauration partielle du snapshot #${id_snapshot}`,
+            userId: adminUserId,
+            skipRotation: true
+          });
+          console.log(`✅ Backup créé (#${backupSnapshot?.id_snapshot || 'inconnu'})`);
+        }
+      }
 
       // Récupérer les sections demandées
       const snapshotSections = await db.ProjetSnapshotSection.findAll({
@@ -129,17 +181,21 @@ export default async function handler(req, res) {
             case 'suivis':
               console.log('   📝 Restauration des suivis...');
               await db.ProjetSuivi.destroy({ where: { id_projet }, transaction });
-              if (Array.isArray(section_data) && section_data.length > 0) {
-                for (const suivi of section_data) {
-                  const { id_suivi, ...suiviData } = suivi;
-                  await db.ProjetSuivi.create({
-                    ...suiviData,
-                    id_projet
-                  }, { transaction });
+              {
+                const normalizedSuivis = normalizeSuivis(section_data);
+                if (normalizedSuivis.length > 0) {
+                  for (const suivi of normalizedSuivis) {
+                    await db.ProjetSuivi.create({
+                      id_projet,
+                      suivi: suivi.suivi,
+                      created_by: suivi.created_by || adminUserId,
+                      created_at: suivi.created_at || new Date()
+                    }, { transaction });
+                  }
+                  console.log(`   ✅ ${normalizedSuivis.length} suivi(s) restauré(s)`);
+                } else {
+                  console.log('   ℹ️  Aucun suivi à restaurer');
                 }
-                console.log(`   ✅ ${section_data.length} suivi(s) restauré(s)`);
-              } else {
-                console.log('   ℹ️  Aucun suivi à restaurer');
               }
               break;
 
@@ -243,6 +299,7 @@ export default async function handler(req, res) {
             id_snapshot,
             id_projet,
             sections_restored: sections,
+            backup_snapshot_id: backupSnapshot?.id_snapshot || null,
             restored_at: new Date(),
             restored_by: adminUserId
           }

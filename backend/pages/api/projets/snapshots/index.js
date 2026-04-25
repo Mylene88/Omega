@@ -1,20 +1,62 @@
 // backend/pages/api/projets/snapshots/index.js
 import db from '../../../../models';
+import { createSnapshot } from '../../../../lib/auditHelper';
 const { ProjetSnapshot, ProjetSnapshotSection, Projet, User } = db;
+
+const SNAPSHOT_SECTIONS = ['projet_info', 'porteurs', 'suivis', 'thematiques', 'documents', 'geometrie'];
+
+function parsePositiveInt(value) {
+  const parsed = parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function normalizeLimit(value, fallback = 50, max = 200) {
+  const parsed = parsePositiveInt(value);
+  if (!parsed) return fallback;
+  return Math.min(parsed, max);
+}
+
+function buildSnapshotPayloadFromSections(project, sections) {
+  const safeSections = sections && typeof sections === 'object' ? sections : {};
+  const projetInfo = safeSections.projet_info && typeof safeSections.projet_info === 'object'
+    ? safeSections.projet_info
+    : {};
+
+  return {
+    nom_projet: projetInfo.nom_projet || project.nom_projet || null,
+    description: projetInfo.description ?? project.description ?? null,
+    statut_projet_id: projetInfo.statut_projet_id ?? project.statut_projet_id ?? null,
+    date_ident_projet: projetInfo.date_ident_projet ?? project.date_ident_projet ?? null,
+    projet_signale: projetInfo.projet_signale ?? project.projet_signale ?? false,
+    charte_accueil: projetInfo.charte_accueil ?? project.charte_accueil ?? false,
+    demande_suppression: projetInfo.demande_suppression ?? project.demande_suppression ?? false,
+    service_id: projetInfo.service_id ?? project.service_id ?? null,
+    referent_ddt: projetInfo.referent_ddt ?? project.referent_ddt ?? null,
+    porteurs: Array.isArray(safeSections.porteurs) ? safeSections.porteurs : [],
+    suivis: Array.isArray(safeSections.suivis) ? safeSections.suivis : [],
+    thematiques: Array.isArray(safeSections.thematiques) ? safeSections.thematiques : [],
+    documents: Array.isArray(safeSections.documents) ? safeSections.documents : [],
+    geometry: safeSections.geometrie && typeof safeSections.geometrie === 'object'
+      ? safeSections.geometrie
+      : {}
+  };
+}
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
-    const { id_projet, user_id, sections, description } = req.body;
+    const { id_projet, user_id, sections, description, skipRotation = false } = req.body;
 
     try {
-      if (!id_projet || !user_id || !sections) {
+      const parsedUserId = parsePositiveInt(user_id);
+
+      if (!id_projet || !parsedUserId || !sections || typeof sections !== 'object') {
         return res.status(400).json({
           success: false,
-          error: 'Paramètres manquants: id_projet, user_id, sections requis'
+          error: 'Paramètres invalides: id_projet, user_id (>0) et sections (objet) requis'
         });
       }
 
-      const projet = await Projet.findOne({ where: { id: id_projet } });
+      const projet = await Projet.findByPk(id_projet);
       if (!projet) {
         return res.status(404).json({
           success: false,
@@ -22,59 +64,28 @@ export default async function handler(req, res) {
         });
       }
 
-      const maxSnapshot = await ProjetSnapshot.findOne({
-        where: { id_projet, user_id },
-        order: [['version_number', 'DESC']]
+      const snapshotPayload = buildSnapshotPayloadFromSections(projet, sections);
+
+      const snapshot = await createSnapshot({
+        idProjet: id_projet,
+        projetData: snapshotPayload,
+        description: description || `Snapshot manuel (API projets/snapshots)`,
+        userId: parsedUserId,
+        skipRotation: !!skipRotation
       });
 
-      let nextVersion = 1;
-      if (maxSnapshot) {
-        nextVersion = maxSnapshot.version_number >= 10 ? 1 : maxSnapshot.version_number + 1;
-        if (nextVersion === 1) {
-          await ProjetSnapshot.destroy({
-            where: { id_projet, user_id, version_number: 1 }
-          });
-        }
-      }
-
-      await ProjetSnapshot.update(
-        { is_current: false },
-        { where: { id_projet, user_id } }
-      );
-
-      const snapshot = await ProjetSnapshot.create({
-        id_projet,
-        user_id,
-        version_number: nextVersion,
-        snapshot_date: new Date(),
-        description: description || `Version ${nextVersion}`,
-        is_current: true
-      });
-
-      const sectionNames = ['projet_info', 'porteurs', 'suivis', 'thematiques', 'documents', 'geometrie'];
-      const savedSections = [];
-
-      for (const sectionName of sectionNames) {
-        if (sections[sectionName]) {
-          const section = await ProjetSnapshotSection.create({
-            id_snapshot: snapshot.id_snapshot,
-            section_name: sectionName,
-            section_data: sections[sectionName]
-          });
-          savedSections.push(section);
-        }
-      }
+      const sectionsCount = SNAPSHOT_SECTIONS.filter((name) => sections[name] !== undefined).length;
 
       return res.status(201).json({
         success: true,
-        message: `Snapshot version ${nextVersion} créé avec succès`,
+        message: `Snapshot version ${snapshot.version_number} créé avec succès`,
         data: {
           snapshot: {
             id_snapshot: snapshot.id_snapshot,
             version_number: snapshot.version_number,
             snapshot_date: snapshot.snapshot_date,
             is_current: snapshot.is_current,
-            sections_count: savedSections.length
+            sections_count: sectionsCount
           }
         }
       });
@@ -92,15 +103,18 @@ export default async function handler(req, res) {
     const { id_projet, user_id } = req.query;
 
     try {
-      if (!id_projet || !user_id) {
+      const parsedUserId = parsePositiveInt(user_id);
+      const limit = normalizeLimit(req.query.limit, 100);
+
+      if (!id_projet || !parsedUserId) {
         return res.status(400).json({
           success: false,
-          error: 'Paramètres manquants: id_projet et user_id requis'
+          error: 'Paramètres manquants ou invalides: id_projet et user_id (>0) requis'
         });
       }
 
       const snapshots = await ProjetSnapshot.findAll({
-        where: { id_projet, user_id },
+        where: { id_projet, user_id: parsedUserId },
         include: [
           {
             model: ProjetSnapshotSection,
@@ -113,7 +127,8 @@ export default async function handler(req, res) {
             attributes: ['id_user', 'username', 'prenom', 'nom']
           }
         ],
-        order: [['version_number', 'DESC']]
+        order: [['snapshot_date', 'DESC']],
+        limit
       });
 
       const formattedSnapshots = snapshots.map(snap => ({

@@ -44,7 +44,10 @@ export default async function handler(req, res) {
     // Extraire les paramètres de requête
     // Query params available in req.query
     const idProjet = req.query.idProjet;
-    const limit = parseInt(req.query.limit || '50');
+    const parsedLimit = parseInt(req.query.limit || '50', 10);
+    const limit = Number.isInteger(parsedLimit) && parsedLimit > 0
+      ? Math.min(parsedLimit, 200)
+      : 50;
 
     let snapshots;
 
@@ -96,7 +99,8 @@ export default async function handler(req, res) {
           } else if (section.section_name === 'documents') {
             snapshotData.nbDocuments = section.section_data?.length || 0;
           } else if (section.section_name === 'geometrie') {
-            snapshotData.hasGeometry = !!section.section_data;
+            snapshotData.hasGeometry = !!section.section_data
+              && Object.keys(section.section_data).length > 0;
           }
         });
       }

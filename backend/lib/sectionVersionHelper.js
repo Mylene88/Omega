@@ -8,6 +8,11 @@
 const db = require('../models');
 const { createSectionVersion } = require('./auditHelper');
 
+function parseUserId(value) {
+  const parsed = parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 /**
  * Récupère les données actuelles d'une section pour un projet
  * @param {string} idProjet - ID du projet
@@ -80,7 +85,7 @@ async function getCurrentSectionData(idProjet, sectionName, transaction = null) 
       }
 
       case 'geometrie': {
-        const geometry = await db.Geometry.findOne({
+        const geometry = await db.ProjetGeometry.findOne({
           where: { id_projet: idProjet },
           ...options
         });
@@ -158,7 +163,7 @@ async function saveCurrentSectionVersion({
 /**
  * Middleware pour extraire l'userId d'une requête Next.js
  * Essaie plusieurs sources : header, body, query params
- * @param {Object} request - Requête Next.js
+ * @param {Object} req - Requête Next.js
  * @param {Object} body - Body déjà parsé (optionnel)
  * @returns {number|null} L'userId ou null
  */
@@ -170,9 +175,9 @@ function extractUserId(req, body = null) {
     try {
       // TODO: Décoder le JWT pour extraire l'userId
       // Pour l'instant, on suppose que l'userId est dans le header x-user-id
-      const userIdHeader = headers['x-user-id'];
+      const userIdHeader = parseUserId(headers['x-user-id']);
       if (userIdHeader) {
-        return parseInt(userIdHeader, 10);
+        return userIdHeader;
       }
     } catch (error) {
       console.warn('⚠️  Impossible d\'extraire userId du header auth');
@@ -180,16 +185,27 @@ function extractUserId(req, body = null) {
   }
 
   // 2. Chercher dans le body
-  if (body && body.userId) {
-    return body.userId;
+  if (body) {
+    const userIdFromBody = parseUserId(
+      body.userId ?? body.updated_by ?? body.created_by ?? body.deleted_by
+    );
+    if (userIdFromBody) {
+      return userIdFromBody;
+    }
   }
 
   // 3. Chercher dans l'URL (query params)
   try {
-    const url = new URL(request.url);
+    const protocol = headers['x-forwarded-proto'] || 'http';
+    const host = headers.host || 'localhost';
+    const absoluteUrl = req.url?.startsWith('http')
+      ? req.url
+      : `${protocol}://${host}${req.url || ''}`;
+    const url = new URL(absoluteUrl);
     const userIdParam = url.searchParams.get('userId');
-    if (userIdParam) {
-      return parseInt(userIdParam, 10);
+    const parsedFromQuery = parseUserId(userIdParam);
+    if (parsedFromQuery) {
+      return parsedFromQuery;
     }
   } catch (error) {
     // Ignore
