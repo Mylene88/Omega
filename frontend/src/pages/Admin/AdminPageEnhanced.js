@@ -1105,6 +1105,12 @@ const AdminPageEnhanced = () => {
         >
           🗑️ Demandes de suppression
         </button>
+        <button
+          className={`tab-btn ${activeTab === 'archive-requests' ? 'active' : ''}`}
+          onClick={() => setActiveTab('archive-requests')}
+        >
+          🗃️ Demandes d'archivage
+        </button>
       </div>
 
       {/* Content */}
@@ -1124,6 +1130,15 @@ const AdminPageEnhanced = () => {
         {activeTab === 'access' && renderAccessLogsTab()}
         {activeTab === 'deletion-requests' && (
           <DeletionRequestsTab
+            apiCall={apiCall}
+            success={success}
+            error={errorToast}
+            warning={warning}
+          />
+        )}
+        {activeTab === 'archive-requests' && (
+          <DeletionRequestsTab
+            mode="archive"
             apiCall={apiCall}
             success={success}
             error={errorToast}

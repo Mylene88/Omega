@@ -4,6 +4,7 @@ import {useNavigate} from 'react-router-dom';
 import { getStatusBadgeClass } from '../utils/statutColors';
 import Pagination from './common/Pagination';
 import DeletionRequestModal from './common/DeletionRequestModal';
+import ArchiveRequestModal from './common/ArchiveRequestModal';
 import { formatDateTimeFr } from '../../utils/dateFormatter';
 import '../styles/VueListeStyle.css';
 import { API_BASE_URL } from '../../config/apiConfig';
@@ -23,6 +24,8 @@ export default function VueListe({
     const [downloading, setDownloading] = useState(false);
     const [deletionModalOpen, setDeletionModalOpen] = useState(false);
     const [projectToDelete, setProjectToDelete] = useState(null);
+    const [archiveModalOpen, setArchiveModalOpen] = useState(false);
+    const [archiveRequestTarget, setArchiveRequestTarget] = useState(null);
     const navigate = useNavigate()
 
 
@@ -102,6 +105,53 @@ export default function VueListe({
         e.stopPropagation();
         setProjectToDelete(project);
         setDeletionModalOpen(true);
+    };
+
+    const handleArchiveClick = (e, project, requestType) => {
+        e.stopPropagation();
+        setArchiveRequestTarget({ project, requestType });
+        setArchiveModalOpen(true);
+    };
+
+    const handleArchiveSubmit = async (raison) => {
+        if (!archiveRequestTarget?.project?.id_projet) {
+            return;
+        }
+
+        const { project, requestType } = archiveRequestTarget;
+        const isRestore = requestType === 'restauration';
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/archive-requests`, {
+                method: 'POST',
+                headers: getApiHeaders(),
+                body: JSON.stringify({
+                    id_projet: project.id_projet,
+                    request_type: requestType,
+                    raison: raison || null
+                })
+            });
+
+            const result = await response.json();
+            if (!response.ok) {
+                const errorMsg = result.error || result.message || 'Erreur lors de la soumission';
+                alert(`❌ Erreur: ${errorMsg}`);
+                throw new Error(errorMsg);
+            }
+
+            alert(
+                isRestore
+                    ? '✅ Demande de restauration envoyée avec succès !'
+                    : '✅ Demande d\'archivage envoyée avec succès !'
+            );
+
+            setArchiveModalOpen(false);
+            setArchiveRequestTarget(null);
+            window.location.reload();
+        } catch (error) {
+            console.error('❌ Erreur demande archivage/restauration:', error);
+            throw error;
+        }
     };
 
     const handleDeletionSubmit = async (raison) => {
@@ -197,6 +247,9 @@ export default function VueListe({
                     const nombreThematiques = p.nombre_thematiques ?? p.thematiques_count ?? 0;
                     const communesArray = formatCommunes(p.communes_traversees);
                     const nombrePorteurs = p.nb_porteurs ?? 0;
+                    const isArchived = !!p.is_archived;
+                    const archiveRequestPending = !!p.demande_archivage;
+                    const restoreRequestPending = !!p.demande_restauration;
 
                     const serviceReferent = p.service_libelle || p.service || 'Non renseigné';
                     const isDropdownOpen = openDropdownId === p.id_projet;
@@ -332,7 +385,7 @@ export default function VueListe({
                                     </div>
 
                                     {/* Ligne: Porteur | Service Référent | Thématiques */}
-                                    <div className="card-info-item full-width">
+                                    <div className="card-info-item full-width card-info-row-wrapper">
                                         <div className="card-info-row">
                                             {/* Porteur */}
                                             <div
@@ -345,7 +398,7 @@ export default function VueListe({
                                                 <div className="card-info-content">
                                                     <span className="card-info-label">Porteur</span>
                                                     <span className="card-info-value">
-                                                        {nombrePorteurs} porteur{nombrePorteurs > 1 ? 's' : ''}
+                                                        {nombrePorteurs}
                                                     </span>
                                                 </div>
                                             </div>
@@ -381,10 +434,7 @@ export default function VueListe({
                                                 <div className="card-info-content">
                                                     <span className="card-info-label">Thématiques</span>
                                                     <span className="card-info-value">
-                                                        {nombreThematiques > 0
-                                                            ? `${nombreThematiques} thématique${nombreThematiques > 1 ? 's' : ''}`
-                                                            : <em style={{ color: '#999' }}>Aucune</em>
-                                                        }
+                                                        {nombreThematiques}
                                                     </span>
                                                 </div>
                                             </div>
@@ -446,8 +496,8 @@ export default function VueListe({
                                     </div>
                                 </div>
 
-                                {/* Badges projet signalé / Charte d'accueil / En attente de suppression */}
-                                {(p.projet_signale || p.charte_accueil || p.demande_suppression) && (
+                                {/* Badges projet signalé / Charte d'accueil / Demandes / Archive */}
+                                {(p.projet_signale || p.charte_accueil || p.demande_suppression || archiveRequestPending || restoreRequestPending || isArchived) && (
                                     <div className="project-badges">
                                         {p.projet_signale && (
                                             <span className="badge badge-signale">🚨 Projet signalé</span>
@@ -457,6 +507,15 @@ export default function VueListe({
                                         )}
                                         {p.demande_suppression && (
                                             <span className="badge badge-suppression">⏳ En attente de suppression</span>
+                                        )}
+                                        {archiveRequestPending && (
+                                            <span className="badge badge-suppression">⏳ En attente d'archivage</span>
+                                        )}
+                                        {restoreRequestPending && (
+                                            <span className="badge badge-suppression">⏳ En attente de restauration</span>
+                                        )}
+                                        {isArchived && (
+                                            <span className="badge badge-archived">🗃️ Projet archivé</span>
                                         )}
                                     </div>
                                 )}
@@ -502,6 +561,38 @@ export default function VueListe({
                                 </div>
 
                                 <div className="footer-actions" style={{ display: 'flex', gap: '8px' }}>
+                                    <button
+                                        className={`badge ${isArchived ? 'badge-restore-request' : 'badge-archive-request'} ${(archiveRequestPending || restoreRequestPending) ? 'disabled' : ''}`}
+                                        onClick={(e) => {
+                                            const requestType = isArchived ? 'restauration' : 'archivage';
+                                            const isDisabled = isArchived ? restoreRequestPending : archiveRequestPending;
+                                            if (!isDisabled) {
+                                                handleArchiveClick(e, p, requestType);
+                                            } else {
+                                                e.stopPropagation();
+                                            }
+                                        }}
+                                        disabled={isArchived ? restoreRequestPending : archiveRequestPending}
+                                        title={
+                                            isArchived
+                                                ? (restoreRequestPending
+                                                    ? 'Une demande de restauration est déjà en attente'
+                                                    : 'Demande de restauration')
+                                                : (archiveRequestPending
+                                                    ? 'Une demande d\'archivage est déjà en attente'
+                                                    : 'Demande d\'archivage')
+                                        }
+                                        aria-label={
+                                            isArchived
+                                                ? (restoreRequestPending ? 'Demande de restauration en attente' : 'Demande de restauration')
+                                                : (archiveRequestPending ? 'Demande d\'archivage en attente' : 'Demande d\'archivage')
+                                        }
+                                    >
+                                        {isArchived
+                                            ? (restoreRequestPending ? '⏳' : '♻️')
+                                            : (archiveRequestPending ? '⏳' : '🗃️')}
+                                    </button>
+
                                     {/* Bouton modifier */}
                                     <button
                                         className="badge badge-edit edit-btn"
@@ -561,6 +652,19 @@ export default function VueListe({
                         setProjectToDelete(null);
                     }}
                     onSubmit={handleDeletionSubmit}
+                />
+            )}
+
+            {/* Modal de demande d'archivage / restauration */}
+            {archiveModalOpen && archiveRequestTarget && (
+                <ArchiveRequestModal
+                    projet={archiveRequestTarget.project}
+                    requestType={archiveRequestTarget.requestType}
+                    onClose={() => {
+                        setArchiveModalOpen(false);
+                        setArchiveRequestTarget(null);
+                    }}
+                    onSubmit={handleArchiveSubmit}
                 />
             )}
         </>

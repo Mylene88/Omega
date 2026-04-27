@@ -2,10 +2,13 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
+  "/api/statut": "pages/api/statut.js",
   "/api/service": "pages/api/service.js",
   "/api/thematiques/modeles": "pages/api/thematiques/modeles.js",
-  "/api/statut": "pages/api/statut.js",
-  "/api/projets/[id]": "pages/api/projets/[id].js",
   "/api/projet-geometry": "pages/api/projet-geometry.js",
-  "/api/geo-entities": "pages/api/geo-entities.js"
+  "/api/geo-entities": "pages/api/geo-entities.js",
+  "/api/admin/stats": "pages/api/admin/stats.js",
+  "/api/archive-requests": "pages/api/archive-requests.js",
+  "/api/archive-requests/[id]": "pages/api/archive-requests/[id].js",
+  "/api/projets/[id]": "pages/api/projets/[id].js"
 }

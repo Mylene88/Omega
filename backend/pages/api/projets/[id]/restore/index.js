@@ -65,8 +65,12 @@ export default async function handler(req, res) {
     // Restaurer le projet
     await projet.restore();
 
-    // Remettre demande_suppression à false
-    await projet.update({ demande_suppression: false });
+    // Remettre les indicateurs de demandes à false
+    await projet.update({
+      demande_suppression: false,
+      demande_archivage: false,
+      demande_restauration: false
+    });
 
     console.log(`✅ Projet ${id} restauré avec succès`);
 
@@ -77,7 +81,9 @@ export default async function handler(req, res) {
         id_projet: projet.id_projet,
         nom_projet: projet.nom_projet,
         deleted_at: null,
-        demande_suppression: false
+        demande_suppression: false,
+        demande_archivage: false,
+        demande_restauration: false
       }
     });
 

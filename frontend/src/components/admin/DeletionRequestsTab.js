@@ -1,13 +1,22 @@
 // frontend/src/components/admin/DeletionRequestsTab.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './DeletionRequestsTab.css';
-import { API_BASE_URL } from '../../config/apiConfig';
 
-const DeletionRequestsTab = ({ apiCall, success, error: errorToast, warning }) => {
-  const [deletionRequests, setDeletionRequests] = useState([]);
+const DeletionRequestsTab = ({
+  apiCall,
+  success,
+  error: errorToast,
+  warning,
+  mode = 'deletion'
+}) => {
+  const isArchiveMode = mode === 'archive';
+  const endpoint = isArchiveMode ? '/archive-requests' : '/deletion-requests';
+
+  const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [filters, setFilters] = useState({
-    statut: 'en attente', // Par défaut, montrer les demandes en attente
+    statut: 'en attente',
+    requestType: ''
   });
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
@@ -16,30 +25,29 @@ const DeletionRequestsTab = ({ apiCall, success, error: errorToast, warning }) =
   });
   const [reviewComment, setReviewComment] = useState('');
 
-  // Charger les demandes de suppression
-  const fetchDeletionRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       setIsLoading(true);
       const params = new URLSearchParams({
         is_admin: 'true',
-        ...(filters.statut && { statut: filters.statut })
+        ...(filters.statut && { statut: filters.statut }),
+        ...(isArchiveMode && filters.requestType && { request_type: filters.requestType })
       });
 
-      const data = await apiCall(`/deletion-requests?${params}`);
-      setDeletionRequests(data.data || []);
+      const data = await apiCall(`${endpoint}?${params}`);
+      setRequests(data.data || []);
     } catch (err) {
       console.error('Erreur chargement demandes:', err);
       errorToast(err.message, 'Erreur de chargement');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [apiCall, endpoint, errorToast, filters.requestType, filters.statut, isArchiveMode]);
 
   useEffect(() => {
-    fetchDeletionRequests();
-  }, [filters.statut]);
+    fetchRequests();
+  }, [fetchRequests]);
 
-  // Ouvrir le modal de confirmation
   const openConfirmModal = (request, action) => {
     setConfirmModal({
       isOpen: true,
@@ -49,7 +57,6 @@ const DeletionRequestsTab = ({ apiCall, success, error: errorToast, warning }) =
     setReviewComment('');
   };
 
-  // Fermer le modal
   const closeConfirmModal = () => {
     setConfirmModal({
       isOpen: false,
@@ -59,41 +66,55 @@ const DeletionRequestsTab = ({ apiCall, success, error: errorToast, warning }) =
     setReviewComment('');
   };
 
-  // Approuver ou rejeter une demande
   const handleReviewRequest = async () => {
     const { request, action } = confirmModal;
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+    if (isArchiveMode && action === 'reject' && !reviewComment.trim()) {
+      warning('Le motif de rejet est obligatoire.', 'Motif requis');
+      return;
+    }
 
     try {
-      await apiCall(`/deletion-requests/${request.id}`, {
+      await apiCall(`${endpoint}/${request.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
           action,
-          reviewed_by: user.id_user,
           review_comment: reviewComment || null
         })
       });
 
-      if (action === 'approve') {
+      if (isArchiveMode) {
+        if (action === 'approve') {
+          if (request.request_type === 'restauration') {
+            success(
+              `Le projet #${request.id_projet} "${request.projet_nom}" a ete restaure avec succes`,
+              'Demande approuvee'
+            );
+          } else {
+            success(
+              `Le projet #${request.id_projet} "${request.projet_nom}" a ete archive avec succes`,
+              'Demande approuvee'
+            );
+          }
+        } else {
+          success('La demande a ete rejetee', 'Demande rejetee');
+        }
+      } else if (action === 'approve') {
         success(
-          `Le projet #${request.id_projet} "${request.projet_nom}" a été supprimé avec succès`,
-          'Demande approuvée'
+          `Le projet #${request.id_projet} "${request.projet_nom}" a ete supprime avec succes`,
+          'Demande approuvee'
         );
       } else {
-        success(
-          `La demande de suppression a été rejetée`,
-          'Demande rejetée'
-        );
+        success('La demande de suppression a ete rejetee', 'Demande rejetee');
       }
 
       closeConfirmModal();
-      fetchDeletionRequests();
+      fetchRequests();
     } catch (err) {
       errorToast(err.message, 'Erreur');
     }
   };
 
-  // Formater la date
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleString('fr-FR', {
@@ -105,20 +126,30 @@ const DeletionRequestsTab = ({ apiCall, success, error: errorToast, warning }) =
     });
   };
 
-  // Badge de statut
   const getStatusBadge = (statut) => {
     const badges = {
       'en attente': { label: 'En attente', className: 'badge-pending' },
-      'accepter': { label: 'Approuvée', className: 'badge-approved' },
-      'refuser': { label: 'Rejetée', className: 'badge-rejected' }
+      accepter: { label: 'Approuvee', className: 'badge-approved' },
+      refuser: { label: 'Rejetee', className: 'badge-rejected' }
     };
     const badge = badges[statut] || { label: statut, className: '' };
     return <span className={`status-badge ${badge.className}`}>{badge.label}</span>;
   };
 
+  const getRequestTypeLabel = (requestType) => {
+    if (!isArchiveMode) return 'Suppression';
+    return requestType === 'restauration' ? 'Restauration' : 'Archivage';
+  };
+
+  const getApproveActionLabel = (request) => {
+    if (!isArchiveMode) return '✅ Approuver et supprimer';
+    return request.request_type === 'restauration' ? '✅ Approuver la restauration' : '✅ Approuver l\'archivage';
+  };
+
+  const getTabTitle = () => (isArchiveMode ? 'd\'archivage' : 'de suppression');
+
   return (
     <div className="deletion-requests-tab">
-      {/* Filtres */}
       <div className="deletion-filters">
         <div className="filter-group">
           <label>Statut:</label>
@@ -128,43 +159,54 @@ const DeletionRequestsTab = ({ apiCall, success, error: errorToast, warning }) =
           >
             <option value="">Tous</option>
             <option value="en attente">En attente</option>
-            <option value="accepter">Approuvées</option>
-            <option value="refuser">Rejetées</option>
+            <option value="accepter">Approuvees</option>
+            <option value="refuser">Rejetees</option>
           </select>
         </div>
 
-        <button onClick={fetchDeletionRequests} className="btn-refresh">
+        {isArchiveMode && (
+          <div className="filter-group">
+            <label>Type:</label>
+            <select
+              value={filters.requestType}
+              onChange={(e) => setFilters({ ...filters, requestType: e.target.value })}
+            >
+              <option value="">Tous</option>
+              <option value="archivage">Archivage</option>
+              <option value="restauration">Restauration</option>
+            </select>
+          </div>
+        )}
+
+        <button onClick={fetchRequests} className="btn-refresh">
           🔄 Actualiser
         </button>
       </div>
 
-      {/* Stats rapides */}
       <div className="deletion-stats">
         <div className="stat-item">
           <span className="stat-label">Total:</span>
-          <span className="stat-value">{deletionRequests.length}</span>
+          <span className="stat-value">{requests.length}</span>
         </div>
         <div className="stat-item">
           <span className="stat-label">En attente:</span>
           <span className="stat-value stat-pending">
-            {deletionRequests.filter(r => r.statut === 'en attente').length}
+            {requests.filter((r) => r.statut === 'en attente').length}
           </span>
         </div>
       </div>
 
-      {/* Liste des demandes */}
       {isLoading ? (
         <div className="loading-state">Chargement des demandes...</div>
-      ) : deletionRequests.length === 0 ? (
+      ) : requests.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">📭</div>
-          <p>Aucune demande de suppression trouvée</p>
+          <p>Aucune demande {getTabTitle()} trouvee</p>
         </div>
       ) : (
         <div className="deletion-requests-list">
-          {deletionRequests.map((request) => (
+          {requests.map((request) => (
             <div key={request.id} className="deletion-request-card">
-              {/* Header */}
               <div className="request-header">
                 <div className="request-info">
                   <h3>
@@ -175,10 +217,9 @@ const DeletionRequestsTab = ({ apiCall, success, error: errorToast, warning }) =
                 <div className="request-id">Demande #{request.id}</div>
               </div>
 
-              {/* Body */}
               <div className="request-body">
                 <div className="request-section">
-                  <strong>Demandé par:</strong>
+                  <strong>Demandeur:</strong>
                   <span>{request.requested_by?.nom_complet || request.requested_by?.username || 'N/A'}</span>
                 </div>
 
@@ -187,10 +228,30 @@ const DeletionRequestsTab = ({ apiCall, success, error: errorToast, warning }) =
                   <span>{formatDate(request.created_at)}</span>
                 </div>
 
-                <div className="request-section full-width">
-                  <strong>Raison:</strong>
-                  <p className="request-raison">{request.raison}</p>
-                </div>
+                {isArchiveMode && (
+                  <div className="request-section">
+                    <strong>Type de demande:</strong>
+                    <span>{getRequestTypeLabel(request.request_type)}</span>
+                  </div>
+                )}
+
+                {(request.projet_statut || request.projet_service_referent) && (
+                  <div className="request-section full-width">
+                    <strong>Resume projet:</strong>
+                    <p className="project-description">
+                      Statut: {request.projet_statut || 'N/A'}
+                      {' | '}
+                      Service referent: {request.projet_service_referent || 'N/A'}
+                    </p>
+                  </div>
+                )}
+
+                {request.raison && (
+                  <div className="request-section full-width">
+                    <strong>Motif utilisateur:</strong>
+                    <p className="request-raison">{request.raison}</p>
+                  </div>
+                )}
 
                 {request.projet_description && (
                   <div className="request-section full-width">
@@ -199,15 +260,14 @@ const DeletionRequestsTab = ({ apiCall, success, error: errorToast, warning }) =
                   </div>
                 )}
 
-                {/* Informations de révision */}
                 {request.statut !== 'en attente' && (
                   <div className="review-info">
                     <div className="review-section">
-                      <strong>Révisé par:</strong>
+                      <strong>Revise par:</strong>
                       <span>{request.reviewed_by?.nom_complet || request.reviewed_by?.username || 'N/A'}</span>
                     </div>
                     <div className="review-section">
-                      <strong>Date de révision:</strong>
+                      <strong>Date de revision:</strong>
                       <span>{formatDate(request.reviewed_at)}</span>
                     </div>
                     {request.review_comment && (
@@ -220,20 +280,13 @@ const DeletionRequestsTab = ({ apiCall, success, error: errorToast, warning }) =
                 )}
               </div>
 
-              {/* Actions (seulement pour les demandes en attente) */}
               {request.statut === 'en attente' && (
                 <div className="request-actions">
-                  <button
-                    className="btn-reject"
-                    onClick={() => openConfirmModal(request, 'reject')}
-                  >
+                  <button className="btn-reject" onClick={() => openConfirmModal(request, 'reject')}>
                     ❌ Rejeter
                   </button>
-                  <button
-                    className="btn-approve"
-                    onClick={() => openConfirmModal(request, 'approve')}
-                  >
-                    ✅ Approuver et supprimer
+                  <button className="btn-approve" onClick={() => openConfirmModal(request, 'approve')}>
+                    {getApproveActionLabel(request)}
                   </button>
                 </div>
               )}
@@ -242,44 +295,80 @@ const DeletionRequestsTab = ({ apiCall, success, error: errorToast, warning }) =
         </div>
       )}
 
-      {/* Modal de confirmation */}
       {confirmModal.isOpen && (
         <div className="confirmation-modal-overlay" onClick={closeConfirmModal}>
           <div className="confirmation-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
-                {confirmModal.action === 'approve' ? '⚠️ Confirmer la suppression' : '❌ Confirmer le rejet'}
+                {confirmModal.action === 'approve'
+                  ? isArchiveMode
+                    ? '⚠️ Confirmer la decision'
+                    : '⚠️ Confirmer la suppression'
+                  : '❌ Confirmer le rejet'}
               </h2>
               <button className="modal-close" onClick={closeConfirmModal}>×</button>
             </div>
 
             <div className="modal-body">
               {confirmModal.action === 'approve' ? (
-                <>
-                  <div className="warning-box">
-                    <p><strong>ATTENTION:</strong> Cette action va supprimer définitivement le projet:</p>
-                    <ul>
-                      <li>Projet #{confirmModal.request.id_projet}: <strong>{confirmModal.request.projet_nom}</strong></li>
-                      <li>Toutes les données associées seront supprimées</li>
-                      <li>Cette action est <strong>IRRÉVERSIBLE</strong></li>
-                    </ul>
-                  </div>
-                  <div className="request-details">
-                    <p><strong>Raison de la demande:</strong></p>
-                    <p className="raison-text">{confirmModal.request.raison}</p>
-                  </div>
-                </>
+                isArchiveMode ? (
+                  <>
+                    <div className="warning-box">
+                      <p>
+                        <strong>Projet #{confirmModal.request.id_projet}:</strong> {confirmModal.request.projet_nom}
+                      </p>
+                      <p>
+                        Action: {confirmModal.request.request_type === 'restauration' ? 'restauration du projet' : 'archivage du projet'}
+                      </p>
+                    </div>
+                    {confirmModal.request.raison && (
+                      <div className="request-details">
+                        <p><strong>Motif utilisateur:</strong></p>
+                        <p className="raison-text">{confirmModal.request.raison}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="warning-box">
+                      <p><strong>ATTENTION:</strong> Cette action va supprimer definitivement le projet:</p>
+                      <ul>
+                        <li>Projet #{confirmModal.request.id_projet}: <strong>{confirmModal.request.projet_nom}</strong></li>
+                        <li>Toutes les donnees associees seront supprimees</li>
+                        <li>Cette action est <strong>IRREVERSIBLE</strong></li>
+                      </ul>
+                    </div>
+                    <div className="request-details">
+                      <p><strong>Raison de la demande:</strong></p>
+                      <p className="raison-text">{confirmModal.request.raison}</p>
+                    </div>
+                  </>
+                )
               ) : (
                 <>
-                  <p>Vous allez rejeter la demande de suppression du projet:</p>
-                  <p className="project-name">#{confirmModal.request.id_projet}: {confirmModal.request.projet_nom}</p>
-                  <p className="info-text">Le projet ne sera pas supprimé et l'utilisateur sera notifié du rejet.</p>
+                  <p>
+                    Vous allez rejeter la demande {isArchiveMode ? '' : 'de suppression '}du projet:
+                  </p>
+                  <p className="project-name">
+                    #{confirmModal.request.id_projet}: {confirmModal.request.projet_nom}
+                  </p>
+                  <p className="info-text">
+                    {isArchiveMode
+                      ? 'Le projet conservera son etat actuel.'
+                      : 'Le projet ne sera pas supprime et l\'utilisateur sera notifie du rejet.'}
+                  </p>
                 </>
               )}
 
               <div className="form-group">
                 <label htmlFor="review-comment">
-                  Commentaire {confirmModal.action === 'reject' ? '(optionnel)' : '(recommandé)'}:
+                  Commentaire
+                  {confirmModal.action === 'reject'
+                    ? isArchiveMode
+                      ? ' (obligatoire)'
+                      : ' (optionnel)'
+                    : ' (optionnel)'}
+                  :
                 </label>
                 <textarea
                   id="review-comment"
@@ -287,8 +376,12 @@ const DeletionRequestsTab = ({ apiCall, success, error: errorToast, warning }) =
                   onChange={(e) => setReviewComment(e.target.value)}
                   placeholder={
                     confirmModal.action === 'approve'
-                      ? "Expliquez pourquoi cette suppression est justifiée..."
-                      : "Expliquez pourquoi cette demande est rejetée..."
+                      ? isArchiveMode
+                        ? 'Commentaire optionnel...'
+                        : 'Expliquez pourquoi cette suppression est justifiee...'
+                      : isArchiveMode
+                        ? 'Expliquez pourquoi cette demande est rejetee...'
+                        : 'Expliquez pourquoi cette demande est rejetee...'
                   }
                   rows={4}
                 />
@@ -302,8 +395,13 @@ const DeletionRequestsTab = ({ apiCall, success, error: errorToast, warning }) =
               <button
                 className={confirmModal.action === 'approve' ? 'btn-confirm-approve' : 'btn-confirm-reject'}
                 onClick={handleReviewRequest}
+                disabled={isArchiveMode && confirmModal.action === 'reject' && !reviewComment.trim()}
               >
-                {confirmModal.action === 'approve' ? '✅ Confirmer la suppression' : '❌ Confirmer le rejet'}
+                {confirmModal.action === 'approve'
+                  ? isArchiveMode
+                    ? '✅ Confirmer la decision'
+                    : '✅ Confirmer la suppression'
+                  : '❌ Confirmer le rejet'}
               </button>
             </div>
           </div>

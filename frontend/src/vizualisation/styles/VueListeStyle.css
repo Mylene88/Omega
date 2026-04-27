@@ -1469,13 +1469,18 @@
     grid-column: 1 / -1;
 }
 
+.card-info-row-wrapper:hover {
+    background: var(--bg-secondary);
+    transform: none;
+}
+
 /* Ligne horizontale pour Porteur | Service | Thématiques */
 .card-info-row {
     display: flex;
     align-items: center;
     gap: 16px;
     width: 100%;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 .card-info-item-inline {
@@ -1486,8 +1491,8 @@
     background: transparent;
     border-radius: var(--radius-sm);
     transition: all 0.2s ease;
-    flex: 1;
-    min-width: 150px;
+    flex: 1 1 0;
+    min-width: 0;
 }
 
 .card-info-item-inline:hover {
@@ -1502,6 +1507,7 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-width: 0;
 }
 
 .card-info-item-inline .card-info-label {
@@ -1509,12 +1515,19 @@
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .card-info-item-inline .card-info-value {
     font-size: 13px;
     font-weight: 500;
     color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .card-info-separator {
@@ -1525,17 +1538,11 @@
 
 @media (max-width: 768px) {
     .card-info-row {
-        flex-direction: column;
-        align-items: flex-start;
         gap: 8px;
     }
-    
-    .card-info-separator {
-        display: none;
-    }
-    
+
     .card-info-item-inline {
-        width: 100%;
+        padding: 8px;
     }
 }
 
@@ -1675,6 +1682,44 @@
     display: flex;
     align-items: center;
     gap: 6px;
+}
+
+.badge-archived {
+    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+    color: #1e293b;
+    border: 1px solid #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.badge-archive-request {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1d4ed8;
+    border: 1px solid #60a5fa;
+    text-transform: none;
+    cursor: pointer;
+    min-width: 40px;
+    justify-content: center;
+}
+
+.badge-restore-request {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    color: #166534;
+    border: 1px solid #4ade80;
+    text-transform: none;
+    cursor: pointer;
+    min-width: 40px;
+    justify-content: center;
+}
+
+.badge-archive-request.disabled,
+.badge-restore-request.disabled {
+    background: #e5e7eb;
+    color: #6b7280;
+    border-color: #cbd5e1;
+    cursor: not-allowed;
+    opacity: 0.8;
 }
 
 /* ==================== RESPONSIVE CARDS ==================== */
@@ -2205,6 +2250,39 @@
 
 .deletion-warning-banner:hover {
     box-shadow: 0 6px 16px rgba(255, 0, 0, 0.35);
+}
+
+.archive-actions-box {
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-secondary);
+}
+
+.archive-action-button {
+    width: 100%;
+    border: 1px solid #60a5fa;
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1d4ed8;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.archive-action-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.archive-action-button.disabled,
+.archive-action-button:disabled {
+    background: #e5e7eb;
+    border-color: #cbd5e1;
+    color: #6b7280;
+    cursor: not-allowed;
 }
 
 .warning-icon {

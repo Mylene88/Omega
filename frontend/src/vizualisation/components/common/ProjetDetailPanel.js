@@ -1,7 +1,6 @@
 // frontend/src/visualisation/components/common/ProjetDetailPanel.js
 import React from 'react';
-import { getStatusBadgeClass } from '../../utils/statutColors';
-import { formatDateTime, formatDate } from '../../utils/DateFormat';
+import { formatDateTime } from '../../utils/DateFormat';
 
 export default function ProjetDetailPanel({
                                               selectedProjectDetails,
@@ -140,6 +139,12 @@ export default function ProjetDetailPanel({
         });
     })();
 
+    const isArchived = !!(
+        selectedProjectDetails?.projet?.isArchived ||
+        selectedProjectDetails?.is_archived ||
+        selectedProjectDetails?.projet?.is_archived
+    );
+
     return (
         <aside className="liste-detail-pane">
             <div className="liste-detail-header">
@@ -161,18 +166,20 @@ export default function ProjetDetailPanel({
                     {expandedSections.infos && (
                         <div className="accordion-content">
                             <div className="info-grid">
-                                <div className="info-item">
-                                    <span className="info-label">ID Projet</span>
-                                    <span className="info-value" style={{
-                                        fontFamily: 'monospace',
-                                        color: '#667eea',
-                                        fontWeight: '700'
-                                    }}>
-                                        {selectedProjectDetails.projet?.id ||
-                                        selectedProjectDetails.id_projet ||
-                                        'Aucun ID renseigné'}
-                                    </span>
-                                </div>
+                                {!isArchived && (
+                                    <div className="info-item">
+                                        <span className="info-label">ID Projet</span>
+                                        <span className="info-value" style={{
+                                            fontFamily: 'monospace',
+                                            color: '#667eea',
+                                            fontWeight: '700'
+                                        }}>
+                                            {selectedProjectDetails.projet?.id ||
+                                            selectedProjectDetails.id_projet ||
+                                            'Aucun ID renseigné'}
+                                        </span>
+                                    </div>
+                                )}
 
                                 <div className="info-item">
                                     <span className="info-label">Nom du projet</span>
@@ -199,15 +206,27 @@ export default function ProjetDetailPanel({
                                 </div>
 
                                 <div className="info-item">
-                                    <span className="info-label">Date de prise de connaissance par la DDT</span>
+                                    <span className="info-label">Service référent</span>
                                     <span className="info-value">
-                                        {(selectedProjectDetails.projet?.dateIdentification ||
-                                        selectedProjectDetails.date_ident_projet)
-                                            ? new Date(selectedProjectDetails.projet?.dateIdentification ||
-                                                    selectedProjectDetails.date_ident_projet).toLocaleDateString('fr-FR')
-                                            : 'Aucune date renseignée'}
+                                        {selectedProjectDetails.serviceDdt?.libelle ||
+                                        selectedProjectDetails.service ||
+                                        selectedProjectDetails.projet?.service ||
+                                        'Aucun service renseigné'}
                                     </span>
                                 </div>
+
+                                {!isArchived && (
+                                    <div className="info-item">
+                                        <span className="info-label">Date de prise de connaissance par la DDT</span>
+                                        <span className="info-value">
+                                            {(selectedProjectDetails.projet?.dateIdentification ||
+                                            selectedProjectDetails.date_ident_projet)
+                                                ? new Date(selectedProjectDetails.projet?.dateIdentification ||
+                                                        selectedProjectDetails.date_ident_projet).toLocaleDateString('fr-FR')
+                                                : 'Aucune date renseignée'}
+                                        </span>
+                                    </div>
+                                )}
 
                                 <div className="info-item full-width">
                                     <span className="info-label">Description</span>
@@ -220,6 +239,8 @@ export default function ProjetDetailPanel({
                     )}
                 </div>
 
+                {!isArchived && (
+                <>
                 {/* 3. PORTEURS DU PROJET */}
                 <div className="accordion-section" id="section-porteurs">
                     <button
@@ -750,6 +771,9 @@ export default function ProjetDetailPanel({
                         </div>
                     )}
                 </div>
+                </>
+                )}
+
             </div>
         </aside>
     );

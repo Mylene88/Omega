@@ -100,6 +100,7 @@ export const API_ENDPOINTS = {
 
   // Demandes de suppression
   DELETION_REQUESTS: '/api/deletion-requests',
+  ARCHIVE_REQUESTS: '/api/archive-requests',
 
   // Admin
   ADMIN_STATS: '/api/admin/stats',

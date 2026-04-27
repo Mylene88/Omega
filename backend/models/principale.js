@@ -67,6 +67,11 @@ module.exports = (sequelize, DataTypes) => {
     projet_signale: { type: DataTypes.BOOLEAN, defaultValue: false },
     charte_accueil: { type: DataTypes.BOOLEAN, defaultValue: false },
     demande_suppression: { type: DataTypes.BOOLEAN, defaultValue: false },
+    demande_archivage: { type: DataTypes.BOOLEAN, defaultValue: false },
+    demande_restauration: { type: DataTypes.BOOLEAN, defaultValue: false },
+    is_archived: { type: DataTypes.BOOLEAN, defaultValue: false },
+    archived_at: { type: DataTypes.DATE, allowNull: true },
+    archived_by: { type: DataTypes.INTEGER, allowNull: true, references: { model: User, key: 'id_user' } },
     service_id: { type: DataTypes.INTEGER, references: { model: DdtServiceEnum, key: 'id_service' } },
     referent_ddt: { type: DataTypes.TEXT },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
@@ -214,6 +219,7 @@ module.exports = (sequelize, DataTypes) => {
   Projet.belongsTo(DdtServiceEnum, { foreignKey: 'service_id', as: 'ddt_service_enum' });
   Projet.belongsTo(User, { as: 'creator', foreignKey: 'created_by' });
   Projet.belongsTo(User, { as: 'updater', foreignKey: 'updated_by' });
+  Projet.belongsTo(User, { as: 'archiver', foreignKey: 'archived_by' });
   Projet.belongsTo(User, { foreignKey: 'created_by', as: 'createur' });
   ProjetPorteur.belongsTo(Projet, { foreignKey: 'id_projet', onDelete: 'CASCADE' });
   ProjetPorteur.belongsTo(TypePorteurEnum, { foreignKey: 'type_porteur_id', as: 'type_porteur_enum' });
@@ -228,6 +234,7 @@ module.exports = (sequelize, DataTypes) => {
 
   User.hasMany(Projet, { foreignKey: 'created_by' });
   User.hasMany(ProjetSuivi, { foreignKey: 'created_by' });
+  User.hasMany(Projet, { foreignKey: 'archived_by', as: 'archived_projects' });
 
   ProjetInThematique.belongsTo(Projet, { foreignKey: 'id_projet', onDelete: 'CASCADE'});
   ProjetInThematique.belongsTo(Thematique, { foreignKey: 'id_thematique', onDelete: 'CASCADE' });
@@ -384,6 +391,31 @@ module.exports = (sequelize, DataTypes) => {
     timestamps: true
   });
 
+  // --- Table projet_archive_request : demandes d'archivage/restauration ---
+  const ProjetArchiveRequest = sequelize.define('projet_archive_request', {
+    id_archive_request: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    id_projet: { type: DataTypes.STRING, allowNull: true, references: { model: Projet, key: 'id_projet' }, onDelete: 'SET NULL' },
+    projet_nom_cache: { type: DataTypes.STRING, allowNull: true },
+    requested_by: { type: DataTypes.INTEGER, allowNull: false, references: { model: User, key: 'id_user' } },
+    request_type: {
+      type: DataTypes.ENUM('archivage', 'restauration'),
+      allowNull: false,
+      defaultValue: 'archivage'
+    },
+    raison: { type: DataTypes.TEXT, allowNull: true },
+    statut: { type: DataTypes.ENUM('en attente', 'accepter', 'refuser'), allowNull: false, defaultValue: 'en attente' },
+    reviewed_by: { type: DataTypes.INTEGER, allowNull: true, references: { model: User, key: 'id_user' } },
+    review_comment: { type: DataTypes.TEXT, allowNull: true },
+    reviewed_at: { type: DataTypes.DATE, allowNull: true },
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+  }, {
+    schema,
+    tableName: 'projet_archive_request',
+    createdAt: 'created_at',
+    updatedAt: false,
+    timestamps: true
+  });
+
   // Associations pour les tables d'audit
   AuditLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
   User.hasMany(AuditLog, { foreignKey: 'user_id' });
@@ -408,6 +440,14 @@ module.exports = (sequelize, DataTypes) => {
   Projet.hasMany(ProjetDeletionRequest, { foreignKey: 'id_projet', as: 'deletion_requests' });
   User.hasMany(ProjetDeletionRequest, { foreignKey: 'requested_by', as: 'deletion_requests_made' });
   User.hasMany(ProjetDeletionRequest, { foreignKey: 'reviewed_by', as: 'deletion_requests_reviewed' });
+
+  // Associations pour les demandes d'archivage/restauration
+  ProjetArchiveRequest.belongsTo(Projet, { foreignKey: 'id_projet', as: 'projet' });
+  ProjetArchiveRequest.belongsTo(User, { foreignKey: 'requested_by', as: 'requestor' });
+  ProjetArchiveRequest.belongsTo(User, { foreignKey: 'reviewed_by', as: 'reviewer' });
+  Projet.hasMany(ProjetArchiveRequest, { foreignKey: 'id_projet', as: 'archive_requests' });
+  User.hasMany(ProjetArchiveRequest, { foreignKey: 'requested_by', as: 'archive_requests_made' });
+  User.hasMany(ProjetArchiveRequest, { foreignKey: 'reviewed_by', as: 'archive_requests_reviewed' });
 
   // --- Table section_version : versioning granulaire par section ---
   const SectionVersion = sequelize.define('section_version', {
@@ -496,6 +536,7 @@ module.exports = (sequelize, DataTypes) => {
     ProjetSnapshotSection,
     AdminAccessLog,
     ProjetDeletionRequest,
+    ProjetArchiveRequest,
     SectionVersion,
     SecurityLog,
   };

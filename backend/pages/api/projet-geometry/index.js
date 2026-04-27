@@ -92,7 +92,8 @@ export default async function handler(req, res) {
       attributes: [
         'id_projet', 'nom_projet', 'description', 'date_ident_projet',
         'projet_signale', 'charte_accueil', 'referent_ddt', 'service_id',
-        'statut_projet_id', 'demande_suppression', 'created_at', 'updated_at', 'created_by'
+        'statut_projet_id', 'demande_suppression', 'demande_archivage', 'demande_restauration',
+        'is_archived', 'archived_at', 'created_at', 'updated_at', 'created_by'
       ],
       include: [
         {
@@ -360,6 +361,10 @@ export default async function handler(req, res) {
                 projet_signale: projetData.projet_signale || false,
                 charte_accueil: projetData.charte_accueil || false,
                 demande_suppression: projetData.demande_suppression || false,
+                demande_archivage: projetData.demande_archivage || false,
+                demande_restauration: projetData.demande_restauration || false,
+                is_archived: projetData.is_archived || false,
+                archived_at: projetData.archived_at || null,
 
                 // ✅ STATUTS - TOUTES LES VARIANTES
                 statut_projet_id: projetData.statut_projet_id,

@@ -298,6 +298,7 @@ export default function Map({ onSelect }) {
                         const description = props.description || 'Aucune description'
                         const statut = props.libelle_statut || props.statut_projet || props.statut || 'Aucun statut';
                         const serviceReferent = props.service || props.service_ddt || 'Aucun service';
+                        const isArchived = !!props.is_archived;
 
                         // Superficie ou longueur
                         let dimensionText = '';
@@ -383,7 +384,33 @@ export default function Map({ onSelect }) {
 
 
                      // Construction du HTML du tooltip
-                        const tooltipContent = `
+                        const tooltipContent = isArchived ? `
+                            <div style="
+                                background: white;
+                                border-radius: 8px;
+                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                                padding: 14px;
+                                min-width: 240px;
+                                max-width: 300px;
+                                font-family: 'MARIANNE', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                            ">
+                                <h3 style="
+                                    margin: 0 0 10px 0;
+                                    font-size: 15px;
+                                    font-weight: 700;
+                                    color: #1e293b;
+                                    line-height: 1.4;
+                                ">${nomProjet}</h3>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <div style="font-size: 12px; color: #475569;">
+                                        <strong>Statut:</strong> ${getStatusStyle(statut).libelle}
+                                    </div>
+                                    <div style="font-size: 12px; color: #475569;">
+                                        <strong>Service référent:</strong> ${serviceReferent}
+                                    </div>
+                                </div>
+                            </div>
+                        ` : `
                             <div style="
                                 background: white;
                                 border-radius: 8px;

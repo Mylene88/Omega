@@ -1,13 +1,17 @@
 // frontend/src/visualisation/components/Sidebar.jsx
 import React, { useEffect, useState } from 'react';
 import '../styles/SidebarStyle.css';
-import { formatDateTime, formatDate } from '../utils/DateFormat';
+import { formatDateTime } from '../utils/DateFormat';
 import { API_BASE_URL } from '../../config/apiConfig';
+import { getApiHeaders } from '../../utils/userHelper';
+import ArchiveRequestModal from './common/ArchiveRequestModal';
 
 export default function Sidebar({ projectId, onClose }) {
     const [info, setInfo] = useState(null);
     const [err, setErr] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [archiveModalOpen, setArchiveModalOpen] = useState(false);
+    const [isSubmittingArchiveRequest, setIsSubmittingArchiveRequest] = useState(false);
 
     // États d'expansion des sections (accordéon)
     const [expandedSections, setExpandedSections] = useState({
@@ -96,6 +100,10 @@ export default function Sidebar({ projectId, onClose }) {
                     date_ident_projet: projet?.dateIdentification,
                     projet_signale: projet?.projetSignale,
                     charte_accueil: projet?.charteAccueil,
+                    demande_archivage: projet?.demandeArchivage,
+                    demande_restauration: projet?.demandeRestauration,
+                    is_archived: projet?.isArchived,
+                    archived_at: projet?.archivedAt,
                     service: serviceDdt?.libelle,
                     referent_ddt: projet?.referentDdt,
                     created_at: projet?.dateCreation,
@@ -176,9 +184,63 @@ export default function Sidebar({ projectId, onClose }) {
             .finally(() => setLoading(false));
     }, [projectId]);
 
+    const isArchived = !!info?.is_archived;
+    const archiveRequestPending = !!info?.demande_archivage;
+    const restoreRequestPending = !!info?.demande_restauration;
+    const pendingArchiveRequest = isArchived ? restoreRequestPending : archiveRequestPending;
+
+    const handleArchiveRequest = () => {
+        if (!info?.id_projet || pendingArchiveRequest || isSubmittingArchiveRequest) {
+            return;
+        }
+
+        setArchiveModalOpen(true);
+    };
+
+    const handleArchiveSubmit = async (raison) => {
+        if (!info?.id_projet || pendingArchiveRequest || isSubmittingArchiveRequest) {
+            return;
+        }
+
+        const requestType = isArchived ? 'restauration' : 'archivage';
+
+        setIsSubmittingArchiveRequest(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/archive-requests`, {
+                method: 'POST',
+                headers: getApiHeaders(),
+                body: JSON.stringify({
+                    id_projet: info.id_projet,
+                    request_type: requestType,
+                    raison: raison || null
+                })
+            });
+
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || result.message || 'Erreur lors de la demande');
+            }
+
+            alert(
+                isArchived
+                    ? '✅ Demande de restauration envoyée avec succès.'
+                    : '✅ Demande d\'archivage envoyée avec succès.'
+            );
+            setArchiveModalOpen(false);
+            window.location.reload();
+        } catch (error) {
+            console.error('❌ Erreur demande archivage/restauration:', error);
+            alert(`❌ ${error.message}`);
+            throw error;
+        } finally {
+            setIsSubmittingArchiveRequest(false);
+        }
+    };
+
     if (!projectId) return null;
 
     return (
+        <>
         <div className="sidebar-card">
             {/* Header */}
             <div className="sidebar-card-header">
@@ -214,16 +276,18 @@ export default function Sidebar({ projectId, onClose }) {
                             {expandedSections.infos && (
                                 <div className="accordion-content">
                                     <div className="info-grid">
-                                        <div className="info-item">
-                                            <span className="info-label">ID Projet</span>
-                                            <span className="info-value" style={{
-                                                fontFamily: 'monospace',
-                                                color: '#667eea',
-                                                fontWeight: '700'
-                                            }}>
-                                                {info.id_projet || 'Aucun ID renseigné'}
-                                            </span>
-                                        </div>
+                                        {!isArchived && (
+                                            <div className="info-item">
+                                                <span className="info-label">ID Projet</span>
+                                                <span className="info-value" style={{
+                                                    fontFamily: 'monospace',
+                                                    color: '#667eea',
+                                                    fontWeight: '700'
+                                                }}>
+                                                    {info.id_projet || 'Aucun ID renseigné'}
+                                                </span>
+                                            </div>
+                                        )}
 
                                         <div className="info-item">
                                             <span className="info-label">Nom du projet</span>
@@ -237,16 +301,23 @@ export default function Sidebar({ projectId, onClose }) {
                                             </span>
                                         </div>
 
-
-
                                         <div className="info-item">
-                                            <span className="info-label">Date de prise de connaissance par la DDT</span>
-                                            <span className="info-value">
-                                                {info.date_ident_projet
-                                                    ? new Date(info.date_ident_projet).toLocaleDateString('fr-FR')
-                                                    : 'Aucune date renseignée'}
-                                            </span>
+                                            <span className="info-label">Service Référent</span>
+                                            <span className="info-value">{info.service || 'Aucun service renseigné'}</span>
                                         </div>
+
+
+
+                                        {!isArchived && (
+                                            <div className="info-item">
+                                                <span className="info-label">Date de prise de connaissance par la DDT</span>
+                                                <span className="info-value">
+                                                    {info.date_ident_projet
+                                                        ? new Date(info.date_ident_projet).toLocaleDateString('fr-FR')
+                                                        : 'Aucune date renseignée'}
+                                                </span>
+                                            </div>
+                                        )}
 
                                         <div className="info-item full-width">
                                             <span className="info-label">Description</span>
@@ -257,6 +328,8 @@ export default function Sidebar({ projectId, onClose }) {
                             )}
                         </div>
 
+                        {!isArchived && (
+                        <>
                         {/* 3️⃣ SUIVI DDT */}
                         <div className="accordion-section">
                             <button
@@ -665,10 +738,6 @@ export default function Sidebar({ projectId, onClose }) {
                                 <div className="accordion-content">
                                     {info.geometries?.length > 0 ? (
                                         info.geometries.map((g, i) => {
-                                            const listToText = (arr) => (arr || [])
-                                                .map(it => typeof it === 'string' ? it : (it.nom || it.nomComplet || it.name || it.label || JSON.stringify(it)))
-                                                .join(', ');
-
                                             return (
                                                 <div key={i} className="geom-item">
                                                     <div className="geom-header">
@@ -749,10 +818,36 @@ export default function Sidebar({ projectId, onClose }) {
                                 </div>
                             )}
                         </div>
+                        </>
+                        )}
+
+                        <div className="archive-actions-box">
+                            <button
+                                className={`archive-action-button ${pendingArchiveRequest ? 'disabled' : ''}`}
+                                onClick={handleArchiveRequest}
+                                disabled={pendingArchiveRequest || isSubmittingArchiveRequest || !info?.id_projet}
+                            >
+                                {isSubmittingArchiveRequest
+                                    ? 'Envoi en cours...'
+                                    : isArchived
+                                        ? (restoreRequestPending ? '⏳ Demande de restauration en attente' : '♻️ Demande de restauration')
+                                        : (archiveRequestPending ? '⏳ Demande d\'archivage en attente' : '🗃️ Demande d\'archivage')}
+                            </button>
+                        </div>
 
                     </>
                 )}
             </div>
         </div>
+
+        {archiveModalOpen && info && (
+            <ArchiveRequestModal
+                projet={info}
+                requestType={isArchived ? 'restauration' : 'archivage'}
+                onClose={() => setArchiveModalOpen(false)}
+                onSubmit={handleArchiveSubmit}
+            />
+        )}
+        </>
     );
 }

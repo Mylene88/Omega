@@ -961,6 +961,12 @@ Les modifications ont bien été appliquées en base de données.`);
             🗑️ Demandes de suppression
           </button>
           <button
+              className={`tab ${activeTab === 'archive-requests' ? 'active' : ''}`}
+              onClick={() => setActiveTab('archive-requests')}
+          >
+            🗃️ Demandes d'archivage
+          </button>
+          <button
               className={`tab ${activeTab === 'deleted-projects' ? 'active' : ''}`}
               onClick={() => setActiveTab('deleted-projects')}
           >
@@ -1868,6 +1874,32 @@ Les modifications ont bien été appliquées en base de données.`);
           {/* Tab: Demandes de suppression */}
           {activeTab === 'deletion-requests' && (
               <DeletionRequestsTab
+                  apiCall={async (endpoint, options = {}) => {
+                    const token = localStorage.getItem('token');
+                    const response = await fetch(`${API_BASE_URL}/api${endpoint}`, {
+                      ...options,
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                      }
+                    });
+                    if (!response.ok) {
+                      const errorData = await response.json().catch(() => ({}));
+                      throw new Error(errorData.message || `Erreur HTTP ${response.status}`);
+                    }
+                    return response.json();
+                  }}
+                  success={(message, title) => alert(`✅ ${title}\n${message}`)}
+                  error={(message, title) => alert(`❌ ${title}\n${message}`)}
+                  warning={(message, title) => alert(`⚠️ ${title}\n${message}`)}
+              />
+          )}
+
+          {/* Tab: Demandes d'archivage */}
+          {activeTab === 'archive-requests' && (
+              <DeletionRequestsTab
+                  mode="archive"
                   apiCall={async (endpoint, options = {}) => {
                     const token = localStorage.getItem('token');
                     const response = await fetch(`${API_BASE_URL}/api${endpoint}`, {
