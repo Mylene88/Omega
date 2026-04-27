@@ -4,96 +4,68 @@ import { useCallback } from 'react';
 import { getCurrentUserId, getApiHeaders } from '../utils/userHelper';
 
 /**
- * Hook personnalisé pour faire des appels API avec l'userId automatiquement ajouté
- * Utile pour le système de versioning des sections
+ * Hook personnalisé pour faire des appels API authentifiés.
+ * Conservé pour compatibilité, sans injection d'userId côté client.
  */
 export function useApiWithUserId() {
   /**
-   * Effectue une requête fetch avec l'userId dans les headers
+   * Effectue une requête fetch avec les headers API standardisés
    * @param {string} url - URL de l'API
    * @param {Object} options - Options fetch
    * @returns {Promise<Response>}
    */
   const fetchWithUserId = useCallback(async (url, options = {}) => {
-    const userId = getCurrentUserId();
-
     // Préparer les headers
     const headers = {
       ...getApiHeaders(),
       ...(options.headers || {})
     };
 
-    // Préparer le body avec userId
-    let body = options.body;
-    if (body && typeof body === 'string') {
-      try {
-        const bodyData = JSON.parse(body);
-        if (userId && !bodyData.userId) {
-          bodyData.userId = userId;
-        }
-        body = JSON.stringify(bodyData);
-      } catch (e) {
-        // Si le body n'est pas du JSON, on le laisse tel quel
-      }
-    }
-
     // Effectuer la requête
     return fetch(url, {
       ...options,
       headers,
-      body
+      body: options.body
     });
   }, []);
 
   /**
-   * POST avec userId
+   * POST authentifié
    */
   const post = useCallback(async (url, data) => {
-    const userId = getCurrentUserId();
-    const bodyData = userId ? { ...data, userId } : data;
-
     return fetchWithUserId(url, {
       method: 'POST',
-      body: JSON.stringify(bodyData)
+      body: JSON.stringify(data)
     });
   }, [fetchWithUserId]);
 
   /**
-   * PUT avec userId
+   * PUT authentifié
    */
   const put = useCallback(async (url, data) => {
-    const userId = getCurrentUserId();
-    const bodyData = userId ? { ...data, userId } : data;
-
     return fetchWithUserId(url, {
       method: 'PUT',
-      body: JSON.stringify(bodyData)
+      body: JSON.stringify(data)
     });
   }, [fetchWithUserId]);
 
   /**
-   * PATCH avec userId
+   * PATCH authentifié
    */
   const patch = useCallback(async (url, data) => {
-    const userId = getCurrentUserId();
-    const bodyData = userId ? { ...data, userId } : data;
-
     return fetchWithUserId(url, {
       method: 'PATCH',
-      body: JSON.stringify(bodyData)
+      body: JSON.stringify(data)
     });
   }, [fetchWithUserId]);
 
   /**
-   * DELETE avec userId
+   * DELETE authentifié
    */
   const del = useCallback(async (url, data = {}) => {
-    const userId = getCurrentUserId();
-    const bodyData = userId ? { ...data, userId } : data;
-
     return fetchWithUserId(url, {
       method: 'DELETE',
-      body: JSON.stringify(bodyData)
+      body: JSON.stringify(data)
     });
   }, [fetchWithUserId]);
 

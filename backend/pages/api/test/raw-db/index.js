@@ -7,6 +7,13 @@ const { Pool } = require('pg');
 
 
 export default async function handler(req, res) {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({
+      success: false,
+      message: 'Endpoint désactivé en production'
+    });
+  }
+
   if (req.method === 'GET') {
 
   const pool = new Pool({

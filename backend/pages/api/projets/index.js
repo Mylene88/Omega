@@ -7,6 +7,7 @@ import db from '../../../models';  // ✅ Chemin corrigé
 import generateUniqueProjectId from '../../../utils/identifiant';  // ✅ Chemin corrigé
 import { logAudit, createSnapshot, extractRequestInfo, createSectionVersion } from '../../../lib/auditHelper';
 import { saveCurrentSectionVersion } from '../../../lib/sectionVersionHelper';
+import { requireAuth } from '../../../lib/authHelper';
 
 const {
   Projet,
@@ -128,6 +129,15 @@ const {
 // GET /api/projets → récupérer tous les projets
 
 export default async function handler(req, res) {
+  let authenticatedUserId = null;
+  if (req.method === 'POST') {
+    const authResult = await requireAuth(req);
+    if (!authResult.allowed) {
+      return res.status(authResult.status).json(authResult.response);
+    }
+    authenticatedUserId = authResult.userId;
+  }
+
   if (req.method === 'GET') {
 
   try {
@@ -222,9 +232,8 @@ export default async function handler(req, res) {
     console.log('   - thematiques:', body.thematiques);
     console.log('   - documents:', body.documents);
 
-    // 🆔 Extraire l'ID utilisateur pour les snapshots et audits
-    // ✅ Vérifier plusieurs sources possibles (updated_by, userId, created_by)
-    const userId = body.updated_by || body.userId || body.created_by;
+    // 🆔 Utilisateur authentifié côté serveur (source unique)
+    const userId = authenticatedUserId;
     console.log('   - userId:', userId);
 
     // ✅ Vérifier si le projet existe déjà (mode édition)
@@ -268,8 +277,8 @@ export default async function handler(req, res) {
       charte_accueil: body.charte_accueil,
       service_id: body.service_id,
       referent_ddt: body.referent_ddt,
-      created_by: body.created_by,
-      updated_by: userId,  // ✅ Utiliser le userId extrait (prend en compte updated_by, userId, created_by)
+      created_by: userId,
+      updated_by: userId,
 
       porteurs: Array.isArray(body.porteurs) ? body.porteurs : [],
       suivis: Array.isArray(body.suivis) ? body.suivis : [],
@@ -307,7 +316,7 @@ export default async function handler(req, res) {
         // Sauvegarder version de projet_info
         await saveCurrentSectionVersion({
           idProjet: projetExistant.id_projet,
-          userId: body.userId || userId,
+          userId,
           sectionName: 'projet_info',
           description: 'Sauvegarde avant modification du projet',
           transaction
@@ -316,7 +325,7 @@ export default async function handler(req, res) {
         // Sauvegarder version des porteurs
         await saveCurrentSectionVersion({
           idProjet: projetExistant.id_projet,
-          userId: body.userId || userId,
+          userId,
           sectionName: 'porteurs',
           description: 'Sauvegarde avant modification des porteurs',
           transaction
@@ -325,7 +334,7 @@ export default async function handler(req, res) {
         // Sauvegarder version des suivis
         await saveCurrentSectionVersion({
           idProjet: projetExistant.id_projet,
-          userId: body.userId || userId,
+          userId,
           sectionName: 'suivis',
           description: 'Sauvegarde avant modification des suivis',
           transaction
@@ -334,7 +343,7 @@ export default async function handler(req, res) {
         // Sauvegarder version des thématiques
         await saveCurrentSectionVersion({
           idProjet: projetExistant.id_projet,
-          userId: body.userId || userId,
+          userId,
           sectionName: 'thematiques',
           description: 'Sauvegarde avant modification des thématiques',
           transaction
@@ -552,13 +561,13 @@ export default async function handler(req, res) {
 
       // Ne créer qu'une seule association par id_thematique (pas par modèle)
       if (!thematiqueRecordsMap.has(them.id_thematique)) {
-        thematiqueRecordsMap.set(them.id_thematique, {
-          id_projet: nouveauProjet.id_projet,
-          id_thematique: them.id_thematique,
-          ajoute_par: body.created_by || body.updated_by || them.ajoute_par || 404,
-          date_ajout: new Date()
-        });
-      }
+          thematiqueRecordsMap.set(them.id_thematique, {
+            id_projet: nouveauProjet.id_projet,
+            id_thematique: them.id_thematique,
+            ajoute_par: userId,
+            date_ajout: new Date()
+          });
+        }
     });
 
     const thematiqueRecords = Array.from(thematiqueRecordsMap.values());
@@ -652,7 +661,7 @@ export default async function handler(req, res) {
             ...normalFields,
             // ✅ Toujours utiliser created_at/created_by car les thématiques sont supprimées puis recréées
             created_at: new Date(),
-            created_by: body.created_by || body.updated_by || 404,
+            created_by: userId,
             // ✅ Ajouter updated_at et updated_by comme NULL pour satisfaire le modèle Sequelize
             updated_at: null,
             updated_by: null
@@ -751,12 +760,13 @@ export default async function handler(req, res) {
   }
   }
   else if (req.method === 'OPTIONS') {
+  const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:3001';
 
   return res.json({}, {
     headers: {
-      'Access-Control-Allow-Origin': 'http://localhost:3001',
+      'Access-Control-Allow-Origin': corsOrigin,
       'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-user-id',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Allow-Credentials': 'true',
     },
   });

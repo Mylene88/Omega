@@ -7,6 +7,7 @@ import DeletionRequestModal from './common/DeletionRequestModal';
 import { formatDateTimeFr } from '../../utils/dateFormatter';
 import '../styles/VueListeStyle.css';
 import { API_BASE_URL } from '../../config/apiConfig';
+import { getApiHeaders } from '../../utils/userHelper';
 
 export default function VueListe({
     projects,
@@ -60,9 +61,7 @@ export default function VueListe({
               `${API_BASE_URL}/api/projets/${project.id_projet}/export?format=${format}`,
             {
                 method: 'GET',
-                headers: {
-                'Content-Type': 'application/json',
-                }
+                headers: getApiHeaders()
             }
             );
 
@@ -123,12 +122,9 @@ export default function VueListe({
 
             const response = await fetch(`${API_BASE_URL}/api/deletion-requests`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: getApiHeaders(),
                 body: JSON.stringify({
                     id_projet: projectToDelete.id_projet,
-                    requested_by: currentUser.id_user,
                     raison: raison
                 })
             });

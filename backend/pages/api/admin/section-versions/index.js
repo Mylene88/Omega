@@ -167,60 +167,101 @@ export default async function handler(req, res) {
 
     console.log('🧹 Déclenchement du nettoyage des versions de sections par admin...');
 
+    const retentionDays = 15;
+    const maxVersionsPerGroup = 10;
     const fifteenDaysAgo = new Date();
-    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - retentionDays);
 
     // 1. Supprimer les versions de plus de 15 jours
     const deletedOldVersions = await db.SectionVersion.destroy({
       where: {
-        snapshot_date: {
-          [Op.lt]: fifteenDaysAgo
-        }
-      }
-    });
-
-    // 2. Pour chaque couple (utilisateur, section), garder max 10 versions
-    const allCombinations = await db.SectionVersion.findAll({
-      attributes: [
-        'user_id',
-        'section_name'
-      ],
-      group: ['user_id', 'section_name'],
-      raw: true
-    });
-
-    let totalExcessVersions = 0;
-
-    for (const combo of allCombinations) {
-      const { user_id, section_name } = combo;
-
-      const count = await db.SectionVersion.count({
-        where: { user_id, section_name }
-      });
-
-      if (count > 10) {
-        const versionsToKeep = await db.SectionVersion.findAll({
-          where: { user_id, section_name },
-          order: [['snapshot_date', 'DESC'], ['id_version', 'DESC']],
-          limit: 10,
-          attributes: ['id_version']
-        });
-
-        const idsToKeep = versionsToKeep.map(v => v.id_version);
-
-        const deleted = await db.SectionVersion.destroy({
-          where: {
-            user_id,
-            section_name,
-            id_version: {
-              [Op.notIn]: idsToKeep
+        [Op.or]: [
+          {
+            snapshot_date: {
+              [Op.lt]: fifteenDaysAgo
+            }
+          },
+          {
+            snapshot_date: {
+              [Op.is]: null
+            },
+            created_at: {
+              [Op.lt]: fifteenDaysAgo
             }
           }
-        });
-
-        totalExcessVersions += deleted;
+        ]
       }
+    });
+
+    // 2. Garder max 10 versions par couple (utilisateur, section)
+    const groupsOverLimitBefore = await db.sequelize.query(
+      `
+        SELECT
+          user_id,
+          section_name,
+          COUNT(*)::int AS count
+        FROM principale.section_version
+        GROUP BY user_id, section_name
+        HAVING COUNT(*) > :maxVersions
+        ORDER BY count DESC, user_id, section_name
+      `,
+      {
+        replacements: { maxVersions: maxVersionsPerGroup },
+        type: db.sequelize.QueryTypes.SELECT
+      }
+    );
+
+    const idsToDeleteRows = await db.sequelize.query(
+      `
+        WITH ranked_versions AS (
+          SELECT
+            id_version,
+            ROW_NUMBER() OVER (
+              PARTITION BY user_id, section_name
+              ORDER BY snapshot_date DESC NULLS LAST, id_version DESC
+            ) AS rn
+          FROM principale.section_version
+        )
+        SELECT id_version
+        FROM ranked_versions
+        WHERE rn > :maxVersions
+      `,
+      {
+        replacements: { maxVersions: maxVersionsPerGroup },
+        type: db.sequelize.QueryTypes.SELECT
+      }
+    );
+
+    const idsToDelete = idsToDeleteRows
+      .map((row) => parseInt(row.id_version, 10))
+      .filter((id) => Number.isInteger(id) && id > 0);
+
+    let totalExcessVersions = 0;
+    if (idsToDelete.length > 0) {
+      totalExcessVersions = await db.SectionVersion.destroy({
+        where: {
+          id_version: {
+            [Op.in]: idsToDelete
+          }
+        }
+      });
     }
+
+    const groupsOverLimitAfter = await db.sequelize.query(
+      `
+        SELECT
+          user_id,
+          section_name,
+          COUNT(*)::int AS count
+        FROM principale.section_version
+        GROUP BY user_id, section_name
+        HAVING COUNT(*) > :maxVersions
+      `,
+      {
+        replacements: { maxVersions: maxVersionsPerGroup },
+        type: db.sequelize.QueryTypes.SELECT
+      }
+    );
 
     const remainingCount = await db.SectionVersion.count();
 
@@ -233,7 +274,15 @@ export default async function handler(req, res) {
         deleted_old_versions: deletedOldVersions,
         deleted_excess_versions: totalExcessVersions,
         total_deleted: deletedOldVersions + totalExcessVersions,
-        remaining_versions: remainingCount
+        remaining_versions: remainingCount,
+        policy: {
+          retention_days: retentionDays,
+          max_versions_per_user_section: maxVersionsPerGroup
+        },
+        diagnostics: {
+          groups_over_limit_before: groupsOverLimitBefore.length,
+          groups_over_limit_after: groupsOverLimitAfter.length
+        }
       }
     });
 

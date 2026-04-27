@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 const db = require('../models');
 const { getClientIp } = require('../utils/ip');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'votre_secret_jwt_super_securise_a_changer';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 /**
  * Extrait les informations de la requête (IP, User Agent) - Pages Router
@@ -82,6 +82,27 @@ async function requireAdminWithLogging(req, action, resource = null, resourceId 
         error: {
           status: 401,
           message: 'Token d\'authentification manquant'
+        }
+      };
+    }
+
+    if (!JWT_SECRET) {
+      await logAdminAccess({
+        userId: null,
+        action,
+        resource,
+        resourceId,
+        ip,
+        userAgent,
+        success: false,
+        errorMessage: 'JWT_SECRET manquant côté serveur',
+        durationMs: Date.now() - startTime
+      });
+
+      return {
+        error: {
+          status: 500,
+          message: 'Configuration serveur invalide'
         }
       };
     }

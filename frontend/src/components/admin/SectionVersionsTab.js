@@ -49,33 +49,73 @@ export default function SectionVersionsTab({ apiCall }) {
 
       console.log('🔄 Chargement des dropdowns...');
 
-      const [projetsResponse, usersResponse] = await Promise.all([
+      const [projetsResult, usersResult] = await Promise.allSettled([
         apiCall('/admin/projets'),
         apiCall('/admin/users?active=true')
       ]);
 
-      console.log('📁 Réponse projets:', projetsResponse);
-      console.log('👤 Réponse users:', usersResponse);
+      let projetsList = [];
+      let usersList = [];
 
-      if (projetsResponse.success) {
-        // Vérifier et normaliser les projets
-        const projetsNormalises = projetsResponse.data.map(projet => ({
-          ...projet,
-          display_label: projet.display_label || `${projet.id_projet} - ${projet.nom_projet || 'Sans nom'}`
-        }));
-        setProjets(projetsNormalises);
-        console.log(`✅ ${projetsNormalises.length} projets chargés`);
-        console.log('📋 Projets disponibles:', projetsNormalises.map(p => ({ id: p.id_projet, label: p.display_label })));
+      // Chargement des projets (indépendant)
+      if (projetsResult.status === 'fulfilled' && projetsResult.value?.success) {
+        projetsList = Array.isArray(projetsResult.value.data) ? projetsResult.value.data : [];
       } else {
-        console.error('❌ Erreur projets:', projetsResponse.message);
+        console.error('❌ Erreur projets admin:', projetsResult.status === 'rejected' ? projetsResult.reason : projetsResult.value?.message);
       }
 
-      if (usersResponse.success) {
-        setUsers(usersResponse.data);
-        console.log(`✅ ${usersResponse.data.length} utilisateurs chargés`);
-      } else {
-        console.error('❌ Erreur users:', usersResponse.message);
+      // Fallback projets via endpoint public si nécessaire
+      if (projetsList.length === 0) {
+        try {
+          const projetsFallback = await apiCall('/projets');
+          if (Array.isArray(projetsFallback)) {
+            projetsList = projetsFallback.map((projet) => ({
+              id_projet: projet.id_projet,
+              nom_projet: projet.nom_projet || 'Sans nom',
+              display_label: `${projet.id_projet} - ${projet.nom_projet || 'Sans nom'}`
+            }));
+            console.log(`✅ Fallback projets utilisé (${projetsList.length})`);
+          }
+        } catch (fallbackErr) {
+          console.error('❌ Fallback projets échoué:', fallbackErr);
+        }
       }
+
+      // Chargement des utilisateurs (indépendant)
+      if (usersResult.status === 'fulfilled' && usersResult.value?.success) {
+        usersList = Array.isArray(usersResult.value.data) ? usersResult.value.data : [];
+      } else {
+        console.error('❌ Erreur users admin:', usersResult.status === 'rejected' ? usersResult.reason : usersResult.value?.message);
+      }
+
+      // Fallback users via statistiques de versions si nécessaire
+      if (usersList.length === 0) {
+        try {
+          const versionsFallback = await apiCall('/admin/section-versions?limit=200');
+          if (versionsFallback?.success && Array.isArray(versionsFallback?.stats?.par_utilisateur)) {
+            usersList = versionsFallback.stats.par_utilisateur.map((user) => ({
+              id_user: user.user_id,
+              username: user.username || `user-${user.user_id}`,
+              nom_complet: user.nom_complet || user.username || `Utilisateur ${user.user_id}`
+            }));
+            console.log(`✅ Fallback users utilisé (${usersList.length})`);
+          }
+        } catch (fallbackErr) {
+          console.error('❌ Fallback users échoué:', fallbackErr);
+        }
+      }
+
+      const projetsNormalises = projetsList.map(projet => ({
+        ...projet,
+        display_label: projet.display_label || `${projet.id_projet} - ${projet.nom_projet || 'Sans nom'}`
+      }));
+
+      setProjets(projetsNormalises);
+      setUsers(usersList);
+
+      console.log(`✅ ${projetsNormalises.length} projets chargés`);
+      console.log(`✅ ${usersList.length} utilisateurs chargés`);
+      console.log('📋 Projets disponibles:', projetsNormalises.map(p => ({ id: p.id_projet, label: p.display_label })));
     } catch (err) {
       console.error('❌ Erreur chargement dropdowns:', err);
     } finally {
@@ -196,7 +236,22 @@ export default function SectionVersionsTab({ apiCall }) {
       });
 
       if (response.success) {
-        alert(`✅ Nettoyage effectué:\n- ${response.data.deleted_old_versions} versions anciennes supprimées\n- ${response.data.deleted_excess_versions} versions en excès supprimées\n- ${response.data.remaining_versions} versions restantes`);
+        const diagnostics = response.data?.diagnostics || {};
+        const policy = response.data?.policy || {};
+        alert(
+          `✅ Nettoyage effectué:\n` +
+          `- ${response.data.deleted_old_versions} versions anciennes supprimées\n` +
+          `- ${response.data.deleted_excess_versions} versions en excès supprimées\n` +
+          `- ${response.data.remaining_versions} versions restantes\n` +
+          `\n` +
+          `Règle appliquée:\n` +
+          `- max ${policy.max_versions_per_user_section ?? 10} versions par section/utilisateur\n` +
+          `- rétention ${policy.retention_days ?? 15} jours\n` +
+          `\n` +
+          `Diagnostic:\n` +
+          `- groupes > limite avant nettoyage: ${diagnostics.groups_over_limit_before ?? 0}\n` +
+          `- groupes > limite après nettoyage: ${diagnostics.groups_over_limit_after ?? 0}`
+        );
         loadVersions(); // Recharger
       } else {
         alert(`❌ Erreur: ${response.message}`);

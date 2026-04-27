@@ -141,9 +141,9 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body;
-    const { id_projet, raison, requested_by } = body;
+    const { id_projet, raison } = body;
 
-    console.log('📝 Demande de suppression reçue:', { id_projet, raison, requested_by });
+    console.log('📝 Demande de suppression reçue:', { id_projet, raison });
 
     // Validation
     if (!id_projet || !raison) {
@@ -154,22 +154,12 @@ export default async function handler(req, res) {
       }, { status: 400 });
     }
 
-    // Récupérer l'ID utilisateur depuis le body ou le token
-    let userId = requested_by;
-    if (!userId) {
-      const authResult = await requireAuth(req);
-      if (authResult.allowed) {
-        userId = authResult.userId;
-      }
-    }
-
-    if (!userId) {
+    const authResult = await requireAuth(req);
+    if (!authResult.allowed) {
       await transaction.rollback();
-      return res.json({
-        success: false,
-        message: 'Utilisateur non identifié'
-      }, { status: 401 });
+      return res.status(authResult.status).json(authResult.response);
     }
+    const userId = authResult.userId;
 
     // Vérifier que le projet existe
     const projet = await db.Projet.findByPk(id_projet, { transaction });
@@ -254,10 +244,11 @@ export default async function handler(req, res) {
   }
   }
   else if (req.method === 'OPTIONS') {
+  const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:3001';
 
   return res.json({}, {
     headers: {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': corsOrigin,
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },

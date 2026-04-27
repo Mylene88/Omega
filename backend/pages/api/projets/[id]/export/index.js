@@ -3,6 +3,7 @@
 // backend/app_backup/api/projets/[id]/export/route.js
 import db from '../../../../../models';
 import puppeteer from 'puppeteer';
+import { requireAuth } from '../../../../../lib/authHelper';
 // Note: Utiliser res de Pages Router (pas NextResponse qui est pour App Router)
 
 const {
@@ -970,6 +971,10 @@ function generateHTML(projet) {
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
+  const authResult = await requireAuth(req);
+  if (!authResult.allowed) {
+    return res.status(authResult.status).json(authResult.response);
+  }
 
   try {
     const { id } = req.query;

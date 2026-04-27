@@ -5,6 +5,7 @@ import { Op } from 'sequelize';
 import { getFormattedThematiqueLabel } from '@/backend/lib/config';
 import db from '@/backend/models';
 import { logAudit, createSnapshot, createSectionVersion, extractRequestInfo } from '@/backend/lib/auditHelper';
+import { requireAuth } from '@/backend/lib/authHelper';
 
 const {
   Projet,
@@ -31,6 +32,15 @@ export default async function handler(req, res) {
       success: false,
       message: 'Id du projet est invalide'
     });
+  }
+
+  let authenticatedUserId = null;
+  if (req.method === 'PUT' || req.method === 'DELETE') {
+    const authResult = await requireAuth(req);
+    if (!authResult.allowed) {
+      return res.status(authResult.status).json(authResult.response);
+    }
+    authenticatedUserId = authResult.userId;
   }
 
   // ✅ GET /api/projets/[id]
@@ -698,7 +708,7 @@ export default async function handler(req, res) {
         });
       }
 
-      const userId = body.updated_by || body.userId || body.created_by;
+      const userId = authenticatedUserId;
       const projetAvant = projet.toJSON();
 
       // ✅ Créer un snapshot AVANT modification
@@ -834,7 +844,7 @@ export default async function handler(req, res) {
             return {
               id_projet: id,
               suivi: String(contenu).trim(),
-              created_by: s.created_by || body.updated_by || userId || null,
+              created_by: s.created_by || userId || null,
               created_at: s.created_at || s.dateCreation || new Date()
             };
           })
@@ -958,7 +968,7 @@ export default async function handler(req, res) {
           .map(them => ({
             id_projet: id,
             id_thematique: them.id_thematique,
-            ajoute_par: body.updated_by || them.ajoute_par || 404,
+            ajoute_par: userId,
             date_ajout: new Date()
           }));
 
@@ -1048,8 +1058,7 @@ export default async function handler(req, res) {
       const projetData = projet.toJSON();
       const { userIp, userAgent } = extractRequestInfo(req);
 
-      const body = req.body || {};
-      const userId = body.deleted_by || null;
+      const userId = authenticatedUserId;
 
       // ✅ Créer un snapshot AVANT suppression
       await createSnapshot({

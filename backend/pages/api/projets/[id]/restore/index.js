@@ -3,6 +3,7 @@
 // backend/app_backup/api/projets/[id]/restore/index.js
 
 import db from '../../../../../models';
+import { requireAdmin } from '../../../../../lib/adminAuthHelper';
 
 const { Projet } = db;
 
@@ -12,8 +13,9 @@ const { Projet } = db;
  */
 
 export default async function handler(req, res) {
+  const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:3001';
   // ✅ CORS Headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', corsOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
@@ -25,6 +27,11 @@ export default async function handler(req, res) {
 
 
   if (req.method === 'POST') {
+
+  const adminCheck = await requireAdmin(req);
+  if (!adminCheck.allowed) {
+    return res.status(adminCheck.status).json(adminCheck.response);
+  }
 
   try {
     const { id } = req.query;

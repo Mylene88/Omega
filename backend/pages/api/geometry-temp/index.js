@@ -29,15 +29,19 @@ export default async function handler(req, res) {
             );
         }
 
-        const geomWKT = `ST_GeomFromGeoJSON('${JSON.stringify(geom)}')`;
+        const geojsonPayload = JSON.stringify(geom);
+        const geomExpr = 'ST_GeomFromGeoJSON(CAST(:geojson AS json))';
 
         const geomStats = await sequelize.query(
             `SELECT
-                ST_GeometryType(${geomWKT}) as geom_type,
-                ST_Area(ST_Transform(${geomWKT}, 2154)) as area,
-                ST_Length(ST_Transform(${geomWKT}, 2154)) as length
+                ST_GeometryType(${geomExpr}) as geom_type,
+                ST_Area(ST_Transform(${geomExpr}, 2154)) as area,
+                ST_Length(ST_Transform(${geomExpr}, 2154)) as length
             `,
-            { type: QueryTypes.SELECT }
+            {
+              type: QueryTypes.SELECT,
+              replacements: { geojson: geojsonPayload }
+            }
         );
 
         const { area, length } = geomStats[0] || {};
@@ -49,16 +53,19 @@ export default async function handler(req, res) {
                     gc.maire_prenom, gc.maire_nom, gc.depute_prenom, gc.depute_nom,
                     ST_Area(ST_Intersection(
                         gc.geom, 
-                        ST_Transform(${geomWKT}, ST_SRID(gc.geom))
+                        ST_Transform(${geomExpr}, ST_SRID(gc.geom))
                     )) as intersection_area
              FROM externe.geom_commune gc
              WHERE ST_Intersects(
                  gc.geom, 
-                 ST_Transform(${geomWKT}, ST_SRID(gc.geom))
+                 ST_Transform(${geomExpr}, ST_SRID(gc.geom))
              )
              AND gc.code_dep = '28'
              ORDER BY intersection_area DESC`,
-            { type: QueryTypes.SELECT }
+            {
+              type: QueryTypes.SELECT,
+              replacements: { geojson: geojsonPayload }
+            }
         );
 
         const communes_traversees = intersectedCommunes.map(c => c.nom_com?.trim()).filter(Boolean);
@@ -131,7 +138,7 @@ export default async function handler(req, res) {
         headers: {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-user-id',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         },
     });
   }

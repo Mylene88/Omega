@@ -7,6 +7,7 @@
 
 const db = require('../models');
 const { createSectionVersion } = require('./auditHelper');
+const jwt = require('jsonwebtoken');
 
 function parseUserId(value) {
   const parsed = parseInt(value, 10);
@@ -162,53 +163,30 @@ async function saveCurrentSectionVersion({
 
 /**
  * Middleware pour extraire l'userId d'une requête Next.js
- * Essaie plusieurs sources : header, body, query params
+ * Source unique: JWT signé dans Authorization: Bearer <token>
  * @param {Object} req - Requête Next.js
  * @param {Object} body - Body déjà parsé (optionnel)
  * @returns {number|null} L'userId ou null
  */
 function extractUserId(req, body = null) {
   const headers = req.headers || {};
-  // 1. Chercher dans les headers (si authentification JWT)
-  const authHeader = headers['authorization'] || headers['Authorization'];
-  if (authHeader) {
-    try {
-      // TODO: Décoder le JWT pour extraire l'userId
-      // Pour l'instant, on suppose que l'userId est dans le header x-user-id
-      const userIdHeader = parseUserId(headers['x-user-id']);
-      if (userIdHeader) {
-        return userIdHeader;
-      }
-    } catch (error) {
-      console.warn('⚠️  Impossible d\'extraire userId du header auth');
-    }
+  const authHeader = headers.authorization || headers.Authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
   }
 
-  // 2. Chercher dans le body
-  if (body) {
-    const userIdFromBody = parseUserId(
-      body.userId ?? body.updated_by ?? body.created_by ?? body.deleted_by
-    );
-    if (userIdFromBody) {
-      return userIdFromBody;
-    }
+  if (!process.env.JWT_SECRET) {
+    console.error('❌ JWT_SECRET non défini - impossible d\'extraire userId');
+    return null;
   }
 
-  // 3. Chercher dans l'URL (query params)
+  const token = authHeader.substring(7);
+
   try {
-    const protocol = headers['x-forwarded-proto'] || 'http';
-    const host = headers.host || 'localhost';
-    const absoluteUrl = req.url?.startsWith('http')
-      ? req.url
-      : `${protocol}://${host}${req.url || ''}`;
-    const url = new URL(absoluteUrl);
-    const userIdParam = url.searchParams.get('userId');
-    const parsedFromQuery = parseUserId(userIdParam);
-    if (parsedFromQuery) {
-      return parsedFromQuery;
-    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    return parseUserId(decoded?.userId);
   } catch (error) {
-    // Ignore
+    console.warn('⚠️  Token invalide - impossible d\'extraire userId');
   }
 
   return null;

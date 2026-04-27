@@ -1,6 +1,7 @@
 // backend/pages/api/projets/snapshots/index.js
 import db from '../../../../models';
 import { createSnapshot } from '../../../../lib/auditHelper';
+import { requireAuth } from '../../../../lib/authHelper';
 const { ProjetSnapshot, ProjetSnapshotSection, Projet, User } = db;
 
 const SNAPSHOT_SECTIONS = ['projet_info', 'porteurs', 'suivis', 'thematiques', 'documents', 'geometrie'];
@@ -44,15 +45,20 @@ function buildSnapshotPayloadFromSections(project, sections) {
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
-    const { id_projet, user_id, sections, description, skipRotation = false } = req.body;
+    const authResult = await requireAuth(req);
+    if (!authResult.allowed) {
+      return res.status(authResult.status).json(authResult.response);
+    }
+
+    const { id_projet, sections, description, skipRotation = false } = req.body;
 
     try {
-      const parsedUserId = parsePositiveInt(user_id);
+      const userId = authResult.userId;
 
-      if (!id_projet || !parsedUserId || !sections || typeof sections !== 'object') {
+      if (!id_projet || !sections || typeof sections !== 'object') {
         return res.status(400).json({
           success: false,
-          error: 'Paramètres invalides: id_projet, user_id (>0) et sections (objet) requis'
+          error: 'Paramètres invalides: id_projet et sections (objet) requis'
         });
       }
 
@@ -70,7 +76,7 @@ export default async function handler(req, res) {
         idProjet: id_projet,
         projetData: snapshotPayload,
         description: description || `Snapshot manuel (API projets/snapshots)`,
-        userId: parsedUserId,
+        userId,
         skipRotation: !!skipRotation
       });
 
@@ -100,21 +106,26 @@ export default async function handler(req, res) {
     }
   }
   else if (req.method === 'GET') {
-    const { id_projet, user_id } = req.query;
+    const authResult = await requireAuth(req);
+    if (!authResult.allowed) {
+      return res.status(authResult.status).json(authResult.response);
+    }
+
+    const { id_projet } = req.query;
 
     try {
-      const parsedUserId = parsePositiveInt(user_id);
       const limit = normalizeLimit(req.query.limit, 100);
+      const userId = authResult.userId;
 
-      if (!id_projet || !parsedUserId) {
+      if (!id_projet) {
         return res.status(400).json({
           success: false,
-          error: 'Paramètres manquants ou invalides: id_projet et user_id (>0) requis'
+          error: 'Paramètres manquants ou invalides: id_projet requis'
         });
       }
 
       const snapshots = await ProjetSnapshot.findAll({
-        where: { id_projet, user_id: parsedUserId },
+        where: { id_projet, user_id: userId },
         include: [
           {
             model: ProjetSnapshotSection,

@@ -3,6 +3,8 @@
 // backend/app_backup/api/deletion-requests/[id]/route.js
 
 import db from '../../../../models';
+import { requireAuth } from '../../../../lib/authHelper';
+import { requireAdmin } from '../../../../lib/adminAuthHelper';
 
 const { ProjetDeletionRequest, Projet, User } = db;
 
@@ -17,15 +19,12 @@ export default async function handler(req, res) {
 
   try {
     const { id } = req.query;
-    // Query params available in req.query
-    const userId = req.query.user_id;
 
-    if (!userId) {
-      return res.json(
-        { error: 'ID utilisateur requis' },
-        { status: 400 }
-      );
+    const authResult = await requireAuth(req);
+    if (!authResult.allowed) {
+      return res.status(authResult.status).json(authResult.response);
     }
+    const userId = authResult.userId;
 
     const deletionRequest = await ProjetDeletionRequest.findByPk(id);
 
@@ -37,7 +36,7 @@ export default async function handler(req, res) {
     }
 
     // Vérifier que c'est bien l'auteur de la demande
-    if (deletionRequest.requested_by !== parseInt(userId)) {
+    if (deletionRequest.requested_by !== parseInt(userId, 10)) {
       return res.json(
         { error: 'Vous ne pouvez annuler que vos propres demandes' },
         { status: 403 }
@@ -60,7 +59,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error(`❌ Erreur DELETE /api/deletion-requests/${params.id}:`, error);
+    console.error(`❌ Erreur DELETE /api/deletion-requests/${req.query.id}:`, error);
     return res.json(
       { error: 'Erreur lors de l\'annulation de la demande' },
       { status: 500 }
@@ -74,23 +73,22 @@ export default async function handler(req, res) {
   try {
     const { id } = req.query;
     const body = req.body;
-    const { action, reviewed_by, review_comment } = body;
+    const { action, review_comment } = body;
 
-    console.log(`📝 Révision demande #${id}:`, { action, reviewed_by });
+    const adminCheck = await requireAdmin(req);
+    if (!adminCheck.allowed) {
+      await transaction.rollback();
+      return res.status(adminCheck.status).json(adminCheck.response);
+    }
+    const reviewerUserId = adminCheck.userId;
+
+    console.log(`📝 Révision demande #${id}:`, { action, reviewed_by: reviewerUserId });
 
     // Validation
     if (!['approve', 'reject'].includes(action)) {
       await transaction.rollback();
       return res.json(
         { error: 'Action invalide (approve ou reject)' },
-        { status: 400 }
-      );
-    }
-
-    if (!reviewed_by) {
-      await transaction.rollback();
-      return res.json(
-        { error: 'ID du reviewer requis' },
         { status: 400 }
       );
     }
@@ -127,7 +125,7 @@ export default async function handler(req, res) {
     // Mettre à jour la demande
     await deletionRequest.update({
       statut: nouveauStatut,
-      reviewed_by,
+      reviewed_by: reviewerUserId,
       review_comment: review_comment || null,
       reviewed_at: new Date()
     }, { transaction });
@@ -173,7 +171,7 @@ export default async function handler(req, res) {
 
   } catch (error) {
     await transaction.rollback();
-    console.error(`❌ Erreur PATCH /api/deletion-requests/${params.id}:`, error);
+    console.error(`❌ Erreur PATCH /api/deletion-requests/${req.query.id}:`, error);
     return res.json(
       { error: 'Erreur lors de la révision de la demande' },
       { status: 500 }

@@ -34,40 +34,31 @@ export function getCurrentUser() {
 }
 
 /**
- * Crée les headers HTTP avec l'userId pour les requêtes API
- * Utile pour le système de versioning
+ * Crée les headers HTTP sécurisés pour les requêtes API
+ * Utilise le JWT stocké en localStorage
  * @param {Object} additionalHeaders - Headers supplémentaires optionnels
- * @returns {Object} Headers HTTP avec x-user-id
+ * @returns {Object} Headers HTTP
  */
 export function getApiHeaders(additionalHeaders = {}) {
-  const userId = getCurrentUserId();
+  const token = localStorage.getItem('token');
 
   const headers = {
     'Content-Type': 'application/json',
     ...additionalHeaders
   };
 
-  if (userId) {
-    headers['x-user-id'] = userId.toString();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
   }
 
   return headers;
 }
 
 /**
- * Ajoute l'userId au body d'une requête
+ * Conservé pour compatibilité: ne modifie plus le body côté client.
  * @param {Object} data - Données à envoyer
- * @returns {Object} Données avec userId ajouté
+ * @returns {Object} Données inchangées
  */
 export function addUserIdToBody(data) {
-  const userId = getCurrentUserId();
-
-  if (userId) {
-    return {
-      ...data,
-      userId
-    };
-  }
-
   return data;
 }

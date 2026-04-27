@@ -15,7 +15,24 @@ const ALLOWED_ORIGINS = [
   'http://10.28.8.236:3001'
 ];
 
+const PRODUCTION_BLOCKED_API_PREFIXES = [
+  '/api/run-migration',
+  '/api/debug',
+  '/api/test'
+];
+
 export function middleware(request) {
+  const pathname = request.nextUrl.pathname;
+  if (process.env.NODE_ENV === 'production' && PRODUCTION_BLOCKED_API_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Endpoint désactivé en production'
+      },
+      { status: 404 }
+    );
+  }
+
   const origin = request.headers.get('origin');
   const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
 
@@ -49,7 +66,7 @@ function getSecurityHeaders(allowedOrigin) {
     // === CORS (Cross-Origin Resource Sharing) ===
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, x-user-id',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept',
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Max-Age': '86400', // 24h
 
