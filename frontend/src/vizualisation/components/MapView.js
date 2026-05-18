@@ -70,6 +70,7 @@ export default function Map({ onSelect }) {
         if (filters.searchArrondissement) params.set('arr', filters.searchArrondissement);
         if (filters.serviceIds?.length) params.set('services', filters.serviceIds.join(','));
         if (filters.thematiqueIds?.length) params.set('thematiques', filters.thematiqueIds.join(','));
+        if (filters.projetArchive) params.set('archives', '1');
         if (filters.projetSignale) params.set('signale', '1');
         if (filters.charteAccueil) params.set('charte', '1');
         navigate(`/projets/liste?${params.toString()}`, { replace: false, state: { from: location.pathname } });
@@ -299,6 +300,31 @@ export default function Map({ onSelect }) {
                         const statut = props.libelle_statut || props.statut_projet || props.statut || 'Aucun statut';
                         const serviceReferent = props.service || props.service_ddt || 'Aucun service';
                         const isArchived = !!props.is_archived;
+                        const nombrePorteurs = props.nb_porteurs ?? 0;
+                        const communes = Array.isArray(props.communes_traversees)
+                            ? props.communes_traversees
+                            : (props.communes_traversees ? [props.communes_traversees] : []);
+                        const communeLabel = (() => {
+                            const geomType = props.geom_type || geom.type;
+
+                            if (!geomType || communes.length === 0) {
+                                return 'Commune';
+                            }
+
+                            const geomTypeLower = String(geomType).toLowerCase();
+
+                            if (geomTypeLower === 'point') {
+                                return 'Commune';
+                            }
+
+                            if (geomTypeLower === 'linestring' || geomTypeLower === 'line' ||
+                                geomTypeLower === 'polygon' || geomTypeLower === 'multipolygon' ||
+                                geomTypeLower === 'multilinestring') {
+                                return 'Communes traversées';
+                            }
+
+                            return 'Commune';
+                        })();
 
                         // Superficie ou longueur
                         let dimensionText = '';
@@ -400,13 +426,19 @@ export default function Map({ onSelect }) {
                                     font-weight: 700;
                                     color: #1e293b;
                                     line-height: 1.4;
-                                ">${nomProjet}</h3>
+                                ">🗃️ ${nomProjet}</h3>
                                 <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    <div style="font-size: 12px; color: #475569;">
+                                        <strong>ID Projet:</strong> ${idProjet}
+                                    </div>
                                     <div style="font-size: 12px; color: #475569;">
                                         <strong>Statut:</strong> ${getStatusStyle(statut).libelle}
                                     </div>
                                     <div style="font-size: 12px; color: #475569;">
-                                        <strong>Service référent:</strong> ${serviceReferent}
+                                        <strong>Porteur:</strong> ${nombrePorteurs}
+                                    </div>
+                                    <div style="font-size: 12px; color: #475569;">
+                                        <strong>${communeLabel}:</strong> ${communes.length > 0 ? communes.join(', ') : 'Non renseignée'}
                                     </div>
                                 </div>
                             </div>

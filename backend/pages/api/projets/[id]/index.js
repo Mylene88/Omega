@@ -67,7 +67,7 @@ export default async function handler(req, res) {
           {
             model: User,
             as: 'creator',
-            attributes: ['id_user', 'username', 'prenom', 'nom'],
+            attributes: ['id_user', 'username', 'prenom', 'nom', 'is_active'],
             include: [
               {
                 model: RoleEnum,
@@ -81,7 +81,7 @@ export default async function handler(req, res) {
           {
             model: User,
             as: 'updater',
-            attributes: ['id_user', 'username', 'prenom', 'nom'],
+            attributes: ['id_user', 'username', 'prenom', 'nom', 'is_active'],
             required: false,
             include: [
               {
@@ -144,7 +144,7 @@ export default async function handler(req, res) {
             {
               model: User,
               as: 'auteur',
-              attributes: ['id_user', 'username', 'prenom', 'nom'],
+              attributes: ['id_user', 'username', 'prenom', 'nom', 'is_active'],
               required: false
             }
           ]
@@ -163,7 +163,7 @@ export default async function handler(req, res) {
             {
               model: User,
               as: 'ajouteParUser',
-              attributes: ['id_user', 'username', 'prenom', 'nom'],
+              attributes: ['id_user', 'username', 'prenom', 'nom', 'is_active'],
               required: false
             }
           ],
@@ -543,7 +543,8 @@ export default async function handler(req, res) {
               ajoutePar: assoc.ajouteParUser ? {
                 id: assoc.ajouteParUser.id_user,
                 username: assoc.ajouteParUser.username,
-                nomComplet: `${assoc.ajouteParUser.prenom || ''} ${assoc.ajouteParUser.nom || ''}`.trim()
+                nomComplet: `${assoc.ajouteParUser.prenom || ''} ${assoc.ajouteParUser.nom || ''}`.trim(),
+                isActive: assoc.ajouteParUser.is_active
               } : null,
               donnees: donneesModeles,
               fieldsMetadataByModel: fieldsMetadataByModel
@@ -589,6 +590,7 @@ export default async function handler(req, res) {
           id: projetComplet.creator.id_user,
           username: projetComplet.creator.username,
           nomComplet: projetComplet.creator.getFullName ? projetComplet.creator.getFullName() : `${projetComplet.creator.prenom || ''} ${projetComplet.creator.nom || ''}`.trim(),
+          isActive: projetComplet.creator.is_active,
           role: projetComplet.creator.role_enum?.libelle || null
         } : null,
 
@@ -596,6 +598,7 @@ export default async function handler(req, res) {
           id: projetComplet.updater.id_user,
           username: projetComplet.updater.username,
           nomComplet: projetComplet.updater.getFullName ? projetComplet.updater.getFullName() : `${projetComplet.updater.prenom || ''} ${projetComplet.updater.nom || ''}`.trim(),
+          isActive: projetComplet.updater.is_active,
           role: projetComplet.updater.role_enum?.libelle || null
         } : null,
 
@@ -622,7 +625,8 @@ export default async function handler(req, res) {
           creePar: suivi.auteur ? {
             id: suivi.auteur.id_user,
             username: suivi.auteur.username,
-            nomComplet: suivi.auteur.getFullName ? suivi.auteur.getFullName() : `${suivi.auteur.prenom || ''} ${suivi.auteur.nom || ''}`.trim()
+            nomComplet: suivi.auteur.getFullName ? suivi.auteur.getFullName() : `${suivi.auteur.prenom || ''} ${suivi.auteur.nom || ''}`.trim(),
+            isActive: suivi.auteur.is_active
           } : null
         })),
 

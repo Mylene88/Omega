@@ -1,6 +1,7 @@
 // frontend/src/components/admin/DeletionRequestsTab.js
 import React, { useState, useEffect, useCallback } from 'react';
 import './DeletionRequestsTab.css';
+import UserDisplay from '../common/UserDisplay';
 
 const DeletionRequestsTab = ({
   apiCall,
@@ -220,7 +221,11 @@ const DeletionRequestsTab = ({
               <div className="request-body">
                 <div className="request-section">
                   <strong>Demandeur:</strong>
-                  <span>{request.requested_by?.nom_complet || request.requested_by?.username || 'N/A'}</span>
+                  <UserDisplay
+                    name={request.requested_by?.nom_complet}
+                    username={request.requested_by?.username}
+                    isActive={request.requested_by?.is_active}
+                  />
                 </div>
 
                 <div className="request-section">
@@ -264,7 +269,11 @@ const DeletionRequestsTab = ({
                   <div className="review-info">
                     <div className="review-section">
                       <strong>Revise par:</strong>
-                      <span>{request.reviewed_by?.nom_complet || request.reviewed_by?.username || 'N/A'}</span>
+                      <UserDisplay
+                        name={request.reviewed_by?.nom_complet}
+                        username={request.reviewed_by?.username}
+                        isActive={request.reviewed_by?.is_active}
+                      />
                     </div>
                     <div className="review-section">
                       <strong>Date de revision:</strong>

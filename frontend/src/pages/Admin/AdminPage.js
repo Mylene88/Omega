@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import './AdminPage.css';
 import DeletionRequestsTab from '../../components/admin/DeletionRequestsTab';
 import SectionVersionsTab from '../../components/admin/SectionVersionsTab';
+import UserDisplay from '../../components/common/UserDisplay';
 import { formatDateTimeFr } from '../../utils/dateFormatter';
 import { API_BASE_URL } from '../../config/apiConfig';
 
@@ -568,6 +569,7 @@ const AdminPage = () => {
         const nomComplet = normalize(user.nom_complet || `${user.prenom || ''} ${user.nom || ''}`.trim());
         return username.includes(normalizedQuery) || nomComplet.includes(normalizedQuery);
       })
+      .filter((user) => user.is_active !== false)
       .filter(u => u.id_user !== currentUserId)
       .map(u => u.id_user);
 
@@ -594,16 +596,16 @@ const AdminPage = () => {
     const idsToDelete = userIdsToDelete || selectedUserIds;
 
     if (!idsToDelete || idsToDelete.length === 0) {
-      alert('❌ Veuillez sélectionner au moins un utilisateur à supprimer');
+      alert('❌ Veuillez sélectionner au moins un utilisateur à désactiver');
       return;
     }
 
-    const confirmMessage = `Êtes-vous sûr de vouloir supprimer ${idsToDelete.length} utilisateur(s) ?\n\nCette action est irréversible.`;
+    const confirmMessage = `Êtes-vous sûr de vouloir désactiver ${idsToDelete.length} utilisateur(s) ?\n\nIls ne pourront plus se connecter, mais leur historique sera conservé.`;
     if (!window.confirm(confirmMessage)) {
       return;
     }
 
-    console.log('🗑️ [ADMIN] Début de suppression des utilisateurs');
+    console.log('⛔ [ADMIN] Début de désactivation des utilisateurs');
     console.log('📝 [ADMIN] IDs:', idsToDelete);
 
     try {
@@ -626,11 +628,11 @@ const AdminPage = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Erreur lors de la suppression des utilisateurs');
+        throw new Error(data.message || 'Erreur lors de la désactivation des utilisateurs');
       }
 
-      console.log('✅ [ADMIN] Utilisateurs supprimés avec succès!');
-      alert(`✅ ${data.data.deletedCount} utilisateur(s) supprimé(s) avec succès !`);
+      console.log('✅ [ADMIN] Utilisateurs désactivés avec succès!');
+      alert(`✅ ${data.data.deactivatedCount} utilisateur(s) désactivé(s) avec succès !`);
 
       // Réinitialiser la sélection
       setSelectedUserIds([]);
@@ -640,6 +642,41 @@ const AdminPage = () => {
 
     } catch (err) {
       console.error('❌ [ADMIN] Erreur lors de la suppression:', err);
+      alert(`❌ Erreur: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReactivateUser = async (user) => {
+    try {
+      setIsLoading(true);
+
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${user.id_user}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          prenom: user.prenom || null,
+          nom: user.nom || null,
+          role_id: user.role_id || null,
+          is_active: true
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Erreur lors de la réactivation de l\'utilisateur');
+      }
+
+      alert('✅ Utilisateur réactivé avec succès !');
+      fetchUsers();
+    } catch (err) {
+      console.error('❌ [ADMIN] Erreur lors de la réactivation:', err);
       alert(`❌ Erreur: ${err.message}`);
     } finally {
       setIsLoading(false);
@@ -891,6 +928,7 @@ Les modifications ont bien été appliquées en base de données.`);
 
   const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id_user;
   const selectableFilteredUserIds = filteredUsers
+    .filter((user) => user.is_active !== false)
     .filter((user) => user.id_user !== currentUserId)
     .map((user) => user.id_user);
   const areAllFilteredUsersSelected = selectableFilteredUserIds.length > 0 &&
@@ -1046,10 +1084,10 @@ Les modifications ont bien été appliquées en base de données.`);
                       {selectedUserIds.length > 0 && (
                           <button
                               className="btn-restore"
-                              onClick={handleDeleteUsers}
+                              onClick={() => handleDeleteUsers()}
                               style={{ background: '#c89090' }}
                           >
-                            🗑️ Supprimer ({selectedUserIds.length})
+                            ⛔ Désactiver ({selectedUserIds.length})
                           </button>
                       )}
                       <button
@@ -1422,6 +1460,7 @@ Les modifications ont bien été appliquées en base de données.`);
                                       </th>
                                       <th className="th-username">Username</th>
                                       <th className="th-nom">Nom complet</th>
+                                      <th>Statut</th>
                                       <th className="th-role">Rôle</th>
                                       <th className="th-date">Créé le</th>
                                       <th className="th-actions">Actions</th>
@@ -1438,14 +1477,25 @@ Les modifications ont bien été appliquées en base de données.`);
                                                   type="checkbox"
                                                   checked={selectedUserIds.includes(user.id_user)}
                                                   onChange={() => handleSelectUser(user.id_user)}
-                                                  disabled={isCurrentUser}
+                                                  disabled={isCurrentUser || user.is_active === false}
                                               />
                                             </td>
                                             <td className="td-username">
                                               {user.username}
                                               {isCurrentUser && <span style={{ marginLeft: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>(Vous)</span>}
                                             </td>
-                                            <td className="td-nom">{user.nom_complet}</td>
+                                            <td className="td-nom">
+                                              <UserDisplay
+                                                name={user.nom_complet}
+                                                username={user.username}
+                                                isActive={user.is_active}
+                                              />
+                                            </td>
+                                            <td>
+                                              <span className={`status-badge ${user.is_active === false ? 'status-inactive' : 'status-active'}`}>
+                                                {user.is_active === false ? 'Inactif' : 'Actif'}
+                                              </span>
+                                            </td>
                                             <td className="td-role">
                                               <span className="role-badge">{user.role_libelle}</span>
                                             </td>
@@ -1464,6 +1514,22 @@ Les modifications ont bien été appliquées en base de données.`);
                                               >
                                                 ✏️
                                               </button>
+                                              {user.is_active === false && (
+                                                <button
+                                                  className="btn-filter"
+                                                  onClick={() => handleReactivateUser(user)}
+                                                  style={{
+                                                    background: '#86b89d',
+                                                    color: 'white',
+                                                    padding: '0.4rem 0.8rem',
+                                                    fontSize: '0.85rem',
+                                                    marginLeft: '0.5rem'
+                                                  }}
+                                                  title="Réactiver cet utilisateur"
+                                                >
+                                                  ↩️
+                                                </button>
+                                              )}
                                             </td>
                                           </tr>
                                       );

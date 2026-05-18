@@ -64,12 +64,12 @@ export default async function handler(req, res) {
           {
             model: db.User,
             as: 'requestor',
-            attributes: ['id_user', 'username', 'prenom', 'nom']
+            attributes: ['id_user', 'username', 'prenom', 'nom', 'is_active']
           },
           {
             model: db.User,
             as: 'reviewer',
-            attributes: ['id_user', 'username', 'prenom', 'nom']
+            attributes: ['id_user', 'username', 'prenom', 'nom', 'is_active']
           }
         ],
         order: [['created_at', 'DESC']]
@@ -89,12 +89,14 @@ export default async function handler(req, res) {
         requested_by: item.requestor ? {
           id: item.requestor.id_user,
           username: item.requestor.username,
-          nom_complet: `${item.requestor.prenom || ''} ${item.requestor.nom || ''}`.trim() || item.requestor.username
+          nom_complet: `${item.requestor.prenom || ''} ${item.requestor.nom || ''}`.trim() || item.requestor.username,
+          is_active: item.requestor.is_active
         } : null,
         reviewed_by: item.reviewer ? {
           id: item.reviewer.id_user,
           username: item.reviewer.username,
-          nom_complet: `${item.reviewer.prenom || ''} ${item.reviewer.nom || ''}`.trim() || item.reviewer.username
+          nom_complet: `${item.reviewer.prenom || ''} ${item.reviewer.nom || ''}`.trim() || item.reviewer.username,
+          is_active: item.reviewer.is_active
         } : null,
         review_comment: item.review_comment,
         reviewed_at: item.reviewed_at,

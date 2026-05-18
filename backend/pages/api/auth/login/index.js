@@ -113,6 +113,22 @@ export default async function handler(req, res) {
       return res.json(body, { status });
     }
 
+    if (user.is_active === false) {
+      recordLoginAttempt(username, ipAddress, false);
+
+      await logSecurityEvent({
+        eventType: SecurityEventType.LOGIN_BLOCKED,
+        userId: user.id_user,
+        username,
+        ipAddress,
+        req,
+        details: { reason: 'Inactive account' }
+      });
+
+      const { body, status } = errorResponse('Compte inactif', 403);
+      return res.json(body, { status });
+    }
+
     // === ÉTAPE 3: Vérifier le mot de passe ===
     console.log('🔐 Vérification mot de passe pour:', username);
     console.log('🔐 Password hash en base:', user.password_hash ? 'présent' : 'absent');
@@ -168,6 +184,7 @@ export default async function handler(req, res) {
       nom: user.nom,
       nom_complet: user.prenom && user.nom ? `${user.prenom} ${user.nom}` : user.username,
       first_login: user.first_login,
+      is_active: user.is_active,
       role_id: user.role_id,
       role: user.role_enum ? {
         id_role: user.role_enum.id_role,

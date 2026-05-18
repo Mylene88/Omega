@@ -5,7 +5,7 @@ import { getStatusBadgeClass } from '../utils/statutColors';
 import Pagination from './common/Pagination';
 import DeletionRequestModal from './common/DeletionRequestModal';
 import ArchiveRequestModal from './common/ArchiveRequestModal';
-import { formatDateTimeFr } from '../../utils/dateFormatter';
+import UserDisplay from '../../components/common/UserDisplay';
 import '../styles/VueListeStyle.css';
 import { API_BASE_URL } from '../../config/apiConfig';
 import { getApiHeaders } from '../../utils/userHelper';
@@ -20,7 +20,7 @@ export default function VueListe({
     onPageChange
 }) {
     const [openDropdownId, setOpenDropdownId] = useState(null);
-    const [selectedFormat, setSelectedFormat] = useState('pdf');
+    const [, setSelectedFormat] = useState('pdf');
     const [downloading, setDownloading] = useState(false);
     const [deletionModalOpen, setDeletionModalOpen] = useState(false);
     const [projectToDelete, setProjectToDelete] = useState(null);
@@ -253,6 +253,27 @@ export default function VueListe({
 
                     const serviceReferent = p.service_libelle || p.service || 'Non renseigné';
                     const isDropdownOpen = openDropdownId === p.id_projet;
+                    const communeLabel = (() => {
+                        const geomType = p.geom_type || p.geometry_type;
+
+                        if (!geomType || !communesArray || communesArray.length === 0) {
+                            return 'Commune';
+                        }
+
+                        const geomTypeLower = geomType.toLowerCase();
+
+                        if (geomTypeLower === 'point') {
+                            return 'Commune';
+                        }
+
+                        if (geomTypeLower === 'linestring' || geomTypeLower === 'line' ||
+                            geomTypeLower === 'polygon' || geomTypeLower === 'multipolygon' ||
+                            geomTypeLower === 'multilinestring') {
+                            return 'Communes traversées';
+                        }
+
+                        return 'Commune';
+                    })();
 
                     return (
                         <div
@@ -272,9 +293,14 @@ export default function VueListe({
                                 {/* Groupe badge statut + bouton téléchargement */}
                                 <div className="header-actions">
                                     <span className={`badge ${badgeClass}`}>{statut}</span>
+                                    {isArchived && (
+                                        <span className="badge badge-archived" title="Projet archivé" aria-label="Projet archivé">
+                                            🗃️ Projet archivé
+                                        </span>
+                                    )}
 
                                     {/* Dropdown de téléchargement */}
-                                    <div className="download-dropdown-container">
+                                    {!isArchived && <div className="download-dropdown-container">
                                         <button
                                             className={`download-btn-header ${isDropdownOpen ? 'active' : ''}`}
                                             onClick={(e) => handleDownloadClick(e, p.id_projet)}
@@ -345,7 +371,7 @@ export default function VueListe({
                                                 )}
                                             </div>
                                         )}
-                                    </div>
+                                    </div>}
                                 </div>
                             </div>
 
@@ -368,78 +394,97 @@ export default function VueListe({
                                         </div>
                                     </div>
 
-                                    {/* Description */}
-                                    <div
-                                        className="card-info-item full-width clickable-section"
-                                        onClick={(e) => handleSectionClick(e, p, 'infos')}
-                                        style={{ cursor: 'pointer' }}
-                                        title="Cliquer pour voir les informations générales"
-                                    >
-                                        <span className="card-info-icon">📄</span>
-                                        <div className="card-info-content">
-                                            <span className="card-info-label">Description</span>
-                                            <span className="card-info-value">
-                                                {p.description || <em style={{ color: '#999' }}>Aucune description renseignée</em>}
-                                            </span>
+                                    {isArchived ? (
+                                        <div
+                                            className="card-info-item full-width clickable-section"
+                                            onClick={(e) => handleSectionClick(e, p, 'porteurs')}
+                                            style={{ cursor: 'pointer' }}
+                                            title="Cliquer pour voir les porteurs du projet"
+                                        >
+                                            <span className="card-info-icon">👥</span>
+                                            <div className="card-info-content">
+                                                <span className="card-info-label">Porteur</span>
+                                                <span className="card-info-value">
+                                                    {nombrePorteurs}
+                                                </span>
+                                            </div>
                                         </div>
-                                    </div>
-
-                                    {/* Ligne: Porteur | Service Référent | Thématiques */}
-                                    <div className="card-info-item full-width card-info-row-wrapper">
-                                        <div className="card-info-row">
-                                            {/* Porteur */}
+                                    ) : (
+                                        <>
+                                            {/* Description */}
                                             <div
-                                                className="card-info-item-inline clickable-section"
-                                                onClick={(e) => handleSectionClick(e, p, 'porteurs')}
+                                                className="card-info-item full-width clickable-section"
+                                                onClick={(e) => handleSectionClick(e, p, 'infos')}
                                                 style={{ cursor: 'pointer' }}
-                                                title="Cliquer pour voir les porteurs du projet"
+                                                title="Cliquer pour voir les informations générales"
                                             >
-                                                <span className="card-info-icon">👥</span>
+                                                <span className="card-info-icon">📄</span>
                                                 <div className="card-info-content">
-                                                    <span className="card-info-label">Porteur</span>
+                                                    <span className="card-info-label">Description</span>
                                                     <span className="card-info-value">
-                                                        {nombrePorteurs}
+                                                        {p.description || <em style={{ color: '#999' }}>Aucune description renseignée</em>}
                                                     </span>
                                                 </div>
                                             </div>
 
-                                            {/* Séparateur */}
-                                            <span className="card-info-separator">|</span>
+                                            {/* Ligne: Porteur | Service Référent | Thématiques */}
+                                            <div className="card-info-item full-width card-info-row-wrapper">
+                                                <div className="card-info-row">
+                                                    {/* Porteur */}
+                                                    <div
+                                                        className="card-info-item-inline clickable-section"
+                                                        onClick={(e) => handleSectionClick(e, p, 'porteurs')}
+                                                        style={{ cursor: 'pointer' }}
+                                                        title="Cliquer pour voir les porteurs du projet"
+                                                    >
+                                                        <span className="card-info-icon">👥</span>
+                                                        <div className="card-info-content">
+                                                            <span className="card-info-label">Porteur</span>
+                                                            <span className="card-info-value">
+                                                                {nombrePorteurs}
+                                                            </span>
+                                                        </div>
+                                                    </div>
 
-                                            {/* Service Référent */}
-                                            <div
-                                                className="card-info-item-inline clickable-section"
-                                                onClick={(e) => handleSectionClick(e, p, 'suivis')}
-                                                style={{ cursor: 'pointer' }}
-                                                title="Cliquer pour voir les suivis"
-                                            >
-                                                <span className="card-info-icon">🏛️</span>
-                                                <div className="card-info-content">
-                                                    <span className="card-info-label">Service Référent</span>
-                                                    <span className="card-info-value">{serviceReferent}</span>
+                                                    {/* Séparateur */}
+                                                    <span className="card-info-separator">|</span>
+
+                                                    {/* Service Référent */}
+                                                    <div
+                                                        className="card-info-item-inline clickable-section"
+                                                        onClick={(e) => handleSectionClick(e, p, 'suivis')}
+                                                        style={{ cursor: 'pointer' }}
+                                                        title="Cliquer pour voir les suivis"
+                                                    >
+                                                        <span className="card-info-icon">🏛️</span>
+                                                        <div className="card-info-content">
+                                                            <span className="card-info-label">Service Référent</span>
+                                                            <span className="card-info-value">{serviceReferent}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Séparateur */}
+                                                    <span className="card-info-separator">|</span>
+
+                                                    {/* Thématiques */}
+                                                    <div
+                                                        className="card-info-item-inline clickable-section"
+                                                        onClick={(e) => handleSectionClick(e, p, 'thematiques')}
+                                                        style={{ cursor: 'pointer' }}
+                                                        title="Cliquer pour voir les thématiques"
+                                                    >
+                                                        <span className="card-info-icon">🎯</span>
+                                                        <div className="card-info-content">
+                                                            <span className="card-info-label">Thématiques</span>
+                                                            <span className="card-info-value">
+                                                                {nombreThematiques}
+                                                            </span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
-
-                                            {/* Séparateur */}
-                                            <span className="card-info-separator">|</span>
-
-                                            {/* Thématiques */}
-                                            <div
-                                                className="card-info-item-inline clickable-section"
-                                                onClick={(e) => handleSectionClick(e, p, 'thematiques')}
-                                                style={{ cursor: 'pointer' }}
-                                                title="Cliquer pour voir les thématiques"
-                                            >
-                                                <span className="card-info-icon">🎯</span>
-                                                <div className="card-info-content">
-                                                    <span className="card-info-label">Thématiques</span>
-                                                    <span className="card-info-value">
-                                                        {nombreThematiques}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                        </>
+                                    )}
 
                                     {/* Communes - Toujours affiché */}
                                     <div
@@ -450,32 +495,7 @@ export default function VueListe({
                                     >
                                         <span className="card-info-icon">📍</span>
                                         <div className="card-info-content">
-                                            <span className="card-info-label">
-                                                {(() => {
-                                                    // Déterminer le label selon le type de géométrie
-                                                    const geomType = p.geom_type || p.geometry_type;
-
-                                                    if (!geomType || !communesArray || communesArray.length === 0) {
-                                                        // Pas de géométrie
-                                                        return 'Commune';
-                                                    }
-
-                                                    const geomTypeLower = geomType.toLowerCase();
-
-                                                    if (geomTypeLower === 'point') {
-                                                        // Point : singulier
-                                                        return 'Commune';
-                                                    } else if (geomTypeLower === 'linestring' || geomTypeLower === 'line' ||
-                                                               geomTypeLower === 'polygon' || geomTypeLower === 'multipolygon' ||
-                                                               geomTypeLower === 'multilinestring') {
-                                                        // Ligne ou Polygone : pluriel
-                                                        return 'Communes traversées';
-                                                    }
-
-                                                    // Par défaut
-                                                    return 'Commune';
-                                                })()}
-                                            </span>
+                                            <span className="card-info-label">{communeLabel}</span>
                                             {communesArray && communesArray.length > 0 ? (
                                                 <div className="communes-inline">
                                                     {communesArray.map((commune, idx) => (
@@ -497,7 +517,7 @@ export default function VueListe({
                                 </div>
 
                                 {/* Badges projet signalé / Charte d'accueil / Demandes / Archive */}
-                                {(p.projet_signale || p.charte_accueil || p.demande_suppression || archiveRequestPending || restoreRequestPending || isArchived) && (
+                                {!isArchived && (p.projet_signale || p.charte_accueil || p.demande_suppression || archiveRequestPending || restoreRequestPending || isArchived) && (
                                     <div className="project-badges">
                                         {p.projet_signale && (
                                             <span className="badge badge-signale">🚨 Projet signalé</span>
@@ -522,111 +542,118 @@ export default function VueListe({
                             </div>
 
                             {/* ✅ FOOTER: Date de modification + Boutons d'action */}
-                            <div className="project-card-footer">
-                                <div className="footer-left">
-                                    {p.date_maj || p.updated_at ? (
-                                        <div className="last-update-info">
-                                            <span className="update-label">Dernière modification:</span>
-                                            <span className="update-date">
-                                                {new Date(p.date_maj || p.updated_at).toLocaleString('fr-FR', {
-                                                    day: '2-digit',
-                                                    month: '2-digit',
-                                                    year: 'numeric',
-                                                    hour: '2-digit',
-                                                    minute: '2-digit',
-                                                    second: '2-digit'
-                                                })}
-                                            </span>
-                                            {(p.updated_by_name || p.modifier_nom) && (
-                                                <span className="update-author">
-                                                    par {p.updated_by_name || p.modifier_nom}
-                                                </span>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="last-update-info">
-                                            <span className="update-label">Créé le:</span>
-                                            <span className="update-date">
-                                                {p.date_creation || p.created_at ?
-                                                    new Date(p.date_creation || p.created_at).toLocaleDateString('fr-FR', {
+                            {!isArchived && (
+                                <div className="project-card-footer">
+                                    <div className="footer-left">
+                                        {p.date_maj || p.updated_at ? (
+                                            <div className="last-update-info">
+                                                <span className="update-label">Dernière modification:</span>
+                                                <span className="update-date">
+                                                    {new Date(p.date_maj || p.updated_at).toLocaleString('fr-FR', {
                                                         day: '2-digit',
                                                         month: '2-digit',
-                                                        year: 'numeric'
-                                                    })
-                                                    : 'N/A'
+                                                        year: 'numeric',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit',
+                                                        second: '2-digit'
+                                                    })}
+                                                </span>
+                                                {(p.updated_by_name || p.modifier_nom) && (
+                                                    <span className="update-author">
+                                                        <UserDisplay
+                                                            prefix="par "
+                                                            name={p.updated_by_name || p.modifier_nom}
+                                                            isActive={p.updated_by_is_active}
+                                                            fallback=""
+                                                        />
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="last-update-info">
+                                                <span className="update-label">Créé le:</span>
+                                                <span className="update-date">
+                                                    {p.date_creation || p.created_at ?
+                                                        new Date(p.date_creation || p.created_at).toLocaleDateString('fr-FR', {
+                                                            day: '2-digit',
+                                                            month: '2-digit',
+                                                            year: 'numeric'
+                                                        })
+                                                        : 'N/A'
+                                                    }
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="footer-actions" style={{ display: 'flex', gap: '8px' }}>
+                                        <button
+                                            className={`badge ${isArchived ? 'badge-restore-request' : 'badge-archive-request'} ${(archiveRequestPending || restoreRequestPending) ? 'disabled' : ''}`}
+                                            onClick={(e) => {
+                                                const requestType = isArchived ? 'restauration' : 'archivage';
+                                                const isDisabled = isArchived ? restoreRequestPending : archiveRequestPending;
+                                                if (!isDisabled) {
+                                                    handleArchiveClick(e, p, requestType);
+                                                } else {
+                                                    e.stopPropagation();
                                                 }
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="footer-actions" style={{ display: 'flex', gap: '8px' }}>
-                                    <button
-                                        className={`badge ${isArchived ? 'badge-restore-request' : 'badge-archive-request'} ${(archiveRequestPending || restoreRequestPending) ? 'disabled' : ''}`}
-                                        onClick={(e) => {
-                                            const requestType = isArchived ? 'restauration' : 'archivage';
-                                            const isDisabled = isArchived ? restoreRequestPending : archiveRequestPending;
-                                            if (!isDisabled) {
-                                                handleArchiveClick(e, p, requestType);
-                                            } else {
-                                                e.stopPropagation();
+                                            }}
+                                            disabled={isArchived ? restoreRequestPending : archiveRequestPending}
+                                            title={
+                                                isArchived
+                                                    ? (restoreRequestPending
+                                                        ? 'Une demande de restauration est déjà en attente'
+                                                        : 'Demande de restauration')
+                                                    : (archiveRequestPending
+                                                        ? 'Une demande d\'archivage est déjà en attente'
+                                                        : 'Demande d\'archivage')
                                             }
-                                        }}
-                                        disabled={isArchived ? restoreRequestPending : archiveRequestPending}
-                                        title={
-                                            isArchived
-                                                ? (restoreRequestPending
-                                                    ? 'Une demande de restauration est déjà en attente'
-                                                    : 'Demande de restauration')
-                                                : (archiveRequestPending
-                                                    ? 'Une demande d\'archivage est déjà en attente'
-                                                    : 'Demande d\'archivage')
-                                        }
-                                        aria-label={
-                                            isArchived
-                                                ? (restoreRequestPending ? 'Demande de restauration en attente' : 'Demande de restauration')
-                                                : (archiveRequestPending ? 'Demande d\'archivage en attente' : 'Demande d\'archivage')
-                                        }
-                                    >
-                                        {isArchived
-                                            ? (restoreRequestPending ? '⏳' : '♻️')
-                                            : (archiveRequestPending ? '⏳' : '🗃️')}
-                                    </button>
+                                            aria-label={
+                                                isArchived
+                                                    ? (restoreRequestPending ? 'Demande de restauration en attente' : 'Demande de restauration')
+                                                    : (archiveRequestPending ? 'Demande d\'archivage en attente' : 'Demande d\'archivage')
+                                            }
+                                        >
+                                            {isArchived
+                                                ? (restoreRequestPending ? '⏳' : '♻️')
+                                                : (archiveRequestPending ? '⏳' : '🗃️')}
+                                        </button>
 
-                                    {/* Bouton modifier */}
-                                    <button
-                                        className="badge badge-edit edit-btn"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            navigate(`/projets/edit/${p.id_projet}`);
-                                        }}
-                                        title="Modifier le projet"
-                                    >
-                                        <span className="icon-pencil" aria-hidden="true">✏️</span> Modifier
-                                    </button>
+                                        {/* Bouton modifier */}
+                                        <button
+                                            className="badge badge-edit edit-btn"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(`/projets/edit/${p.id_projet}`);
+                                            }}
+                                            title="Modifier le projet"
+                                        >
+                                            <span className="icon-pencil" aria-hidden="true">✏️</span> Modifier
+                                        </button>
 
-                                    {/* Bouton supprimer */}
-                                    <button
-                                        className={`badge badge-delete ${p.demande_suppression ? 'disabled' : ''}`}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            !p.demande_suppression && handleDeleteClick(e, p);
-                                        }}
-                                        title={p.demande_suppression ? "Une demande de suppression est déjà en attente" : "Supprimer le projet"}
-                                        disabled={p.demande_suppression}
-                                        style={{
-                                            backgroundColor: p.demande_suppression ? '#E5E7EB' : '#EF4444',
-                                            color: 'white',
-                                            cursor: p.demande_suppression ? 'not-allowed' : 'pointer',
-                                            opacity: p.demande_suppression ? 0.5 : 1,
-                                            minWidth: '40px',
-                                            padding: '0.5rem'
-                                        }}
-                                    >
-                                        🗑️
-                                    </button>
+                                        {/* Bouton supprimer */}
+                                        <button
+                                            className={`badge badge-delete ${p.demande_suppression ? 'disabled' : ''}`}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                !p.demande_suppression && handleDeleteClick(e, p);
+                                            }}
+                                            title={p.demande_suppression ? "Une demande de suppression est déjà en attente" : "Supprimer le projet"}
+                                            disabled={p.demande_suppression}
+                                            style={{
+                                                backgroundColor: p.demande_suppression ? '#E5E7EB' : '#EF4444',
+                                                color: 'white',
+                                                cursor: p.demande_suppression ? 'not-allowed' : 'pointer',
+                                                opacity: p.demande_suppression ? 0.5 : 1,
+                                                minWidth: '40px',
+                                                padding: '0.5rem'
+                                            }}
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     );
                 })}

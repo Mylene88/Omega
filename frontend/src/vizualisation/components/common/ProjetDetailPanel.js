@@ -1,12 +1,15 @@
 // frontend/src/visualisation/components/common/ProjetDetailPanel.js
 import React from 'react';
 import { formatDateTime } from '../../utils/DateFormat';
+import UserDisplay from '../../../components/common/UserDisplay';
 
 export default function ProjetDetailPanel({
                                               selectedProjectDetails,
                                               loadingDetails,
                                               expandedSections,
                                               onToggleSection,
+                                              onArchiveRequest,
+                                              isSubmittingArchiveRequest,
                                               onClose,
                                               sectionToScroll,
                                               sectionScrollNonce
@@ -144,6 +147,38 @@ export default function ProjetDetailPanel({
         selectedProjectDetails?.is_archived ||
         selectedProjectDetails?.projet?.is_archived
     );
+    const archiveRequestPending = !!(
+        selectedProjectDetails?.projet?.demandeArchivage ||
+        selectedProjectDetails?.demande_archivage
+    );
+    const restoreRequestPending = !!(
+        selectedProjectDetails?.projet?.demandeRestauration ||
+        selectedProjectDetails?.demande_restauration
+    );
+    const pendingArchiveRequest = isArchived ? restoreRequestPending : archiveRequestPending;
+    const archivedPorteurs = (() => {
+        const porteurs = Array.isArray(selectedProjectDetails?.porteurs)
+            ? selectedProjectDetails.porteurs
+            : [];
+
+        const names = porteurs
+            .map((p) => p?.nomStructure || p?.nom_structure)
+            .filter(Boolean);
+
+        return names.length > 0 ? names.join(', ') : 'Aucun porteur renseigné';
+    })();
+    const archivedCommunes = (() => {
+        const geometries = Array.isArray(selectedProjectDetails?.geometries)
+            ? selectedProjectDetails.geometries
+            : [];
+
+        const communes = geometries.flatMap((g) => (
+            Array.isArray(g?.communes_traversees) ? g.communes_traversees : []
+        )).filter(Boolean);
+
+        const uniqueCommunes = [...new Set(communes)];
+        return uniqueCommunes.length > 0 ? uniqueCommunes.join(', ') : 'Aucune commune renseignée';
+    })();
 
     return (
         <aside className="liste-detail-pane">
@@ -166,21 +201,6 @@ export default function ProjetDetailPanel({
                     {expandedSections.infos && (
                         <div className="accordion-content">
                             <div className="info-grid">
-                                {!isArchived && (
-                                    <div className="info-item">
-                                        <span className="info-label">ID Projet</span>
-                                        <span className="info-value" style={{
-                                            fontFamily: 'monospace',
-                                            color: '#667eea',
-                                            fontWeight: '700'
-                                        }}>
-                                            {selectedProjectDetails.projet?.id ||
-                                            selectedProjectDetails.id_projet ||
-                                            'Aucun ID renseigné'}
-                                        </span>
-                                    </div>
-                                )}
-
                                 <div className="info-item">
                                     <span className="info-label">Nom du projet</span>
                                     <span className="info-value">
@@ -205,35 +225,53 @@ export default function ProjetDetailPanel({
                                     </span>
                                 </div>
 
-                                <div className="info-item">
-                                    <span className="info-label">Service référent</span>
-                                    <span className="info-value">
-                                        {selectedProjectDetails.serviceDdt?.libelle ||
-                                        selectedProjectDetails.service ||
-                                        selectedProjectDetails.projet?.service ||
-                                        'Aucun service renseigné'}
-                                    </span>
-                                </div>
-
-                                {!isArchived && (
+                                {isArchived ? (
                                     <div className="info-item">
-                                        <span className="info-label">Date de prise de connaissance par la DDT</span>
+                                        <span className="info-label">Porteur du projet</span>
                                         <span className="info-value">
-                                            {(selectedProjectDetails.projet?.dateIdentification ||
-                                            selectedProjectDetails.date_ident_projet)
-                                                ? new Date(selectedProjectDetails.projet?.dateIdentification ||
-                                                        selectedProjectDetails.date_ident_projet).toLocaleDateString('fr-FR')
-                                                : 'Aucune date renseignée'}
+                                            {archivedPorteurs}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="info-item">
+                                            <span className="info-label">Service référent</span>
+                                            <span className="info-value">
+                                                {selectedProjectDetails.serviceDdt?.libelle ||
+                                                selectedProjectDetails.service ||
+                                                selectedProjectDetails.projet?.service ||
+                                                'Aucun service renseigné'}
+                                            </span>
+                                        </div>
+
+                                        <div className="info-item">
+                                            <span className="info-label">Date de prise de connaissance par la DDT</span>
+                                            <span className="info-value">
+                                                {(selectedProjectDetails.projet?.dateIdentification ||
+                                                selectedProjectDetails.date_ident_projet)
+                                                    ? new Date(selectedProjectDetails.projet?.dateIdentification ||
+                                                            selectedProjectDetails.date_ident_projet).toLocaleDateString('fr-FR')
+                                                    : 'Aucune date renseignée'}
+                                            </span>
+                                        </div>
+
+                                        <div className="info-item full-width">
+                                            <span className="info-label">Description</span>
+                                            <p className="info-description">
+                                                {selectedProjectDetails.projet?.description || selectedProjectDetails.description || 'Aucune description renseignée'}
+                                            </p>
+                                        </div>
+                                    </>
+                                )}
+
+                                {isArchived && (
+                                    <div className="info-item full-width">
+                                        <span className="info-label">Commune</span>
+                                        <span className="info-value">
+                                            {archivedCommunes}
                                         </span>
                                     </div>
                                 )}
-
-                                <div className="info-item full-width">
-                                    <span className="info-label">Description</span>
-                                    <p className="info-description">
-                                        {selectedProjectDetails.projet?.description || selectedProjectDetails.description || 'Aucune description renseignée'}
-                                    </p>
-                                </div>
                             </div>
                         </div>
                     )}
@@ -384,11 +422,12 @@ export default function ProjetDetailPanel({
                                 <div className="info-item">
                                     <span className="info-label">Créateur de la fiche projet</span>
                                     <span className="info-value">
-                                        {selectedProjectDetails.createur?.nomComplet ||
-                                        selectedProjectDetails.createur?.username ||
-                                        selectedProjectDetails.creator?.nomComplet ||
-                                        selectedProjectDetails.creator?.username ||
-                                        'Aucun créateur renseigné'}
+                                        <UserDisplay
+                                            name={selectedProjectDetails.createur?.nomComplet || selectedProjectDetails.creator?.nomComplet}
+                                            username={selectedProjectDetails.createur?.username || selectedProjectDetails.creator?.username}
+                                            isActive={selectedProjectDetails.createur?.isActive ?? selectedProjectDetails.creator?.isActive}
+                                            fallback="Aucun créateur renseigné"
+                                        />
                                     </span>
                                 </div>
 
@@ -426,7 +465,12 @@ export default function ProjetDetailPanel({
                                                         {formatDateTime(s.dateCreation)}
                                                     </span>
                                                     <span className="suivi-auteur">
-                                                        {s.creePar?.nomComplet || 'Non renseigné'}
+                                                        <UserDisplay
+                                                            name={s.creePar?.nomComplet}
+                                                            username={s.creePar?.username}
+                                                            isActive={s.creePar?.isActive}
+                                                            fallback="Non renseigné"
+                                                        />
                                                     </span>
                                                 </div>
                                                 <p className="suivi-texte">{s.contenu}</p>
@@ -773,6 +817,20 @@ export default function ProjetDetailPanel({
                 </div>
                 </>
                 )}
+
+                <div className="archive-actions-box">
+                    <button
+                        className={`archive-action-button ${pendingArchiveRequest ? 'disabled' : ''}`}
+                        onClick={onArchiveRequest}
+                        disabled={pendingArchiveRequest || isSubmittingArchiveRequest || !selectedProjectDetails}
+                    >
+                        {isSubmittingArchiveRequest
+                            ? 'Envoi en cours...'
+                            : isArchived
+                                ? (restoreRequestPending ? '⏳ Demande de restauration en attente' : '♻️ Demande de restauration')
+                                : (archiveRequestPending ? '⏳ Demande d\'archivage en attente' : '🗃️ Demande d\'archivage')}
+                    </button>
+                </div>
 
             </div>
         </aside>

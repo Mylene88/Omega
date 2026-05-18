@@ -172,12 +172,12 @@ export default async function handler(req, res) {
         {
           model: User,
           as: 'creator',
-          attributes: ['id_user', 'username', 'nom_complet']
+          attributes: ['id_user', 'username', 'nom_complet', 'is_active']
         },
         {
           model: User,
           as: 'updater',
-          attributes: ['id_user', 'username', 'nom_complet']
+          attributes: ['id_user', 'username', 'nom_complet', 'is_active']
         }
       ]
     });
@@ -199,8 +199,10 @@ export default async function handler(req, res) {
       referent_ddt: p.referent_ddt,
       created_by: p.creator?.username || null,
       created_by_name: p.creator?.nom_complet || p.creator?.username || null,
+      created_by_is_active: p.creator?.is_active ?? null,
       updated_by: p.updater?.username || null,
       updated_by_name: p.updater?.nom_complet || p.updater?.username || null,
+      updated_by_is_active: p.updater?.is_active ?? null,
       date_ident_projet: p.date_ident_projet,
       created_at: p.created_at,
       updated_at: p.updated_at,

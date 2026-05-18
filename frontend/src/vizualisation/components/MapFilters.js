@@ -19,6 +19,7 @@ export default function MapFilters({
     serviceIds: [],
     thematiqueIds: [],  // ✅ Contiendra des strings comme "Risques-Bruit"
     statutIds: [],      // ✅ Contiendra les IDs des statuts sélectionnés
+    projetArchive: false,
     projetSignale: false,
     charteAccueil: false
   });
@@ -158,6 +159,7 @@ export default function MapFilters({
       serviceIds: [],
       thematiqueIds: [],
       statutIds: [],
+      projetArchive: false,
       projetSignale: false,
       charteAccueil: false
     });
@@ -292,6 +294,14 @@ export default function MapFilters({
           <div className={styles.group}>
             <label className={styles.label}>⚙️ Options</label>
             <div className={styles['filter-statuts-inline']}>
+              <label className={styles.checkboxLabel}>
+                <input
+                    type="checkbox"
+                    checked={filters.projetArchive}
+                    onChange={() => handleCheckboxChange('projetArchive')}
+                />
+                <span>🗃️ Projet archivé</span>
+              </label>
               <label className={styles.checkboxLabel}>
                 <input
                     type="checkbox"

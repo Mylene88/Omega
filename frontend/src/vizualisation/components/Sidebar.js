@@ -5,6 +5,7 @@ import { formatDateTime } from '../utils/DateFormat';
 import { API_BASE_URL } from '../../config/apiConfig';
 import { getApiHeaders } from '../../utils/userHelper';
 import ArchiveRequestModal from './common/ArchiveRequestModal';
+import UserDisplay from '../../components/common/UserDisplay';
 
 export default function Sidebar({ projectId, onClose }) {
     const [info, setInfo] = useState(null);
@@ -107,7 +108,7 @@ export default function Sidebar({ projectId, onClose }) {
                     service: serviceDdt?.libelle,
                     referent_ddt: projet?.referentDdt,
                     created_at: projet?.dateCreation,
-                    createur: createur?.nomComplet,
+                    createur: createur || null,
                     updated_at: projet?.dateMiseAJour,
 
                     // Suivis
@@ -115,7 +116,7 @@ export default function Sidebar({ projectId, onClose }) {
                         id: s.id,
                         texte: s.contenu,
                         date: s.dateCreation,
-                        auteur: s.creePar?.nomComplet || 'Anonyme'
+                        auteur: s.creePar || null
                     })),
 
                     // Porteurs
@@ -188,6 +189,21 @@ export default function Sidebar({ projectId, onClose }) {
     const archiveRequestPending = !!info?.demande_archivage;
     const restoreRequestPending = !!info?.demande_restauration;
     const pendingArchiveRequest = isArchived ? restoreRequestPending : archiveRequestPending;
+    const archivedPorteurs = (() => {
+        const porteurs = Array.isArray(info?.porteurs) ? info.porteurs : [];
+        const names = porteurs
+            .map((p) => p?.nom_structure)
+            .filter(Boolean);
+        return names.length > 0 ? names.join(', ') : 'Aucun porteur renseigné';
+    })();
+    const archivedCommunes = (() => {
+        const geometries = Array.isArray(info?.geometries) ? info.geometries : [];
+        const communes = geometries.flatMap((g) => (
+            Array.isArray(g?.communes_traversees) ? g.communes_traversees : []
+        )).filter(Boolean);
+        const uniqueCommunes = [...new Set(communes)];
+        return uniqueCommunes.length > 0 ? uniqueCommunes.join(', ') : 'Aucune commune renseignée';
+    })();
 
     const handleArchiveRequest = () => {
         if (!info?.id_projet || pendingArchiveRequest || isSubmittingArchiveRequest) {
@@ -276,19 +292,6 @@ export default function Sidebar({ projectId, onClose }) {
                             {expandedSections.infos && (
                                 <div className="accordion-content">
                                     <div className="info-grid">
-                                        {!isArchived && (
-                                            <div className="info-item">
-                                                <span className="info-label">ID Projet</span>
-                                                <span className="info-value" style={{
-                                                    fontFamily: 'monospace',
-                                                    color: '#667eea',
-                                                    fontWeight: '700'
-                                                }}>
-                                                    {info.id_projet || 'Aucun ID renseigné'}
-                                                </span>
-                                            </div>
-                                        )}
-
                                         <div className="info-item">
                                             <span className="info-label">Nom du projet</span>
                                             <span className="info-value">{info.nom_projet || 'Aucun nom renseigné'}</span>
@@ -301,28 +304,42 @@ export default function Sidebar({ projectId, onClose }) {
                                             </span>
                                         </div>
 
-                                        <div className="info-item">
-                                            <span className="info-label">Service Référent</span>
-                                            <span className="info-value">{info.service || 'Aucun service renseigné'}</span>
-                                        </div>
-
-
-
-                                        {!isArchived && (
+                                        {isArchived ? (
                                             <div className="info-item">
-                                                <span className="info-label">Date de prise de connaissance par la DDT</span>
+                                                <span className="info-label">Porteur du projet</span>
                                                 <span className="info-value">
-                                                    {info.date_ident_projet
-                                                        ? new Date(info.date_ident_projet).toLocaleDateString('fr-FR')
-                                                        : 'Aucune date renseignée'}
+                                                    {archivedPorteurs}
                                                 </span>
                                             </div>
+                                        ) : (
+                                            <>
+                                                <div className="info-item">
+                                                    <span className="info-label">Service Référent</span>
+                                                    <span className="info-value">{info.service || 'Aucun service renseigné'}</span>
+                                                </div>
+
+                                                <div className="info-item">
+                                                    <span className="info-label">Date de prise de connaissance par la DDT</span>
+                                                    <span className="info-value">
+                                                        {info.date_ident_projet
+                                                            ? new Date(info.date_ident_projet).toLocaleDateString('fr-FR')
+                                                            : 'Aucune date renseignée'}
+                                                    </span>
+                                                </div>
+
+                                                <div className="info-item full-width">
+                                                    <span className="info-label">Description</span>
+                                                    <p className="info-description">{info.description || 'Aucune description renseignée'}</p>
+                                                </div>
+                                            </>
                                         )}
 
-                                        <div className="info-item full-width">
-                                            <span className="info-label">Description</span>
-                                            <p className="info-description">{info.description || 'Aucune description renseignée'}</p>
-                                        </div>
+                                        {isArchived && (
+                                            <div className="info-item full-width">
+                                                <span className="info-label">Commune</span>
+                                                <span className="info-value">{archivedCommunes}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -376,7 +393,14 @@ export default function Sidebar({ projectId, onClose }) {
 
                                         <div className="info-item">
                                             <span className="info-label">Créateur de la fiche projet </span>
-                                            <span className="info-value">{info.createur || 'Aucun créateur renseigné'}</span>
+                                            <span className="info-value">
+                                                <UserDisplay
+                                                    name={info.createur?.nomComplet}
+                                                    username={info.createur?.username}
+                                                    isActive={info.createur?.isActive}
+                                                    fallback="Aucun créateur renseigné"
+                                                />
+                                            </span>
                                         </div>
 
                                         <div className="info-item">
@@ -410,7 +434,14 @@ export default function Sidebar({ projectId, onClose }) {
                                                             <span className="suivi-date">
                                                                {formatDateTime(s.date)}
                                                             </span>
-                                                            <span className="suivi-auteur">{s.auteur}</span>
+                                                            <span className="suivi-auteur">
+                                                                <UserDisplay
+                                                                    name={s.auteur?.nomComplet}
+                                                                    username={s.auteur?.username}
+                                                                    isActive={s.auteur?.isActive}
+                                                                    fallback="Anonyme"
+                                                                />
+                                                            </span>
                                                         </div>
                                                         <p className="suivi-texte">{s.texte}</p>
                                                     </div>

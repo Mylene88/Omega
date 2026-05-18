@@ -145,7 +145,7 @@ export default async function handler(req, res) {
             {
               model: User,
               as: 'auteur',
-              attributes: ['id_user', 'username', 'prenom', 'nom'],
+              attributes: ['id_user', 'username', 'prenom', 'nom', 'is_active'],
               required: false
             }
           ],
@@ -167,7 +167,7 @@ export default async function handler(req, res) {
             {
               model: User,
               as: 'ajouteParUser',
-              attributes: ['id_user', 'username', 'prenom', 'nom'],
+              attributes: ['id_user', 'username', 'prenom', 'nom', 'is_active'],
               required: false
             }
           ],
@@ -184,13 +184,13 @@ export default async function handler(req, res) {
         {
           model: User,
           as: 'creator',
-          attributes: ['id_user', 'username', 'prenom', 'nom'],
+          attributes: ['id_user', 'username', 'prenom', 'nom', 'is_active'],
           required: false
         },
         {
           model: User,
           as: 'updater',
-          attributes: ['id_user', 'username', 'prenom', 'nom'],
+          attributes: ['id_user', 'username', 'prenom', 'nom', 'is_active'],
           required: false
         }
       ],
@@ -414,11 +414,13 @@ export default async function handler(req, res) {
                                  (projetData.creator?.prenom && projetData.creator?.nom
                                    ? `${projetData.creator.prenom} ${projetData.creator.nom}`
                                    : projetData.creator?.username) || null,
+                created_by_is_active: projetData.creator?.is_active ?? null,
                 updated_by: projetData.updater?.username || null,
                 updated_by_name: projetData.updater?.nom_complet ||
                                  (projetData.updater?.prenom && projetData.updater?.nom
                                    ? `${projetData.updater.prenom} ${projetData.updater.nom}`
-                                   : projetData.updater?.username) || null
+                                   : projetData.updater?.username) || null,
+                updated_by_is_active: projetData.updater?.is_active ?? null
               }
             };
           }));

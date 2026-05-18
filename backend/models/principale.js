@@ -41,6 +41,7 @@ module.exports = (sequelize, DataTypes) => {
     username: { type: DataTypes.TEXT, unique: true, allowNull: false },
     password_hash: { type: DataTypes.TEXT, allowNull: false },
     first_login: { type: DataTypes.BOOLEAN, defaultValue: true },
+    is_active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
     role_id: { type: DataTypes.INTEGER, references: { model: RoleEnum, key: 'id_role' } },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     prenom: { type: DataTypes.TEXT },

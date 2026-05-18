@@ -63,7 +63,7 @@ export default async function handler(req, res, params) {
       }, { status: 400 });
     }
 
-    const { prenom, nom, role_id, password, first_login } = req.body;
+    const { prenom, nom, role_id, password, first_login, is_active } = req.body;
     console.log('📥 req.body:', req.body);
     console.log('📥 password:', password ? 'présent' : 'absent');
 
@@ -94,6 +94,7 @@ export default async function handler(req, res, params) {
     if (nom !== undefined) updateData.nom = nom;
     if (role_id !== undefined) updateData.role_id = role_id;
     if (first_login !== undefined) updateData.first_login = first_login;
+    if (is_active !== undefined) updateData.is_active = is_active;
 
     // Hasher le nouveau mot de passe si fourni
     if (password) {
@@ -118,7 +119,7 @@ export default async function handler(req, res, params) {
 
     // Récupérer l'utilisateur mis à jour avec ses relations
     const updatedUser = await User.findByPk(userId, {
-      attributes: ['id_user', 'username', 'prenom', 'nom', 'role_id', 'first_login', 'created_at'],
+      attributes: ['id_user', 'username', 'prenom', 'nom', 'role_id', 'first_login', 'is_active', 'created_at'],
       include: [
         {
           model: RoleEnum,
@@ -145,6 +146,7 @@ export default async function handler(req, res, params) {
       nom_complet: `${updatedUser.prenom || ''} ${updatedUser.nom || ''}`.trim() || updatedUser.username,
       prenom: updatedUser.prenom,
       nom: updatedUser.nom,
+      is_active: updatedUser.is_active,
       role_id: updatedUser.role_id,
       role_libelle: rolesMap[updatedUser.role_id] || 'N/A',
       first_login: updatedUser.first_login,

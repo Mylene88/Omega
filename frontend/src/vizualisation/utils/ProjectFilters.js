@@ -140,12 +140,17 @@ export const filterProject = (feature, filters) => {
     }
   }
 
-  // 5. Filtre projet signalé
+  // 5. Filtre projet archivé
+  if (filters.projetArchive && !props.is_archived) {
+    return false;
+  }
+
+  // 6. Filtre projet signalé
   if (filters.projetSignale && !props.projet_signale) {
     return false;
   }
 
-  // 6. Filtre charte accueil
+  // 7. Filtre charte accueil
   if (filters.charteAccueil && !props.charte_accueil) {
     return false;
   }
@@ -273,12 +278,17 @@ export const filterProjectsArray = (projects, filters, debug = false) => {
       }
     }
 
-    // 5. Filtre projet signalé
+    // 5. Filtre projet archivé
+    if (filters.projetArchive && !project.is_archived) {
+      return false;
+    }
+
+    // 6. Filtre projet signalé
     if (filters.projetSignale && !project.projet_signale) {
       return false;
     }
 
-    // 6. Filtre charte accueil
+    // 7. Filtre charte accueil
     if (filters.charteAccueil && !project.charte_accueil) {
       return false;
     }

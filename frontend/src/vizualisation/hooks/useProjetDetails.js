@@ -43,14 +43,14 @@ export function useProjetDetails(selectedProjectId) {
                         service: serviceDdt?.libelle,
                         referent_ddt: projet?.referentDdt,
                         created_at: projet?.dateCreation,
-                        createur: createur?.nomComplet,
+                        createur: createur || null,
                         updated_at: projet?.dateMiseAJour,
 
                         suivis: (suivis || []).map((s) => ({
                             id: s.id,
                             texte: s.contenu,
                             date: s.dateCreation,
-                            auteur: s.creePar?.nomComplet || 'Anonyme'
+                            creePar: s.creePar || null
                         })),
 
                         porteurs: (porteurs || []).map((p) => ({
@@ -67,7 +67,7 @@ export function useProjetDetails(selectedProjectId) {
                             nom: t.libelle,
                             libelle: t.libelle,
                             dateAjout: t.dateAjout,
-                            ajoutePar: t.ajoutePar?.nomComplet || t.ajoutePar,
+                            ajoutePar: t.ajoutePar || null,
                             donnees: t.donnees || {},
                             fieldsMetadataByModel: t.fieldsMetadataByModel || {}
                         })),

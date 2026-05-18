@@ -70,6 +70,7 @@ export default async function handler(req, res) {
         'username',
         'prenom',
         'nom',
+        'is_active',
         'role_id',
         'created_at'
       ],
@@ -93,6 +94,7 @@ export default async function handler(req, res) {
       nom_complet: `${user.prenom || ''} ${user.nom || ''}`.trim() || user.username,
       prenom: user.prenom,
       nom: user.nom,
+      is_active: user.is_active,
       role_id: user.role_id,
       role_libelle: rolesMap[user.role_id] || 'N/A',
       created_at: user.created_at
@@ -185,7 +187,8 @@ export default async function handler(req, res) {
       prenom: prenom || null,
       nom: nom || null,
       role_id: role_id || null,
-      first_login: true
+      first_login: true,
+      is_active: true
     });
 
     // Récupérer le rôle
@@ -218,6 +221,7 @@ export default async function handler(req, res) {
       nom_complet: `${newUser.prenom || ''} ${newUser.nom || ''}`.trim() || newUser.username,
       prenom: newUser.prenom,
       nom: newUser.nom,
+      is_active: newUser.is_active,
       role_id: newUser.role_id,
       role_libelle: rolesMap[newUser.role_id] || 'N/A',
       first_login: newUser.first_login,
@@ -266,18 +270,20 @@ export default async function handler(req, res) {
     if (userIds.includes(currentUserId)) {
       return res.json({
         success: false,
-        message: 'Vous ne pouvez pas supprimer votre propre compte'
+        message: 'Vous ne pouvez pas désactiver votre propre compte'
       }, { status: 400 });
     }
 
-    // Supprimer les utilisateurs
-    const deletedCount = await User.destroy({
+    const [deactivatedCount] = await User.update({
+      is_active: false
+    }, {
       where: {
-        id_user: userIds
+        id_user: userIds,
+        is_active: true
       }
     });
 
-    if (deletedCount === 0) {
+    if (deactivatedCount === 0) {
       return res.json({
         success: false,
         message: 'Aucun utilisateur trouvé avec ces IDs'
@@ -286,9 +292,9 @@ export default async function handler(req, res) {
 
     return res.json({
       success: true,
-      message: `${deletedCount} utilisateur(s) supprimé(s) avec succès`,
+      message: `${deactivatedCount} utilisateur(s) désactivé(s) avec succès`,
       data: {
-        deletedCount
+        deactivatedCount
       }
     });
 
@@ -296,7 +302,7 @@ export default async function handler(req, res) {
     console.error('Erreur DELETE /api/admin/users:', error);
     return res.json({
       success: false,
-      message: 'Erreur lors de la suppression des utilisateurs',
+      message: 'Erreur lors de la désactivation des utilisateurs',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     }, { status: 500 });
   }

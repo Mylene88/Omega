@@ -4,12 +4,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import MapFilters from '../components/MapFilters';
 import VueListe from '../components/VueListe';
 import ProjetDetailPanel from '../components/common/ProjetDetailPanel';
+import ArchiveRequestModal from '../components/common/ArchiveRequestModal';
 import { useProjetDetails } from '../hooks/useProjetDetails';
 import { useAccordion } from '../hooks/useAccordion';
 import styles from '../styles/MapFilters.module.css';
 import '../styles/VueListeStyle.css';
 import { filterProjectsArray } from '../utils/ProjectFilters';
 import { API_BASE_URL } from '../../config/apiConfig';
+import { getApiHeaders } from '../../utils/userHelper';
 
 
 
@@ -32,6 +34,8 @@ export default function ListeProjetPage() {
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [sectionToScroll, setSectionToScroll] = useState(null);
     const [sectionScrollNonce, setSectionScrollNonce] = useState(0);
+    const [archiveModalOpen, setArchiveModalOpen] = useState(false);
+    const [isSubmittingArchiveRequest, setIsSubmittingArchiveRequest] = useState(false);
 
     const { expandedSections, toggleSection, openSection } = useAccordion({
         infos: true,
@@ -161,6 +165,58 @@ export default function ListeProjetPage() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, []);
 
+    const handleArchiveRequest = useCallback(() => {
+        if (!selectedProjectDetails?.projet?.id && !selectedProjectDetails?.id_projet) {
+            return;
+        }
+        setArchiveModalOpen(true);
+    }, [selectedProjectDetails]);
+
+    const handleArchiveSubmit = useCallback(async (raison) => {
+        const projectId = selectedProjectDetails?.projet?.id || selectedProjectDetails?.id_projet;
+        const isArchived = !!(
+            selectedProjectDetails?.projet?.isArchived ||
+            selectedProjectDetails?.is_archived ||
+            selectedProjectDetails?.projet?.is_archived
+        );
+
+        if (!projectId) {
+            return;
+        }
+
+        setIsSubmittingArchiveRequest(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/archive-requests`, {
+                method: 'POST',
+                headers: getApiHeaders(),
+                body: JSON.stringify({
+                    id_projet: projectId,
+                    request_type: isArchived ? 'restauration' : 'archivage',
+                    raison: raison || null
+                })
+            });
+
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || result.message || 'Erreur lors de la demande');
+            }
+
+            alert(
+                isArchived
+                    ? '✅ Demande de restauration envoyée avec succès.'
+                    : '✅ Demande d\'archivage envoyée avec succès.'
+            );
+            setArchiveModalOpen(false);
+            window.location.reload();
+        } catch (error) {
+            console.error('❌ Erreur demande archivage/restauration:', error);
+            alert(`❌ ${error.message}`);
+            throw error;
+        } finally {
+            setIsSubmittingArchiveRequest(false);
+        }
+    }, [selectedProjectDetails]);
+
     const viewToggleButton = (
         <button className={styles.viewToggleButton} onClick={goToCarte}>
             🗺️ Vue Carte
@@ -232,12 +288,32 @@ export default function ListeProjetPage() {
                         loadingDetails={loadingDetails}
                         expandedSections={expandedSections}
                         onToggleSection={toggleSection}
+                        onArchiveRequest={handleArchiveRequest}
+                        isSubmittingArchiveRequest={isSubmittingArchiveRequest}
                         onClose={() => setSelectedProjectId(null)}
                         sectionToScroll={sectionToScroll}
                         sectionScrollNonce={sectionScrollNonce}
                     />
                 )}
             </div>
+
+            {archiveModalOpen && selectedProjectDetails && (
+                <ArchiveRequestModal
+                    projet={{
+                        id_projet: selectedProjectDetails?.projet?.id || selectedProjectDetails?.id_projet,
+                        nom_projet: selectedProjectDetails?.projet?.nom || selectedProjectDetails?.nom_projet
+                    }}
+                    requestType={
+                        (
+                            selectedProjectDetails?.projet?.isArchived ||
+                            selectedProjectDetails?.is_archived ||
+                            selectedProjectDetails?.projet?.is_archived
+                        ) ? 'restauration' : 'archivage'
+                    }
+                    onClose={() => setArchiveModalOpen(false)}
+                    onSubmit={handleArchiveSubmit}
+                />
+            )}
         </div>
     );
 }
