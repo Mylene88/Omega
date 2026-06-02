@@ -1,5 +1,6 @@
 // frontend/src/components/admin/DeletionRequestsTab.js
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './DeletionRequestsTab.css';
 import UserDisplay from '../common/UserDisplay';
 
@@ -12,6 +13,7 @@ const DeletionRequestsTab = ({
 }) => {
   const isArchiveMode = mode === 'archive';
   const endpoint = isArchiveMode ? '/archive-requests' : '/deletion-requests';
+  const navigate = useNavigate();
 
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -149,6 +151,22 @@ const DeletionRequestsTab = ({
 
   const getTabTitle = () => (isArchiveMode ? 'd\'archivage' : 'de suppression');
 
+  const goToProjectDetails = useCallback((request) => {
+    if (!request?.id_projet) {
+      return;
+    }
+
+    const params = new URLSearchParams({
+      projectId: request.id_projet
+    });
+
+    if (request.projet_is_archived) {
+      params.set('archives', '1');
+    }
+
+    navigate(`/projets/liste?${params.toString()}`);
+  }, [navigate]);
+
   return (
     <div className="deletion-requests-tab">
       <div className="deletion-filters">
@@ -211,7 +229,13 @@ const DeletionRequestsTab = ({
               <div className="request-header">
                 <div className="request-info">
                   <h3>
-                    Projet #{request.id_projet}: {request.projet_nom}
+                    <button
+                      type="button"
+                      className="project-link-button"
+                      onClick={() => goToProjectDetails(request)}
+                    >
+                      Projet #{request.id_projet}: {request.projet_nom}
+                    </button>
                   </h3>
                   {getStatusBadge(request.statut)}
                 </div>

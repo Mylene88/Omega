@@ -41,6 +41,7 @@ const Carte = forwardRef(({
             {
                 minZoom: TILE_CONFIG.ortho.minZoom,
                 maxZoom: TILE_CONFIG.ortho.maxZoom,
+                maxNativeZoom: TILE_CONFIG.ortho.maxNativeZoom,
                 attribution: TILE_CONFIG.ortho.attribution,
                 tileSize: 256,
             }
@@ -50,6 +51,7 @@ const Carte = forwardRef(({
             {
                 minZoom: TILE_CONFIG.plan.minZoom,
                 maxZoom: TILE_CONFIG.plan.maxZoom,
+                maxNativeZoom: TILE_CONFIG.plan.maxNativeZoom,
                 attribution: TILE_CONFIG.plan.attribution,
                 tileSize: 256,
             }
@@ -102,6 +104,7 @@ const Carte = forwardRef(({
         const map = L.map(mapRef.current, {
             center: EURE_ET_LOIR_CENTER,
             zoom: 10,
+            maxZoom: Math.max(TILE_CONFIG.plan.maxZoom || 19, TILE_CONFIG.ortho.maxZoom || 19),
             maxBounds: EURE_ET_LOIR_BOUNDS,
             maxBoundsViscosity: 1.0,
             zoomControl: true,

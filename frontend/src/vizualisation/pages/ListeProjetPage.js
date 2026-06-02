@@ -18,10 +18,23 @@ import { getApiHeaders } from '../../utils/userHelper';
 export default function ListeProjetPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const projectIdFromQuery = searchParams.get('projectId');
+    const initialFilters = useMemo(() => ({
+        searchText: searchParams.get('q') || '',
+        searchCodeInsee: searchParams.get('insee') || '',
+        searchEpci: searchParams.get('epci') || '',
+        searchArrondissement: searchParams.get('arr') || '',
+        serviceIds: searchParams.get('services') ? searchParams.get('services').split(',').filter(Boolean).map(Number).filter(Number.isFinite) : [],
+        thematiqueIds: searchParams.get('thematiques') ? searchParams.get('thematiques').split(',').filter(Boolean) : [],
+        statutIds: searchParams.get('statuts') ? searchParams.get('statuts').split(',').filter(Boolean).map(Number).filter(Number.isFinite) : [],
+        projetArchive: searchParams.get('archives') === '1',
+        projetSignale: searchParams.get('signale') === '1',
+        charteAccueil: searchParams.get('charte') === '1'
+    }), [searchParams]);
 
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [filters, setFilters] = useState({});
+    const [filters, setFilters] = useState(initialFilters);
     const [selectedProjectId, setSelectedProjectId] = useState(null);
     const [geoEntities, setGeoEntities] = useState([]);
 
@@ -46,7 +59,7 @@ export default function ListeProjetPage() {
         geometries: false
     });
 
-    const handleProjectSelect = async (projectId, sectionToOpen = null) => {
+    const handleProjectSelect = useCallback(async (projectId, sectionToOpen = null) => {
         setSelectedProjectId(projectId);
         setLoadingDetails(true);
 
@@ -84,7 +97,7 @@ export default function ListeProjetPage() {
         } finally {
             setLoadingDetails(false);
         }
-    };
+    }, [openSection]);
 
 
     // Charger les projets
@@ -148,6 +161,18 @@ export default function ListeProjetPage() {
     const handleFilterChange = useCallback((next) => {
         setFilters(next || {});
     }, []);
+
+    useEffect(() => {
+        setFilters(initialFilters);
+    }, [initialFilters]);
+
+    useEffect(() => {
+        if (!projectIdFromQuery || selectedProjectId === projectIdFromQuery) {
+            return;
+        }
+
+        handleProjectSelect(projectIdFromQuery);
+    }, [handleProjectSelect, projectIdFromQuery, selectedProjectId]);
 
     const goToCarte = useCallback(() => {
         const qs = searchParams.toString();

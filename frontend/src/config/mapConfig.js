@@ -36,14 +36,16 @@ const LOCAL_TILES = {
         url: '/tiles/plan/{z}/{x}/{y}.png',
         format: 'png',
         minZoom: 8,
-        maxZoom: 14,
+        maxZoom: 19,
+        maxNativeZoom: 14,
         attribution: 'IGN-F/Geoportail (Hors-ligne)'
     },
     ortho: {
         url: '/tiles/ortho/{z}/{x}/{y}.jpg',
         format: 'jpg',
         minZoom: 8,
-        maxZoom: 14,
+        maxZoom: 19,
+        maxNativeZoom: 14,
         attribution: 'IGN-F/Geoportail (Hors-ligne)'
     }
 };

@@ -351,6 +351,51 @@ module.exports = (sequelize, DataTypes) => {
     ]
   });
 
+  // --- Table project_section_state : révision courante par section de projet ---
+  const ProjectSectionState = sequelize.define('project_section_state', {
+    id_state: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    id_projet: { type: DataTypes.STRING, allowNull: false, references: { model: Projet, key: 'id_projet' }, onDelete: 'CASCADE' },
+    section_name: {
+      type: DataTypes.ENUM('projet_info', 'porteurs', 'suivis', 'thematiques', 'documents', 'geometrie'),
+      allowNull: false
+    },
+    revision: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    updated_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    updated_by: { type: DataTypes.INTEGER, allowNull: true, references: { model: User, key: 'id_user' }, onDelete: 'SET NULL' }
+  }, {
+    schema,
+    tableName: 'project_section_state',
+    createdAt: false,
+    updatedAt: false,
+    timestamps: false,
+    indexes: [
+      { fields: ['id_projet', 'section_name'], unique: true }
+    ]
+  });
+
+  // --- Table project_section_lock : verrou d'édition par section ---
+  const ProjectSectionLock = sequelize.define('project_section_lock', {
+    id_lock: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    id_projet: { type: DataTypes.STRING, allowNull: false, references: { model: Projet, key: 'id_projet' }, onDelete: 'CASCADE' },
+    section_name: {
+      type: DataTypes.ENUM('projet_info', 'porteurs', 'suivis', 'thematiques', 'documents', 'geometrie'),
+      allowNull: false
+    },
+    user_id: { type: DataTypes.INTEGER, allowNull: false, references: { model: User, key: 'id_user' }, onDelete: 'CASCADE' },
+    acquired_at: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+    expires_at: { type: DataTypes.DATE, allowNull: false }
+  }, {
+    schema,
+    tableName: 'project_section_lock',
+    createdAt: false,
+    updatedAt: false,
+    timestamps: false,
+    indexes: [
+      { fields: ['id_projet', 'section_name'], unique: true },
+      { fields: ['expires_at'] }
+    ]
+  });
+
   // --- Table admin_access_log : journalisation des accès admin ---
   const AdminAccessLog = sequelize.define('admin_access_log', {
     id_access: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -486,6 +531,16 @@ module.exports = (sequelize, DataTypes) => {
   Projet.hasMany(SectionVersion, { foreignKey: 'id_projet', as: 'section_versions' });
   User.hasMany(SectionVersion, { foreignKey: 'user_id', as: 'section_versions' });
 
+  ProjectSectionState.belongsTo(Projet, { foreignKey: 'id_projet', as: 'projet' });
+  ProjectSectionState.belongsTo(User, { foreignKey: 'updated_by', as: 'updatedByUser' });
+  Projet.hasMany(ProjectSectionState, { foreignKey: 'id_projet', as: 'section_states' });
+  User.hasMany(ProjectSectionState, { foreignKey: 'updated_by', as: 'updated_sections' });
+
+  ProjectSectionLock.belongsTo(Projet, { foreignKey: 'id_projet', as: 'projet' });
+  ProjectSectionLock.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+  Projet.hasMany(ProjectSectionLock, { foreignKey: 'id_projet', as: 'section_locks' });
+  User.hasMany(ProjectSectionLock, { foreignKey: 'user_id', as: 'section_locks' });
+
 
   // --- Table des logs de sécurité (ANSSI conformité) ---
   const SecurityLog = sequelize.define('security_log', {
@@ -535,6 +590,8 @@ module.exports = (sequelize, DataTypes) => {
     AuditLog,
     ProjetSnapshot,
     ProjetSnapshotSection,
+    ProjectSectionState,
+    ProjectSectionLock,
     AdminAccessLog,
     ProjetDeletionRequest,
     ProjetArchiveRequest,

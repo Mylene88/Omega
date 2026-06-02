@@ -144,28 +144,15 @@ const MapPage = ({
                 console.warn('⚠️ Aucun userId trouvé - versioning désactivé pour cette requête');
             }
 
-            let endpoint, method, requestData;
-
-            if (isNewProject) {
-                console.log('🆕 Nouveau projet - analyse temporaire');
-                endpoint = `${API_BASE_URL}/api/geometry-temp`;
-                method = 'POST';
-                requestData = {
-                    project_id: projetData?.id_projet || 'temp_' + Date.now(),
-                    geom: geometryData.geom,
-                    geom_type: geometryData.geom_type,
-                };
-                if (userId) requestData.userId = userId;
-            } else {
-                console.log('🔄 Projet existant - mise à jour');
-                endpoint = `${API_BASE_URL}/api/projet-geometry/${projetData.id_geom}`;
-                method = 'PATCH';
-                requestData = {
-                    geom: geometryData.geom,
-                    geom_type: geometryData.geom_type,
-                };
-                if (userId) requestData.userId = userId;
-            }
+            console.log(isNewProject ? '🆕 Nouveau projet - analyse temporaire' : '🔄 Projet existant - analyse temporaire avant sauvegarde');
+            const endpoint = `${API_BASE_URL}/api/geometry-temp`;
+            const method = 'POST';
+            const requestData = {
+                project_id: projetData?.id_projet || 'temp_' + Date.now(),
+                geom: geometryData.geom,
+                geom_type: geometryData.geom_type,
+            };
+            if (userId) requestData.userId = userId;
 
             if (userId) {
                 console.log(`🔐 userId ajouté: ${userId}`);

@@ -261,32 +261,83 @@ export default function Map({ onSelect }) {
             }
 
             try {
+                const getProjectVisualStyle = (feature) => {
+                    const props = feature?.properties || {};
+                    const statut = props.libelle_statut ||
+                        props.statut_projet ||
+                        props.statut || 'Non défini';
+                    const statusStyle = getStatusStyle(statut);
+                    const isSignale = !!props.projet_signale;
+                    const hasCharteAccueil = !!props.charte_accueil;
+
+                    let strokeColor = statusStyle.color;
+                    let strokeWeight = 5;
+                    let strokeOpacity = 1;
+                    let dashArray;
+                    let fillOpacity = 0.6;
+                    let pointRadius = 10;
+                    let pointStrokeWeight = 4;
+
+                    if (isSignale && hasCharteAccueil) {
+                        strokeColor = '#ff0000';
+                        strokeWeight = 7;
+                        strokeOpacity = 1;
+                        dashArray = '12 4';
+                        fillOpacity = 0.75;
+                        pointRadius = 12;
+                        pointStrokeWeight = 5;
+                    } else if (isSignale) {
+                        strokeColor = '#ff0000';
+                        strokeWeight = 7;
+                        strokeOpacity = 1;
+                        fillOpacity = 0.75;
+                        pointRadius = 12;
+                        pointStrokeWeight = 5;
+                    } else if (hasCharteAccueil) {
+                        strokeColor = '#000000';
+                        strokeWeight = 6;
+                        strokeOpacity = 1;
+                        fillOpacity = 0.7;
+                        pointRadius = 11;
+                        pointStrokeWeight = 5;
+                    }
+
+                    return {
+                        color: strokeColor,
+                        weight: strokeWeight,
+                        opacity: strokeOpacity,
+                        dashArray,
+                        fillColor: statusStyle.fillColor,
+                        fillOpacity,
+                        pointRadius,
+                        pointStrokeWeight,
+                        libelle: statusStyle.libelle
+                    };
+                };
+
                 const geoJsonLayer = L.geoJSON(featureCollection, {
                     style: (feature) => {
-                        const statut = feature.properties?.libelle_statut ||
-                            feature.properties?.statut_projet ||
-                            feature.properties?.statut || 'Non défini';
-                        const style = getStatusStyle(statut);
+                        const style = getProjectVisualStyle(feature);
                         return {
                             color: style.color,
-                            weight: 3,
-                            opacity: 0.8,
+                            weight: style.weight,
+                            opacity: style.opacity,
+                            dashArray: style.dashArray,
                             fillColor: style.fillColor,
-                            fillOpacity: 0.4
+                            fillOpacity: style.fillOpacity,
+                            lineCap: 'round',
+                            lineJoin: 'round'
                         };
                     },
                     pointToLayer: (feature, latlng) => {
-                        const statut = feature.properties?.libelle_statut ||
-                             feature.properties?.statut_projet ||
-                            feature.properties?.statut || 'Non défini';
-                        const style = getStatusStyle(statut);
+                        const style = getProjectVisualStyle(feature);
                         return L.circleMarker(latlng, {
-                            radius: 8,
+                            radius: style.pointRadius,
                             fillColor: style.fillColor,
-                            color: '#000',
-                            weight: 1,
-                            opacity: 1,
-                            fillOpacity: 0.8
+                            color: style.color,
+                            weight: style.pointStrokeWeight,
+                            opacity: style.opacity,
+                            fillOpacity: Math.max(style.fillOpacity, 0.85)
                         });
                     },
                     onEachFeature: (feature, layer) => {
@@ -701,9 +752,12 @@ export default function Map({ onSelect }) {
                         // Effet hover visuel
                         layer.on('mouseover', function () {
                             if (geom.type !== 'Point') {
+                                const currentStyle = getProjectVisualStyle(feature);
                                 this.setStyle({
-                                    weight: 5,
-                                    fillOpacity: 0.6
+                                    color: currentStyle.color,
+                                    weight: currentStyle.weight + 1,
+                                    dashArray: currentStyle.dashArray,
+                                    fillOpacity: Math.min(currentStyle.fillOpacity + 0.1, 0.9)
                                 });
                             }
                         });
@@ -727,6 +781,16 @@ export default function Map({ onSelect }) {
 
                 geoJsonLayer.addTo(map);
                 geoJsonLayerRef.current = geoJsonLayer;
+
+                const bounds = geoJsonLayer.getBounds();
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, {
+                        padding: [40, 40],
+                        maxZoom: 15,
+                        animate: false
+                    });
+                    console.log('🗺️ Carte recadrée sur toutes les géométries visibles');
+                }
 
                 console.log(`✅ ${featureCollection.features.length} projets affichés`);
             } catch (error) {

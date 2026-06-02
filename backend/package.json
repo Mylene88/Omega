@@ -9,7 +9,8 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
-    "monitoring": "node monitoring/health-check.js"
+    "monitoring": "node monitoring/health-check.js",
+    "migrate:pending": "node scripts/run-pending-migrations.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

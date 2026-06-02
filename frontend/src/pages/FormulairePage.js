@@ -13,6 +13,15 @@ import Search from "../components/common/Search/Search";
 import { getCurrentUserId, getApiHeaders } from '../utils/userHelper';
 import { API_BASE_URL } from '../config/apiConfig';
 
+const SECTION_LABELS = {
+    projet_info: 'Informations générales',
+    porteurs: 'Porteurs',
+    suivis: 'Suivi DDT',
+    thematiques: 'Thématiques',
+    documents: 'Documents',
+    geometrie: 'Géométrie'
+};
+
 export default function FormulairePage() {
     const navigate = useNavigate();
     const { id } = useParams();
@@ -34,6 +43,11 @@ export default function FormulairePage() {
     const [currentUser, setCurrentUser] = useState(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [showExitModal, setShowExitModal] = useState(false);
+    const [sectionMeta, setSectionMeta] = useState({});
+    const [dirtySections, setDirtySections] = useState({});
+    const [lockedSections, setLockedSections] = useState({});
+    const [savingSections, setSavingSections] = useState({});
+    const [staleSections, setStaleSections] = useState({});
 
     const [suiviData, setSuiviData] = useState({
         historique: [],
@@ -279,6 +293,9 @@ export default function FormulairePage() {
 
                     // Réinitialiser l'état des modifications après le chargement
                     setHasUnsavedChanges(false);
+                    setDirtySections({});
+                    setLockedSections({});
+                    setStaleSections({});
                 })
                 .catch(error => {
                     console.error('❌ Erreur lors de la récupération du projet:', error);
@@ -290,6 +307,71 @@ export default function FormulairePage() {
             generateProjectId();
         }
     }, [id]);
+
+    const fetchSectionMetadata = async (passive = false) => {
+        if (!id) return;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/project-sections?idProjet=${encodeURIComponent(id)}`, {
+                headers: getApiHeaders()
+            });
+
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Erreur de chargement des métadonnées de sections');
+            }
+
+            const serverMeta = result.data || {};
+            setSectionMeta((prev) => {
+                const next = { ...prev };
+
+                Object.entries(serverMeta).forEach(([sectionName, meta]) => {
+                    const isDirty = !!dirtySections[sectionName];
+                    const previousRevision = prev[sectionName]?.revision;
+
+                    if (isDirty && previousRevision !== undefined && meta.revision > previousRevision) {
+                        setStaleSections((current) => ({ ...current, [sectionName]: true }));
+                        next[sectionName] = {
+                            ...prev[sectionName],
+                            lock: meta.lock
+                        };
+                    } else {
+                        next[sectionName] = meta;
+                    }
+                });
+
+                return next;
+            });
+
+            if (!passive) {
+                const locks = {};
+                Object.entries(serverMeta).forEach(([sectionName, meta]) => {
+                    if (meta.lock?.user?.id === currentUser?.id_user) {
+                        locks[sectionName] = true;
+                    }
+                });
+                setLockedSections((prev) => ({ ...prev, ...locks }));
+            }
+        } catch (error) {
+            console.error('❌ Erreur chargement métadonnées sections:', error);
+        }
+    };
+
+    useEffect(() => {
+        if (id && !isGeneratingId) {
+            fetchSectionMetadata();
+        }
+    }, [id, isGeneratingId, currentUser]);
+
+    useEffect(() => {
+        if (!id) return undefined;
+
+        const interval = setInterval(() => {
+            fetchSectionMetadata(true);
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, [id, dirtySections, currentUser]);
 
 
     // Récupérer l'utilisateur connecté depuis le localStorage
@@ -350,12 +432,302 @@ export default function FormulairePage() {
         ...suiviData
     };
 
+    const acquireSectionLock = async (sectionName) => {
+        if (!id || lockedSections[sectionName]) {
+            return true;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/project-sections/lock`, {
+                method: 'POST',
+                headers: getApiHeaders(),
+                body: JSON.stringify({
+                    idProjet: id,
+                    sectionName,
+                    action: 'acquire'
+                })
+            });
+
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                const holder = result.lock?.user?.nom_complet || result.lock?.user?.username;
+                if (response.status === 423) {
+                    alert(`La section "${SECTION_LABELS[sectionName]}" est en cours de modification par ${holder || 'un autre agent'}.`);
+                } else {
+                    alert(result.message || `Impossible de verrouiller la section ${SECTION_LABELS[sectionName]}.`);
+                }
+                return false;
+            }
+
+            setLockedSections((prev) => ({ ...prev, [sectionName]: true }));
+            setSectionMeta((prev) => ({ ...prev, [sectionName]: result.data }));
+            return true;
+        } catch (error) {
+            console.error('❌ Erreur lock section:', error);
+            alert(`Erreur lors du verrouillage de la section ${SECTION_LABELS[sectionName]}.`);
+            return false;
+        }
+    };
+
+    const releaseSectionLock = async (sectionName) => {
+        if (!id || !lockedSections[sectionName]) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/project-sections/lock`, {
+                method: 'POST',
+                headers: getApiHeaders(),
+                body: JSON.stringify({
+                    idProjet: id,
+                    sectionName,
+                    action: 'release'
+                })
+            });
+
+            const result = await response.json();
+            if (response.ok && result.success) {
+                setSectionMeta((prev) => ({ ...prev, [sectionName]: result.data }));
+            }
+        } catch (error) {
+            console.error('❌ Erreur release lock section:', error);
+        } finally {
+            setLockedSections((prev) => ({ ...prev, [sectionName]: false }));
+        }
+    };
+
+    useEffect(() => {
+        if (!id) return undefined;
+
+        const lockedSectionNames = Object.keys(lockedSections).filter((sectionName) => lockedSections[sectionName]);
+        if (lockedSectionNames.length === 0) return undefined;
+
+        const interval = setInterval(() => {
+            lockedSectionNames.forEach((sectionName) => {
+                fetch(`${API_BASE_URL}/api/project-sections/lock`, {
+                    method: 'POST',
+                    headers: getApiHeaders(),
+                    body: JSON.stringify({
+                        idProjet: id,
+                        sectionName,
+                        action: 'acquire'
+                    })
+                }).catch((error) => {
+                    console.error('❌ Heartbeat lock section:', error);
+                });
+            });
+        }, 60000);
+
+        return () => clearInterval(interval);
+    }, [id, lockedSections]);
+
+    useEffect(() => {
+        return () => {
+            if (!id) return;
+            Object.keys(lockedSections)
+                .filter((sectionName) => lockedSections[sectionName])
+                .forEach((sectionName) => {
+                    fetch(`${API_BASE_URL}/api/project-sections/lock`, {
+                        method: 'POST',
+                        headers: getApiHeaders(),
+                        body: JSON.stringify({
+                            idProjet: id,
+                            sectionName,
+                            action: 'release'
+                        }),
+                        keepalive: true
+                    }).catch(() => undefined);
+                });
+        };
+    }, [id, lockedSections]);
+
+    const markSectionDirty = async (sectionName) => {
+        setHasUnsavedChanges(true);
+        setDirtySections((prev) => ({ ...prev, [sectionName]: true }));
+        await acquireSectionLock(sectionName);
+    };
+
+    const buildSectionPayload = (sectionName) => {
+        switch (sectionName) {
+            case 'projet_info':
+                return {
+                    nom_projet: projetData.nom_projet || 'Nouveau projet',
+                    description: projetData.description || '',
+                    statut_projet_id: projetData.statut_projet_id ?? null,
+                    date_ident_projet: projetData.date_ident_projet ?? null
+                };
+            case 'porteurs':
+                return (porteursData || [])
+                    .filter((p) => p.type_porteur_id || p.nom_structure || p.referent_nom)
+                    .map((p) => ({
+                        type_porteur_id: parseInt(p.type_porteur_id, 10) || null,
+                        autre_type_porteur: p.autre_type_porteur || null,
+                        nom_structure: p.nom_structure,
+                        referent_nom: p.referent_nom || null,
+                        referent_fonction: p.referent_fonction || null,
+                        referent_email: p.referent_email || null,
+                        referent_tel: p.referent_tel || null
+                    }));
+            case 'suivis':
+                return {
+                    enjeuPrioritaire: suiviData.enjeuPrioritaire ?? false,
+                    charteAccueil: suiviData.charteAccueil ?? false,
+                    service_id: suiviData.service_id ?? null,
+                    contactDDT: suiviData.contactDDT ?? null,
+                    historique: Array.isArray(suiviData.historique)
+                        ? suiviData.historique.map((item) => ({
+                            description: item.description,
+                            dateTime: item.dateTime || item.modifiedAt || new Date().toISOString()
+                        }))
+                        : []
+                };
+            case 'thematiques':
+                return Array.isArray(thematiqueData)
+                    ? thematiqueData
+                        .filter((them) => them.id_thematique)
+                        .map((thematique) => ({
+                            id_thematique: thematique.id_thematique,
+                            modele: thematique.modele,
+                            fields: thematique.fields && Object.keys(thematique.fields).length > 0
+                                ? thematique.fields
+                                : (thematique.data || {}),
+                            commentaires: thematique.commentaires || '',
+                            ajoute_par: currentUser?.id_user
+                        }))
+                    : [];
+            case 'documents':
+                return Array.isArray(documentsData)
+                    ? documentsData
+                        .filter((doc) => doc.lien_local || doc.lien_web)
+                        .map((doc) => ({
+                            lien_local: doc.lien_local || null,
+                            lien_web: doc.lien_web || null
+                        }))
+                    : [];
+            case 'geometrie':
+                return geometryData ? {
+                    geom: geometryData.geom,
+                    geom_type: geometryData.geom_type
+                } : null;
+            default:
+                return null;
+        }
+    };
+
+    const applySavedSectionData = (sectionName, payload) => {
+        if (sectionName === 'geometrie' && payload) {
+            setGeometryData((prev) => ({
+                ...prev,
+                id_geom: payload.id_geom || prev?.id_geom,
+                geom: payload.geom || prev?.geom,
+                geom_type: payload.geom_type || prev?.geom_type,
+                area_m2: payload.area_m2,
+                length_m: payload.length_m,
+                communes_traversees: payload.communes_traversees || [],
+                codes_insee: payload.codes_insee || [],
+                epci: payload.epci || [],
+                arrondissements: payload.arrondissements || [],
+                deputes: payload.deputes || [],
+                maires: payload.maires || []
+            }));
+        }
+    };
+
+    const saveExistingProjectSection = async (sectionName) => {
+        if (!id) return false;
+
+        const lockAcquired = await acquireSectionLock(sectionName);
+        if (!lockAcquired) {
+            return false;
+        }
+
+        setSavingSections((prev) => ({ ...prev, [sectionName]: true }));
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/project-sections`, {
+                method: 'PUT',
+                headers: getApiHeaders(),
+                body: JSON.stringify({
+                    idProjet: id,
+                    sectionName,
+                    expectedRevision: sectionMeta[sectionName]?.revision ?? 0,
+                    sectionData: buildSectionPayload(sectionName)
+                })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                if (response.status === 409) {
+                    setStaleSections((prev) => ({ ...prev, [sectionName]: true }));
+                    alert(`Conflit détecté sur "${SECTION_LABELS[sectionName]}". Un autre agent a sauvegardé cette section avant vous. Rechargez la section avant de réessayer.`);
+                    await fetchSectionMetadata();
+                    return false;
+                }
+
+                if (response.status === 423) {
+                    const holder = result.lock?.user?.nom_complet || result.lock?.user?.username || 'un autre agent';
+                    alert(`Impossible d’enregistrer "${SECTION_LABELS[sectionName]}": section verrouillée par ${holder}.`);
+                    await fetchSectionMetadata();
+                    return false;
+                }
+
+                throw new Error(result.message || `Erreur lors de l’enregistrement de la section ${SECTION_LABELS[sectionName]}`);
+            }
+
+            applySavedSectionData(sectionName, result.data?.sectionData);
+            setSectionMeta((prev) => ({ ...prev, [sectionName]: result.data?.metadata || prev[sectionName] }));
+            setDirtySections((prev) => ({ ...prev, [sectionName]: false }));
+            setStaleSections((prev) => ({ ...prev, [sectionName]: false }));
+
+            const hasRemainingDirty = Object.entries({
+                ...dirtySections,
+                [sectionName]: false
+            }).some(([, isDirty]) => !!isDirty);
+            setHasUnsavedChanges(hasRemainingDirty);
+
+            await releaseSectionLock(sectionName);
+            return true;
+        } catch (error) {
+            console.error(`❌ Erreur sauvegarde section ${sectionName}:`, error);
+            alert(error.message);
+            return false;
+        } finally {
+            setSavingSections((prev) => ({ ...prev, [sectionName]: false }));
+        }
+    };
 
     const handleSaveProject = async () => {
         if (!projetData.id_projet || !currentUser?.id_user) {
             alert('ID du projet manquant ou utilisateur non connecté.');
             return;
         }
+
+        if (id) {
+            const dirtySectionNames = Object.keys(dirtySections).filter((sectionName) => dirtySections[sectionName]);
+            if (dirtySectionNames.length === 0) {
+                alert('Aucune section modifiée à enregistrer.');
+                return;
+            }
+
+            setIsSaving(true);
+            try {
+                for (const sectionName of dirtySectionNames) {
+                    const success = await saveExistingProjectSection(sectionName);
+                    if (!success) {
+                        return;
+                    }
+                }
+                alert('✅ Les sections modifiées ont été enregistrées avec succès.');
+                navigate('/projets/liste', {
+                    state: { refresh: true }
+                });
+            } finally {
+                setIsSaving(false);
+            }
+            return;
+        }
+
         setIsSaving(true);
 
         try {
@@ -526,12 +898,16 @@ export default function FormulairePage() {
     const handleDocumentChange = (documents) => {
         console.log('📄 Documents reçus:', documents);
         setDocumentsData(documents);
-        setHasUnsavedChanges(true);
+        markSectionDirty('documents');
     };
 
     const handleGeometryUpdate = (newGeometryData) => {
         setGeometryData(newGeometryData);
-        setHasUnsavedChanges(true);
+        if (id) {
+            markSectionDirty('geometrie');
+        } else {
+            setHasUnsavedChanges(true);
+        }
         if (newGeometryData) {
             setProjetData(prev => ({
                 ...prev,
@@ -543,24 +919,91 @@ export default function FormulairePage() {
 
     const handleProjectDataUpdate = (newData) => {
         setProjetData(prev => ({ ...prev, ...newData }));
-        setHasUnsavedChanges(true);
+        if (id) {
+            markSectionDirty('projet_info');
+        } else {
+            setHasUnsavedChanges(true);
+        }
     };
 
     const handleThematiqueChange = (newThematiques) => {
         console.log("📥 FormulairePage - Thématiques reçues:", newThematiques);
         setThematiqueData(newThematiques);
-        setHasUnsavedChanges(true);
+        if (id) {
+            markSectionDirty('thematiques');
+        } else {
+            setHasUnsavedChanges(true);
+        }
     };
 
     // Wrappers pour suivis et porteurs pour détecter les changements
     const handlePorteursChange = (newPorteurs) => {
         setPorteursData(newPorteurs);
-        setHasUnsavedChanges(true);
+        if (id) {
+            markSectionDirty('porteurs');
+        } else {
+            setHasUnsavedChanges(true);
+        }
     };
 
     const handleSuiviChange = (newSuivi) => {
         setSuiviData(newSuivi);
-        setHasUnsavedChanges(true);
+        if (id) {
+            markSectionDirty('suivis');
+        } else {
+            setHasUnsavedChanges(true);
+        }
+    };
+
+    const renderSectionActions = (sectionName) => {
+        if (!id) return null;
+
+        const meta = sectionMeta[sectionName];
+        const lockUser = meta?.lock?.user;
+        const lockedByOther = lockUser && lockUser.id !== currentUser?.id_user;
+        const isDirty = !!dirtySections[sectionName];
+        const isSavingSection = !!savingSections[sectionName];
+        const isStale = !!staleSections[sectionName];
+
+        return (
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '1rem',
+                margin: '0.5rem 0 1.25rem 0',
+                padding: '0.75rem 1rem',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                background: '#f8fafc'
+            }}>
+                <div style={{ fontSize: '0.9rem', color: '#475569' }}>
+                    {lockedByOther
+                        ? `En cours de modification par ${lockUser.nom_complet || lockUser.username}`
+                        : isStale
+                            ? 'Une autre sauvegarde a eu lieu sur cette section. Recharge requise avant enregistrement.'
+                            : isDirty
+                                ? 'Modifications locales non enregistrées.'
+                                : 'Section synchronisée.'}
+                </div>
+                <button
+                    type="button"
+                    onClick={() => saveExistingProjectSection(sectionName)}
+                    disabled={!isDirty || lockedByOther || isSavingSection}
+                    style={{
+                        padding: '0.55rem 1rem',
+                        backgroundColor: (!isDirty || lockedByOther || isSavingSection) ? '#94A3B8' : '#2563EB',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: (!isDirty || lockedByOther || isSavingSection) ? 'not-allowed' : 'pointer',
+                        fontWeight: 600
+                    }}
+                >
+                    {isSavingSection ? 'Enregistrement...' : `Enregistrer ${SECTION_LABELS[sectionName]}`}
+                </button>
+            </div>
+        );
     };
 
     // Gestion du modal de sortie
@@ -670,6 +1113,7 @@ export default function FormulairePage() {
                     value={projetData}
                     onChange={handleProjectDataUpdate}
                 />
+                {renderSectionActions('projet_info')}
 
                 {/* Afficher un loader si les données sont en cours de chargement */}
                 {id && isGeneratingId ? (
@@ -687,18 +1131,22 @@ export default function FormulairePage() {
                             value={porteursData}
                             onChange={handlePorteursChange}
                         />
+                        {renderSectionActions('porteurs')}
                         <SuiviDdtSection
                             value={suiviFormData}
                             onChange={handleSuiviChange}
                         />
+                        {renderSectionActions('suivis')}
                         <ThematiqueModele
                             value={thematiqueData}
                             onThematiqueChange={handleThematiqueChange}
                         />
+                        {renderSectionActions('thematiques')}
                         <Document
                             value={documentsData}
                             onChange={handleDocumentChange}
                         />
+                        {renderSectionActions('documents')}
                     </>
                 )}
 
@@ -717,7 +1165,7 @@ export default function FormulairePage() {
                             fontWeight: 'bold',
                         }}
                     >
-                        {isSaving ? 'Enregistrement en cours...' : 'Enregistrer le projet'}
+                        {isSaving ? 'Enregistrement en cours...' : (id ? 'Enregistrer les sections modifiées' : 'Enregistrer le projet')}
                     </button>
                 </div>
             </div>
@@ -730,6 +1178,7 @@ export default function FormulairePage() {
                     geometryData={geometryData}
                     onGeometryUpdate={handleGeometryUpdate}
                 />
+                {renderSectionActions('geometrie')}
             </div>
         </div>
         </>

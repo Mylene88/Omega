@@ -141,7 +141,11 @@ export const filterProject = (feature, filters) => {
   }
 
   // 5. Filtre projet archivé
-  if (filters.projetArchive && !props.is_archived) {
+  if (filters.projetArchive) {
+    if (!props.is_archived) {
+      return false;
+    }
+  } else if (props.is_archived) {
     return false;
   }
 
@@ -279,7 +283,11 @@ export const filterProjectsArray = (projects, filters, debug = false) => {
     }
 
     // 5. Filtre projet archivé
-    if (filters.projetArchive && !project.is_archived) {
+    if (filters.projetArchive) {
+      if (!project.is_archived) {
+        return false;
+      }
+    } else if (project.is_archived) {
       return false;
     }
 
@@ -327,6 +335,7 @@ export const hasActiveFilters = (filters) => {
     (filters.serviceIds && filters.serviceIds.length > 0) ||
     (filters.thematiqueIds && filters.thematiqueIds.length > 0) ||
     (filters.statutIds && filters.statutIds.length > 0) ||
+    filters.projetArchive ||
     filters.projetSignale ||
     filters.charteAccueil
   );
@@ -342,6 +351,7 @@ export const countActiveFilters = (filters) => {
   if (filters.serviceIds && filters.serviceIds.length > 0) count += filters.serviceIds.length;
   if (filters.thematiqueIds && filters.thematiqueIds.length > 0) count += filters.thematiqueIds.length;
   if (filters.statutIds && filters.statutIds.length > 0) count += filters.statutIds.length;
+  if (filters.projetArchive) count++;
   if (filters.projetSignale) count++;
   if (filters.charteAccueil) count++;
 

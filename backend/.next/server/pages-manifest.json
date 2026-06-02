@@ -2,10 +2,6 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/api/thematiques/modeles": "pages/api/thematiques/modeles.js",
-  "/api/statut": "pages/api/statut.js",
-  "/api/service": "pages/api/service.js",
-  "/api/projet-geometry": "pages/api/projet-geometry.js",
-  "/api/projets/[id]": "pages/api/projets/[id].js",
-  "/api/geo-entities": "pages/api/geo-entities.js"
+  "/api/admin/snapshots": "pages/api/admin/snapshots.js",
+  "/api/admin/audit": "pages/api/admin/audit.js"
 }

@@ -5,6 +5,7 @@ export default function UserDisplay({
   name,
   username,
   isActive = true,
+  showInactiveBadge = true,
   fallback = 'N/A',
   className = '',
   prefix = ''
@@ -21,7 +22,7 @@ export default function UserDisplay({
         {prefix}
         {displayName}
       </span>
-      {isActive === false && (
+      {showInactiveBadge && isActive === false && (
         <span
           className="user-display__badge"
           title="Cet utilisateur ne fait plus partie de la DDT"

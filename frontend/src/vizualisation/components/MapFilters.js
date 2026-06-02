@@ -5,6 +5,7 @@ import styles from '../styles/MapFilters.module.css';
 import { API_BASE_URL } from '../../config/apiConfig';
 
 export default function MapFilters({
+    filters: externalFilters,
     onFilterChange,
     onLocationSelect,
     communes,
@@ -29,6 +30,22 @@ export default function MapFilters({
 
   useEffect(() => { loadServices(); loadThematiques(); loadStatuts(); }, []);
   useEffect(() => { onFilterChange(filters); }, [filters, onFilterChange]);
+  useEffect(() => {
+    if (!externalFilters || Object.keys(externalFilters).length === 0) return;
+
+    setFilters(prev => {
+      const nextFilters = {
+        ...prev,
+        ...externalFilters,
+        serviceIds: Array.isArray(externalFilters.serviceIds) ? externalFilters.serviceIds : prev.serviceIds,
+        thematiqueIds: Array.isArray(externalFilters.thematiqueIds) ? externalFilters.thematiqueIds : prev.thematiqueIds,
+        statutIds: Array.isArray(externalFilters.statutIds) ? externalFilters.statutIds : prev.statutIds
+      };
+
+      const hasChanged = JSON.stringify(prev) !== JSON.stringify(nextFilters);
+      return hasChanged ? nextFilters : prev;
+    });
+  }, [externalFilters]);
 
   const loadServices = async () => {
     try {
@@ -171,6 +188,7 @@ export default function MapFilters({
     count += filters.serviceIds.length;
     count += filters.thematiqueIds.length;
     count += filters.statutIds.length;
+    if (filters.projetArchive) count++;
     if (filters.projetSignale) count++;
     if (filters.charteAccueil) count++;
     return count;
@@ -300,7 +318,7 @@ export default function MapFilters({
                     checked={filters.projetArchive}
                     onChange={() => handleCheckboxChange('projetArchive')}
                 />
-                <span>🗃️ Projet archivé</span>
+                <span>🗃️ Projet archivés</span>
               </label>
               <label className={styles.checkboxLabel}>
                 <input

@@ -9,6 +9,90 @@ import UserDisplay from '../../components/common/UserDisplay';
 import { formatDateTimeFr } from '../../utils/dateFormatter';
 import { API_BASE_URL } from '../../config/apiConfig';
 
+const normalizeImportHeader = (value) => String(value || '')
+  .trim()
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '');
+
+const splitCsvLine = (line, delimiter) => {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === delimiter && !inQuotes) {
+      values.push(current.trim());
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  values.push(current.trim());
+  return values;
+};
+
+const parseUsersCsv = (content) => {
+  const cleanedContent = String(content || '').replace(/^\uFEFF/, '');
+  const lines = cleanedContent
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2) {
+    throw new Error('Le fichier CSV doit contenir un en-tête et au moins une ligne utilisateur');
+  }
+
+  const headerLine = lines[0];
+  const delimiter = (headerLine.match(/;/g) || []).length >= (headerLine.match(/,/g) || []).length ? ';' : ',';
+  const headers = splitCsvLine(headerLine, delimiter).map(normalizeImportHeader);
+
+  const getIndex = (aliases) => aliases
+    .map((alias) => headers.indexOf(alias))
+    .find((index) => index !== -1);
+
+  const usernameIndex = getIndex(['username', 'identifiant', 'login', 'utilisateur']);
+  if (usernameIndex === undefined) {
+    throw new Error('Colonne "username" introuvable dans le fichier CSV');
+  }
+
+  const prenomIndex = getIndex(['prenom', 'first_name', 'firstname']);
+  const nomIndex = getIndex(['nom', 'last_name', 'lastname']);
+  const roleLabelIndex = getIndex(['role', 'role_libelle', 'role label', 'libelle_role']);
+  const roleIdIndex = getIndex(['role_id', 'id_role']);
+
+  return lines.slice(1).map((line, lineIndex) => {
+    const columns = splitCsvLine(line, delimiter);
+    const username = columns[usernameIndex]?.trim();
+
+    if (!username) return null;
+
+    return {
+      username,
+      prenom: prenomIndex !== undefined ? (columns[prenomIndex] || '').trim() || null : null,
+      nom: nomIndex !== undefined ? (columns[nomIndex] || '').trim() || null : null,
+      role_libelle: roleLabelIndex !== undefined ? (columns[roleLabelIndex] || '').trim() || null : null,
+      role_id: roleIdIndex !== undefined ? (columns[roleIdIndex] || '').trim() || null : null,
+      _lineNumber: lineIndex + 2
+    };
+  }).filter(Boolean);
+};
+
 const AdminPage = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('stats');
@@ -62,6 +146,12 @@ const AdminPage = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showNewUserPassword, setShowNewUserPassword] = useState(false);
+  const [showImportUsersPanel, setShowImportUsersPanel] = useState(false);
+  const [importUsersFileName, setImportUsersFileName] = useState('');
+  const [importUsersRows, setImportUsersRows] = useState([]);
+  const [importUsersPreview, setImportUsersPreview] = useState(null);
+  const [importDeactivateIds, setImportDeactivateIds] = useState([]);
+  const [importResult, setImportResult] = useState(null);
 
   // États pour la pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -547,6 +637,127 @@ const AdminPage = () => {
 
     } catch (err) {
       console.error('❌ [ADMIN] Erreur lors de la création:', err);
+      alert(`❌ Erreur: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetImportUsersState = () => {
+    setImportUsersFileName('');
+    setImportUsersRows([]);
+    setImportUsersPreview(null);
+    setImportDeactivateIds([]);
+    setImportResult(null);
+  };
+
+  const handleImportUsersFile = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const content = await file.text();
+      const parsedUsers = parseUsersCsv(content);
+
+      if (parsedUsers.length === 0) {
+        throw new Error('Aucun utilisateur exploitable trouvé dans le fichier');
+      }
+
+      setImportUsersFileName(file.name);
+      setImportUsersRows(parsedUsers);
+      setImportUsersPreview(null);
+      setImportDeactivateIds([]);
+      setImportResult(null);
+    } catch (err) {
+      console.error('❌ [ADMIN] Erreur parsing import CSV:', err);
+      alert(`❌ Erreur import CSV: ${err.message}`);
+      resetImportUsersState();
+    } finally {
+      event.target.value = '';
+    }
+  };
+
+  const handlePreviewImportUsers = async () => {
+    if (importUsersRows.length === 0) {
+      alert('❌ Chargez un fichier CSV avant de lancer l’aperçu');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/import`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          preview: true,
+          users: importUsersRows
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Erreur lors de l’aperçu d’import');
+      }
+
+      setImportUsersPreview(data.data);
+      setImportDeactivateIds(
+        (data.data?.deactivateCandidates || [])
+          .filter((user) => user.can_deactivate)
+          .map((user) => user.id_user)
+      );
+      setImportResult(null);
+    } catch (err) {
+      console.error('❌ [ADMIN] Erreur aperçu import users:', err);
+      alert(`❌ Erreur: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleToggleImportDeactivateUser = (userId) => {
+    setImportDeactivateIds((prev) => (
+      prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
+    ));
+  };
+
+  const handleApplyImportUsers = async () => {
+    if (!importUsersPreview) {
+      alert('❌ Lancez d’abord l’aperçu de synchronisation');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/import`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          preview: false,
+          users: importUsersRows,
+          deactivateUserIds: importDeactivateIds
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Erreur lors de l’import');
+      }
+
+      setImportResult(data.data);
+      alert('✅ Import des utilisateurs terminé');
+      fetchUsers();
+    } catch (err) {
+      console.error('❌ [ADMIN] Erreur application import users:', err);
       alert(`❌ Erreur: ${err.message}`);
     } finally {
       setIsLoading(false);
@@ -1095,9 +1306,20 @@ Les modifications ont bien été appliquées en base de données.`);
                           onClick={() => {
                             setShowCreateUserForm(!showCreateUserForm);
                             setEditingUser(null); // Fermer le formulaire d'édition
+                            setShowImportUsersPanel(false);
                           }}
                       >
                         {showCreateUserForm ? 'Annuler' : '+ Créer un utilisateur'}
+                      </button>
+                      <button
+                          className="btn-filter"
+                          onClick={() => {
+                            setShowImportUsersPanel(!showImportUsersPanel);
+                            setShowCreateUserForm(false);
+                            setEditingUser(null);
+                          }}
+                      >
+                        {showImportUsersPanel ? 'Fermer l’import' : '⇪ Importer une liste'}
                       </button>
                     </div>
                   </div>
@@ -1359,6 +1581,146 @@ Les modifications ont bien été appliquées en base de données.`);
                       </div>
                   )}
 
+                  {showImportUsersPanel && (
+                      <div className="create-user-form import-users-panel">
+                        <div className="import-users-header">
+                          <div>
+                            <h3 className="import-users-title">Import d’utilisateurs</h3>
+                            <p className="import-users-subtitle">
+                              Format CSV attendu : `username` obligatoire. Colonnes optionnelles : `prenom`, `nom`, `role_libelle` ou `role_id`.
+                            </p>
+                          </div>
+                          <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={resetImportUsersState}
+                          >
+                            Réinitialiser
+                          </button>
+                        </div>
+
+                        <div className="import-users-toolbar">
+                          <label className="import-users-file">
+                            <span>Charger un fichier CSV</span>
+                            <input
+                                type="file"
+                                accept=".csv,text/csv"
+                                onChange={handleImportUsersFile}
+                            />
+                          </label>
+                          <button
+                              type="button"
+                              className="btn-primary"
+                              onClick={handlePreviewImportUsers}
+                              disabled={isLoading || importUsersRows.length === 0}
+                          >
+                            {isLoading ? 'Analyse...' : 'Prévisualiser la synchronisation'}
+                          </button>
+                          {importUsersFileName && (
+                              <div className="import-users-file-meta">
+                                <span className="import-users-file-name">{importUsersFileName}</span>
+                                <span>{importUsersRows.length} ligne(s)</span>
+                              </div>
+                          )}
+                        </div>
+
+                        {importUsersPreview && (
+                            <div className="import-users-content">
+                              <div className="import-users-summary">
+                                <div className="stat-card"><div className="stat-value">{importUsersPreview.summary.importedCount}</div><div className="stat-label">Importés</div></div>
+                                <div className="stat-card"><div className="stat-value">{importUsersPreview.summary.newCount}</div><div className="stat-label">Nouveaux comptes</div></div>
+                                <div className="stat-card"><div className="stat-value">{importUsersPreview.summary.existingCount}</div><div className="stat-label">Déjà présents</div></div>
+                                <div className="stat-card"><div className="stat-value">{importUsersPreview.summary.reactivatableCount}</div><div className="stat-label">À réactiver</div></div>
+                                <div className="stat-card"><div className="stat-value">{importUsersPreview.summary.deactivateCandidateCount}</div><div className="stat-label">Propositions désactivation</div></div>
+                              </div>
+
+                              {importUsersPreview.duplicates?.length > 0 && (
+                                  <div className="import-users-warning">
+                                    Doublons ignorés dans le fichier : {importUsersPreview.duplicates.join(', ')}
+                                  </div>
+                              )}
+
+                              {importUsersPreview.deactivateCandidates?.length > 0 && (
+                                  <div className="import-users-box">
+                                    <h4 className="import-users-box-title">Comptes absents de la nouvelle liste</h4>
+                                    <p className="import-users-box-text">
+                                      Coche les comptes à désactiver. Les comptes déjà absents du nouveau fichier mais non cochés resteront actifs.
+                                    </p>
+                                    <div className="import-users-checkbox-list">
+                                      {importUsersPreview.deactivateCandidates.map((user) => (
+                                          <label key={user.id_user} className={`import-users-checkbox-row ${user.can_deactivate ? '' : 'is-disabled'}`}>
+                                            <input
+                                                type="checkbox"
+                                                checked={importDeactivateIds.includes(user.id_user)}
+                                                disabled={!user.can_deactivate}
+                                                onChange={() => handleToggleImportDeactivateUser(user.id_user)}
+                                            />
+                                            <span className="import-users-checkbox-text">
+                                              <strong>{user.username}</strong>
+                                              <span>{user.nom_complet}</span>
+                                              <span>{user.role_libelle}</span>
+                                              {!user.can_deactivate && ' (compte courant non désactivable)'}
+                                            </span>
+                                          </label>
+                                      ))}
+                                    </div>
+                                  </div>
+                              )}
+
+                              <div className="import-users-actions">
+                                <button
+                                    type="button"
+                                    className="btn-primary"
+                                    onClick={handleApplyImportUsers}
+                                    disabled={isLoading}
+                                >
+                                  {isLoading ? 'Import...' : 'Appliquer la synchronisation'}
+                                </button>
+                              </div>
+                            </div>
+                        )}
+
+                        {importResult && (
+                            <div className="import-users-result">
+                              <h4 className="import-users-box-title">Résultat de l’import</h4>
+                              <p className="import-users-box-text">
+                                Créés: {importResult.summary.createdCount} · Réactivés: {importResult.summary.reactivatedCount} · Désactivés: {importResult.summary.deactivatedCount}
+                              </p>
+
+                              {importResult.createdUsers?.length > 0 && (
+                                  <>
+                                    <p className="import-users-passwords-title">
+                                      Mots de passe provisoires des nouveaux comptes :
+                                    </p>
+                                    <div className="import-users-table-wrap">
+                                      <table className="users-table">
+                                        <thead>
+                                        <tr>
+                                          <th>Username</th>
+                                          <th>Nom complet</th>
+                                          <th>Rôle</th>
+                                          <th>Mot de passe provisoire</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        {importResult.createdUsers.map((user) => (
+                                            <tr key={user.username}>
+                                              <td>{user.username}</td>
+                                              <td>{`${user.prenom || ''} ${user.nom || ''}`.trim() || user.username}</td>
+                                              <td>{user.role_libelle}</td>
+                                              <td className="import-users-password-cell">{user.temporaryPassword}</td>
+                                            </tr>
+                                        ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </>
+                              )}
+                            </div>
+                        )}
+                      </div>
+                  )}
+
                   {/* Liste des utilisateurs */}
                   <div className="users-list">
                     {users.length > 0 ? (
@@ -1489,6 +1851,7 @@ Les modifications ont bien été appliquées en base de données.`);
                                                 name={user.nom_complet}
                                                 username={user.username}
                                                 isActive={user.is_active}
+                                                showInactiveBadge={false}
                                               />
                                             </td>
                                             <td>
