@@ -5,8 +5,9 @@ import {
   isValidSectionName,
   getAllSectionsMetadata,
   getSectionMetadata,
-  assertSectionLockOwned,
+  acquireSectionLock,
   assertSectionRevision,
+  releaseSectionLock,
   saveSectionData
 } from '../../../lib/projectSectionConcurrency';
 
@@ -50,6 +51,9 @@ export default async function handler(req, res) {
 
   if (req.method === 'PUT') {
     const transaction = await db.sequelize.transaction();
+    let lockAcquired = false;
+    let lockContext = null;
+    let committed = false;
 
     try {
       const { idProjet, sectionName, sectionData, expectedRevision } = req.body || {};
@@ -71,12 +75,14 @@ export default async function handler(req, res) {
       }
 
       try {
-        await assertSectionLockOwned({ idProjet, sectionName, userId });
+        lockContext = { idProjet, sectionName, userId };
+        await acquireSectionLock(lockContext);
+        lockAcquired = true;
       } catch (error) {
         await transaction.rollback();
         return res.status(423).json({
           success: false,
-          message: 'Cette section doit être verrouillée avant enregistrement',
+          message: 'Cette section est en cours d’enregistrement par un autre agent. Réessayez dans un instant.',
           code: error.code,
           lock: error.lock || null
         });
@@ -105,6 +111,9 @@ export default async function handler(req, res) {
       });
 
       await transaction.commit();
+      committed = true;
+      await releaseSectionLock(lockContext).catch(() => undefined);
+      lockAcquired = false;
 
       const metadata = await getSectionMetadata(idProjet, sectionName);
       return res.status(200).json({
@@ -117,7 +126,12 @@ export default async function handler(req, res) {
         }
       });
     } catch (error) {
-      await transaction.rollback();
+      if (!committed) {
+        await transaction.rollback();
+      }
+      if (lockAcquired && lockContext) {
+        await releaseSectionLock(lockContext).catch(() => undefined);
+      }
       console.error('❌ Erreur PUT /api/project-sections:', error);
       return res.status(500).json({
         success: false,

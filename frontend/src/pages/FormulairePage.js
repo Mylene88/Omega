@@ -45,7 +45,6 @@ export default function FormulairePage() {
     const [showExitModal, setShowExitModal] = useState(false);
     const [sectionMeta, setSectionMeta] = useState({});
     const [dirtySections, setDirtySections] = useState({});
-    const [lockedSections, setLockedSections] = useState({});
     const [savingSections, setSavingSections] = useState({});
     const [staleSections, setStaleSections] = useState({});
 
@@ -294,7 +293,6 @@ export default function FormulairePage() {
                     // Réinitialiser l'état des modifications après le chargement
                     setHasUnsavedChanges(false);
                     setDirtySections({});
-                    setLockedSections({});
                     setStaleSections({});
                 })
                 .catch(error => {
@@ -432,119 +430,9 @@ export default function FormulairePage() {
         ...suiviData
     };
 
-    const acquireSectionLock = async (sectionName) => {
-        if (!id || lockedSections[sectionName]) {
-            return true;
-        }
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/project-sections/lock`, {
-                method: 'POST',
-                headers: getApiHeaders(),
-                body: JSON.stringify({
-                    idProjet: id,
-                    sectionName,
-                    action: 'acquire'
-                })
-            });
-
-            const result = await response.json();
-            if (!response.ok || !result.success) {
-                const holder = result.lock?.user?.nom_complet || result.lock?.user?.username;
-                if (response.status === 423) {
-                    alert(`La section "${SECTION_LABELS[sectionName]}" est en cours de modification par ${holder || 'un autre agent'}.`);
-                } else {
-                    alert(result.message || `Impossible de verrouiller la section ${SECTION_LABELS[sectionName]}.`);
-                }
-                return false;
-            }
-
-            setLockedSections((prev) => ({ ...prev, [sectionName]: true }));
-            setSectionMeta((prev) => ({ ...prev, [sectionName]: result.data }));
-            return true;
-        } catch (error) {
-            console.error('❌ Erreur lock section:', error);
-            alert(`Erreur lors du verrouillage de la section ${SECTION_LABELS[sectionName]}.`);
-            return false;
-        }
-    };
-
-    const releaseSectionLock = async (sectionName) => {
-        if (!id || !lockedSections[sectionName]) {
-            return;
-        }
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/project-sections/lock`, {
-                method: 'POST',
-                headers: getApiHeaders(),
-                body: JSON.stringify({
-                    idProjet: id,
-                    sectionName,
-                    action: 'release'
-                })
-            });
-
-            const result = await response.json();
-            if (response.ok && result.success) {
-                setSectionMeta((prev) => ({ ...prev, [sectionName]: result.data }));
-            }
-        } catch (error) {
-            console.error('❌ Erreur release lock section:', error);
-        } finally {
-            setLockedSections((prev) => ({ ...prev, [sectionName]: false }));
-        }
-    };
-
-    useEffect(() => {
-        if (!id) return undefined;
-
-        const lockedSectionNames = Object.keys(lockedSections).filter((sectionName) => lockedSections[sectionName]);
-        if (lockedSectionNames.length === 0) return undefined;
-
-        const interval = setInterval(() => {
-            lockedSectionNames.forEach((sectionName) => {
-                fetch(`${API_BASE_URL}/api/project-sections/lock`, {
-                    method: 'POST',
-                    headers: getApiHeaders(),
-                    body: JSON.stringify({
-                        idProjet: id,
-                        sectionName,
-                        action: 'acquire'
-                    })
-                }).catch((error) => {
-                    console.error('❌ Heartbeat lock section:', error);
-                });
-            });
-        }, 60000);
-
-        return () => clearInterval(interval);
-    }, [id, lockedSections]);
-
-    useEffect(() => {
-        return () => {
-            if (!id) return;
-            Object.keys(lockedSections)
-                .filter((sectionName) => lockedSections[sectionName])
-                .forEach((sectionName) => {
-                    fetch(`${API_BASE_URL}/api/project-sections/lock`, {
-                        method: 'POST',
-                        headers: getApiHeaders(),
-                        body: JSON.stringify({
-                            idProjet: id,
-                            sectionName,
-                            action: 'release'
-                        }),
-                        keepalive: true
-                    }).catch(() => undefined);
-                });
-        };
-    }, [id, lockedSections]);
-
     const markSectionDirty = async (sectionName) => {
         setHasUnsavedChanges(true);
         setDirtySections((prev) => ({ ...prev, [sectionName]: true }));
-        await acquireSectionLock(sectionName);
     };
 
     const buildSectionPayload = (sectionName) => {
@@ -636,11 +524,6 @@ export default function FormulairePage() {
     const saveExistingProjectSection = async (sectionName) => {
         if (!id) return false;
 
-        const lockAcquired = await acquireSectionLock(sectionName);
-        if (!lockAcquired) {
-            return false;
-        }
-
         setSavingSections((prev) => ({ ...prev, [sectionName]: true }));
 
         try {
@@ -667,7 +550,7 @@ export default function FormulairePage() {
 
                 if (response.status === 423) {
                     const holder = result.lock?.user?.nom_complet || result.lock?.user?.username || 'un autre agent';
-                    alert(`Impossible d’enregistrer "${SECTION_LABELS[sectionName]}": section verrouillée par ${holder}.`);
+                    alert(`Impossible d’enregistrer "${SECTION_LABELS[sectionName]}" pour le moment : ${holder} est déjà en train de sauvegarder cette section.`);
                     await fetchSectionMetadata();
                     return false;
                 }
@@ -685,8 +568,6 @@ export default function FormulairePage() {
                 [sectionName]: false
             }).some(([, isDirty]) => !!isDirty);
             setHasUnsavedChanges(hasRemainingDirty);
-
-            await releaseSectionLock(sectionName);
             return true;
         } catch (error) {
             console.error(`❌ Erreur sauvegarde section ${sectionName}:`, error);
