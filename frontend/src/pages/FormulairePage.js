@@ -341,15 +341,6 @@ export default function FormulairePage() {
                 return next;
             });
 
-            if (!passive) {
-                const locks = {};
-                Object.entries(serverMeta).forEach(([sectionName, meta]) => {
-                    if (meta.lock?.user?.id === currentUser?.id_user) {
-                        locks[sectionName] = true;
-                    }
-                });
-                setLockedSections((prev) => ({ ...prev, ...locks }));
-            }
         } catch (error) {
             console.error('❌ Erreur chargement métadonnées sections:', error);
         }
