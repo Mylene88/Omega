@@ -97,6 +97,8 @@ export default function SectionVersionsTab({ apiCall }) {
   const [expandedVersionIds, setExpandedVersionIds] = useState([]);
   const [compareResults, setCompareResults] = useState({});
   const [comparingVersionIds, setComparingVersionIds] = useState([]);
+  const [expandedProjectIds, setExpandedProjectIds] = useState([]);
+  const [expandedSectionKeys, setExpandedSectionKeys] = useState([]);
 
   const [projets, setProjets] = useState([]);
   const [users, setUsers] = useState([]);
@@ -267,11 +269,72 @@ export default function SectionVersionsTab({ apiCall }) {
     return stats.par_utilisateur.slice(0, 4);
   }, [stats]);
 
+  const groupedProjects = useMemo(() => {
+    const grouped = new Map();
+
+    filteredVersions.forEach((version) => {
+      if (!grouped.has(version.id_projet)) {
+        grouped.set(version.id_projet, {
+          idProjet: version.id_projet,
+          projetNom: version.projet_nom || 'Projet sans nom',
+          versions: [],
+          sections: new Map(),
+          latestDate: version.snapshot_date || null
+        });
+      }
+
+      const projectGroup = grouped.get(version.id_projet);
+      projectGroup.versions.push(version);
+
+      const currentLatest = projectGroup.latestDate ? new Date(projectGroup.latestDate).getTime() : 0;
+      const candidateLatest = version.snapshot_date ? new Date(version.snapshot_date).getTime() : 0;
+      if (candidateLatest > currentLatest) {
+        projectGroup.latestDate = version.snapshot_date;
+      }
+
+      if (!projectGroup.sections.has(version.section_name)) {
+        projectGroup.sections.set(version.section_name, []);
+      }
+      projectGroup.sections.get(version.section_name).push(version);
+    });
+
+    return Array.from(grouped.values())
+      .map((projectGroup) => ({
+        ...projectGroup,
+        sections: Array.from(projectGroup.sections.entries())
+          .map(([sectionName, sectionVersions]) => ({
+            sectionName,
+            sectionDisplay: getSectionDisplay(sectionName),
+            versions: sectionVersions.sort((a, b) => new Date(b.snapshot_date || 0) - new Date(a.snapshot_date || 0)),
+            currentCount: sectionVersions.filter((version) => version.is_current).length
+          }))
+          .sort((a, b) => a.sectionDisplay.label.localeCompare(b.sectionDisplay.label, 'fr')),
+        currentCount: projectGroup.versions.filter((version) => version.is_current).length
+      }))
+      .sort((a, b) => new Date(b.latestDate || 0) - new Date(a.latestDate || 0));
+  }, [filteredVersions]);
+
   const toggleExpanded = (idVersion) => {
     setExpandedVersionIds((current) => (
       current.includes(idVersion)
         ? current.filter((id) => id !== idVersion)
         : [...current, idVersion]
+    ));
+  };
+
+  const toggleProjectExpanded = (idProjet) => {
+    setExpandedProjectIds((current) => (
+      current.includes(idProjet)
+        ? current.filter((id) => id !== idProjet)
+        : [...current, idProjet]
+    ));
+  };
+
+  const toggleSectionExpanded = (sectionKey) => {
+    setExpandedSectionKeys((current) => (
+      current.includes(sectionKey)
+        ? current.filter((key) => key !== sectionKey)
+        : [...current, sectionKey]
     ));
   };
 
@@ -294,6 +357,17 @@ export default function SectionVersionsTab({ apiCall }) {
 
   const handleCompareWithCurrent = async (version) => {
     try {
+      const sectionKey = `${version.id_projet}::${version.section_name}`;
+      setExpandedProjectIds((current) => (
+        current.includes(version.id_projet)
+          ? current
+          : [...current, version.id_projet]
+      ));
+      setExpandedSectionKeys((current) => (
+        current.includes(sectionKey)
+          ? current
+          : [...current, sectionKey]
+      ));
       setExpandedVersionIds((current) => (
         current.includes(version.id_version)
           ? current
@@ -567,131 +641,192 @@ export default function SectionVersionsTab({ apiCall }) {
 
       {!loading && !error && (
         <div className="section-versions-list">
-          {filteredVersions.length === 0 ? (
+          {groupedProjects.length === 0 ? (
             <div className="empty-state">
               <p>Aucune version ne correspond aux filtres actuels.</p>
             </div>
           ) : (
-            filteredVersions.map((version) => {
-              const isExpanded = expandedVersionIds.includes(version.id_version);
-              const sectionDisplay = getSectionDisplay(version.section_name);
-              const summaryItems = getSummaryItems(version);
-              const compareResult = compareResults[version.id_version];
-              const isComparing = comparingVersionIds.includes(version.id_version);
+            groupedProjects.map((projectGroup) => {
+              const projectExpanded = expandedProjectIds.includes(projectGroup.idProjet);
 
               return (
-                <article
-                  key={version.id_version}
-                  className={`section-version-card ${version.is_current ? 'section-version-card-current' : ''}`}
-                >
-                  <div className="section-version-card-header">
-                    <div className="section-version-card-title">
-                      <div className="section-version-section-badge">
-                        <span>{sectionDisplay.icon}</span>
-                        <span>{sectionDisplay.label}</span>
-                      </div>
-                      <div className="section-version-title-block">
-                        <h3>{version.projet_nom || 'Projet sans nom'}</h3>
-                        <p>{version.id_projet} · Version #{version.version_number}</p>
-                      </div>
+                <section key={projectGroup.idProjet} className="section-version-project-card">
+                  <button
+                    type="button"
+                    className="section-version-project-header"
+                    onClick={() => toggleProjectExpanded(projectGroup.idProjet)}
+                  >
+                    <div className="section-version-project-title">
+                      <h3>{projectGroup.projetNom}</h3>
+                      <p>{projectGroup.idProjet}</p>
                     </div>
-                    <div className="section-version-card-badges">
-                      {version.is_current && (
-                        <span className="snapshot-current-badge">Version actuelle</span>
+                    <div className="section-version-project-meta">
+                      <span className="snapshot-section-chip">{projectGroup.sections.length} section{projectGroup.sections.length > 1 ? 's' : ''}</span>
+                      <span className="snapshot-section-chip">{projectGroup.versions.length} version{projectGroup.versions.length > 1 ? 's' : ''}</span>
+                      {projectGroup.currentCount > 0 && (
+                        <span className="snapshot-current-badge">{projectGroup.currentCount} actuelle{projectGroup.currentCount > 1 ? 's' : ''}</span>
                       )}
-                      <span className="section-version-date">{formatDate(version.snapshot_date)}</span>
+                      <span className="section-version-date">
+                        Dernière: {formatDate(projectGroup.latestDate)}
+                      </span>
+                      <span className="section-version-project-toggle">{projectExpanded ? 'Masquer' : 'Ouvrir'}</span>
                     </div>
-                  </div>
+                  </button>
 
-                  <div className="section-version-meta-grid">
-                    <div>
-                      <span className="section-version-meta-label">Créée par</span>
-                      <strong>{version.created_by?.nom_complet || version.created_by?.username || 'N/A'}</strong>
-                    </div>
-                    <div>
-                      <span className="section-version-meta-label">Description</span>
-                      <strong>{version.description || 'Aucune description'}</strong>
-                    </div>
-                  </div>
+                  {projectExpanded && (
+                    <div className="section-version-project-body">
+                      {projectGroup.sections.map((sectionGroup) => {
+                        const sectionKey = `${projectGroup.idProjet}::${sectionGroup.sectionName}`;
+                        const sectionExpanded = expandedSectionKeys.includes(sectionKey);
 
-                  {summaryItems.length > 0 && (
-                    <div className="section-version-summary-chips">
-                      {summaryItems.map((item) => (
-                        <span key={item} className="snapshot-section-chip">{item}</span>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="section-version-card-actions">
-                    <button
-                      className="btn-secondary"
-                      onClick={() => toggleExpanded(version.id_version)}
-                    >
-                      {isExpanded ? 'Masquer le détail' : 'Voir le détail'}
-                    </button>
-                    <button
-                      className="btn-secondary"
-                      onClick={() => handleCompareWithCurrent(version)}
-                      disabled={isComparing}
-                    >
-                      {isComparing ? 'Comparaison...' : 'Comparer avec l’état actuel'}
-                    </button>
-                    <button
-                      className="btn-restore"
-                      onClick={() => handleShowRestore(version)}
-                    >
-                      Restaurer cette version
-                    </button>
-                  </div>
-
-                  {isExpanded && (
-                    <div className="section-version-expanded">
-                      <div className="preview-header">
-                        <p><strong>Projet :</strong> {version.projet_nom} ({version.id_projet})</p>
-                        <p><strong>Section :</strong> {sectionDisplay.label}</p>
-                        <p><strong>Date :</strong> {formatDate(version.snapshot_date)}</p>
-                        <p><strong>Créée par :</strong> {version.created_by?.nom_complet || 'N/A'}</p>
-                      </div>
-
-                      <div className="preview-data">
-                        <h4>Contenu sauvegardé</h4>
-                        <pre className="json-preview">
-                          {JSON.stringify(version.section_data, null, 2)}
-                        </pre>
-                      </div>
-
-                      {compareResult && (
-                        <div className="section-version-compare-panel">
-                          <h4>Différences avec l’état actuel</h4>
-                          {compareResult.hasChanges ? (
-                            <div className="section-version-diff-list">
-                              {compareResult.changes.map((change) => (
-                                <div key={`${version.id_version}-${change.key}`} className="section-version-diff-item">
-                                  <div className="section-version-diff-label">{change.label}</div>
-                                  <div className="section-version-diff-values">
-                                    <div className="section-version-diff-before">
-                                      <span>Avant</span>
-                                      <strong>{change.before}</strong>
-                                    </div>
-                                    <div className="section-version-diff-arrow">→</div>
-                                    <div className="section-version-diff-after">
-                                      <span>Actuel</span>
-                                      <strong>{change.after}</strong>
-                                    </div>
-                                  </div>
+                        return (
+                          <div key={sectionKey} className="section-version-section-group">
+                            <button
+                              type="button"
+                              className="section-version-section-header"
+                              onClick={() => toggleSectionExpanded(sectionKey)}
+                            >
+                              <div className="section-version-card-title">
+                                <div className="section-version-section-badge">
+                                  <span>{sectionGroup.sectionDisplay.icon}</span>
+                                  <span>{sectionGroup.sectionDisplay.label}</span>
                                 </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="section-version-no-diff">
-                              Cette version correspond déjà à l’état actuel de la section.
-                            </div>
-                          )}
-                        </div>
-                      )}
+                              </div>
+                              <div className="section-version-card-badges">
+                                <span className="snapshot-section-chip">{sectionGroup.versions.length} version{sectionGroup.versions.length > 1 ? 's' : ''}</span>
+                                {sectionGroup.currentCount > 0 && (
+                                  <span className="snapshot-current-badge">{sectionGroup.currentCount} actuelle{sectionGroup.currentCount > 1 ? 's' : ''}</span>
+                                )}
+                                <span className="section-version-project-toggle">{sectionExpanded ? 'Masquer' : 'Voir'}</span>
+                              </div>
+                            </button>
+
+                            {sectionExpanded && (
+                              <div className="section-version-section-body">
+                                {sectionGroup.versions.map((version) => {
+                                  const isExpanded = expandedVersionIds.includes(version.id_version);
+                                  const summaryItems = getSummaryItems(version);
+                                  const compareResult = compareResults[version.id_version];
+                                  const isComparing = comparingVersionIds.includes(version.id_version);
+
+                                  return (
+                                    <article
+                                      key={version.id_version}
+                                      className={`section-version-card ${version.is_current ? 'section-version-card-current' : ''}`}
+                                    >
+                                      <div className="section-version-card-header">
+                                        <div className="section-version-card-title">
+                                          <div className="section-version-title-block">
+                                            <h3>Version #{version.version_number}</h3>
+                                            <p>{formatDate(version.snapshot_date)}</p>
+                                          </div>
+                                        </div>
+                                        <div className="section-version-card-badges">
+                                          {version.is_current && (
+                                            <span className="snapshot-current-badge">Version actuelle</span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="section-version-meta-grid">
+                                        <div>
+                                          <span className="section-version-meta-label">Créée par</span>
+                                          <strong>{version.created_by?.nom_complet || version.created_by?.username || 'N/A'}</strong>
+                                        </div>
+                                        <div>
+                                          <span className="section-version-meta-label">Description</span>
+                                          <strong>{version.description || 'Aucune description'}</strong>
+                                        </div>
+                                      </div>
+
+                                      {summaryItems.length > 0 && (
+                                        <div className="section-version-summary-chips">
+                                          {summaryItems.map((item) => (
+                                            <span key={item} className="snapshot-section-chip">{item}</span>
+                                          ))}
+                                        </div>
+                                      )}
+
+                                      <div className="section-version-card-actions">
+                                        <button
+                                          className="btn-secondary"
+                                          onClick={() => toggleExpanded(version.id_version)}
+                                        >
+                                          {isExpanded ? 'Masquer le détail' : 'Voir le détail'}
+                                        </button>
+                                        <button
+                                          className="btn-secondary"
+                                          onClick={() => handleCompareWithCurrent(version)}
+                                          disabled={isComparing}
+                                        >
+                                          {isComparing ? 'Comparaison...' : 'Comparer avec l’état actuel'}
+                                        </button>
+                                        <button
+                                          className="btn-restore"
+                                          onClick={() => handleShowRestore(version)}
+                                        >
+                                          Restaurer cette version
+                                        </button>
+                                      </div>
+
+                                      {isExpanded && (
+                                        <div className="section-version-expanded">
+                                          <div className="preview-header">
+                                            <p><strong>Projet :</strong> {version.projet_nom} ({version.id_projet})</p>
+                                            <p><strong>Section :</strong> {sectionGroup.sectionDisplay.label}</p>
+                                            <p><strong>Date :</strong> {formatDate(version.snapshot_date)}</p>
+                                            <p><strong>Créée par :</strong> {version.created_by?.nom_complet || 'N/A'}</p>
+                                          </div>
+
+                                          <div className="preview-data">
+                                            <h4>Contenu sauvegardé</h4>
+                                            <pre className="json-preview">
+                                              {JSON.stringify(version.section_data, null, 2)}
+                                            </pre>
+                                          </div>
+
+                                          {compareResult && (
+                                            <div className="section-version-compare-panel">
+                                              <h4>Différences avec l’état actuel</h4>
+                                              {compareResult.hasChanges ? (
+                                                <div className="section-version-diff-list">
+                                                  {compareResult.changes.map((change) => (
+                                                    <div key={`${version.id_version}-${change.key}`} className="section-version-diff-item">
+                                                      <div className="section-version-diff-label">{change.label}</div>
+                                                      <div className="section-version-diff-values">
+                                                        <div className="section-version-diff-before">
+                                                          <span>Avant</span>
+                                                          <strong>{change.before}</strong>
+                                                        </div>
+                                                        <div className="section-version-diff-arrow">→</div>
+                                                        <div className="section-version-diff-after">
+                                                          <span>Actuel</span>
+                                                          <strong>{change.after}</strong>
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              ) : (
+                                                <div className="section-version-no-diff">
+                                                  Cette version correspond déjà à l’état actuel de la section.
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </article>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
-                </article>
+                </section>
               );
             })
           )}
