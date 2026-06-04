@@ -6,48 +6,114 @@
  * - Déclencher le nettoyage automatique
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import '../../pages/Admin/AdminPage.css';
+
+const SECTION_CONFIG = {
+  projet_info: { label: 'Informations du projet', icon: '📋' },
+  porteurs: { label: 'Porteurs', icon: '👥' },
+  suivis: { label: 'Suivis', icon: '📝' },
+  thematiques: { label: 'Thématiques', icon: '🎯' },
+  documents: { label: 'Documents', icon: '📄' },
+  geometrie: { label: 'Géométrie', icon: '🗺️' }
+};
+
+function getSectionDisplay(sectionName) {
+  return SECTION_CONFIG[sectionName] || { label: sectionName, icon: '📦' };
+}
+
+function getSummaryItems(version) {
+  const data = version?.section_data;
+  if (!data) return [];
+
+  if (Array.isArray(data)) {
+    const count = data.length;
+    if (version.section_name === 'porteurs') return [`${count} porteur${count > 1 ? 's' : ''}`];
+    if (version.section_name === 'suivis') return [`${count} suivi${count > 1 ? 's' : ''}`];
+    if (version.section_name === 'thematiques') return [`${count} thématique${count > 1 ? 's' : ''}`];
+    if (version.section_name === 'documents') return [`${count} document${count > 1 ? 's' : ''}`];
+    return [`${count} élément${count > 1 ? 's' : ''}`];
+  }
+
+  if (typeof data === 'object') {
+    if (version.section_name === 'projet_info') {
+      const items = [];
+      if (data.nom_projet) items.push(`Nom: ${data.nom_projet}`);
+      if (data.statut_projet_id) items.push(`Statut ID: ${data.statut_projet_id}`);
+      if (data.service_id) items.push(`Service ID: ${data.service_id}`);
+      if (data.referent_ddt) items.push(`Référent: ${data.referent_ddt}`);
+      return items.slice(0, 3);
+    }
+
+    if (version.section_name === 'geometrie') {
+      const items = [];
+      if (Array.isArray(data.codes_insee) && data.codes_insee.length > 0) {
+        items.push(`${data.codes_insee.length} code${data.codes_insee.length > 1 ? 's' : ''} INSEE`);
+      }
+      if (Array.isArray(data.communes_traversees) && data.communes_traversees.length > 0) {
+        items.push(`${data.communes_traversees.length} commune${data.communes_traversees.length > 1 ? 's' : ''}`);
+      }
+      if (data.type) {
+        items.push(`Type: ${data.type}`);
+      }
+      return items.slice(0, 3);
+    }
+
+    return [`${Object.keys(data).length} champ${Object.keys(data).length > 1 ? 's' : ''}`];
+  }
+
+  return [];
+}
+
+function normalizeSearchValue(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return 'N/A';
+  const date = new Date(dateStr);
+  return date.toLocaleString('fr-FR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
 
 export default function SectionVersionsTab({ apiCall }) {
   const [versions, setVersions] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(null);
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
-  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [restoreReason, setRestoreReason] = useState('');
   const [restoring, setRestoring] = useState(false);
+  const [expandedVersionIds, setExpandedVersionIds] = useState([]);
+  const [compareResults, setCompareResults] = useState({});
+  const [comparingVersionIds, setComparingVersionIds] = useState([]);
 
-  // Listes pour les dropdowns
   const [projets, setProjets] = useState([]);
   const [users, setUsers] = useState([]);
   const [loadingDropdowns, setLoadingDropdowns] = useState(true);
 
-  // Filtres
   const [filters, setFilters] = useState({
     idProjet: '',
     userId: '',
     sectionName: '',
+    query: '',
+    currentOnly: false,
     limit: 50
   });
 
-  const sectionLabels = {
-    'projet_info': '📋 Informations du projet',
-    'porteurs': '👥 Porteurs',
-    'suivis': '📝 Suivis',
-    'thematiques': '🎯 Thématiques',
-    'documents': '📄 Documents',
-    'geometrie': '🗺️ Géométrie'
-  };
-
-  // Charger les dropdowns (projets et users)
-  const loadDropdowns = async () => {
+  const loadDropdowns = useCallback(async () => {
     try {
       setLoadingDropdowns(true);
-
-      console.log('🔄 Chargement des dropdowns...');
 
       const [projetsResult, usersResult] = await Promise.allSettled([
         apiCall('/admin/projets'),
@@ -57,14 +123,10 @@ export default function SectionVersionsTab({ apiCall }) {
       let projetsList = [];
       let usersList = [];
 
-      // Chargement des projets (indépendant)
       if (projetsResult.status === 'fulfilled' && projetsResult.value?.success) {
         projetsList = Array.isArray(projetsResult.value.data) ? projetsResult.value.data : [];
-      } else {
-        console.error('❌ Erreur projets admin:', projetsResult.status === 'rejected' ? projetsResult.reason : projetsResult.value?.message);
       }
 
-      // Fallback projets via endpoint public si nécessaire
       if (projetsList.length === 0) {
         try {
           const projetsFallback = await apiCall('/projets');
@@ -74,21 +136,16 @@ export default function SectionVersionsTab({ apiCall }) {
               nom_projet: projet.nom_projet || 'Sans nom',
               display_label: `${projet.id_projet} - ${projet.nom_projet || 'Sans nom'}`
             }));
-            console.log(`✅ Fallback projets utilisé (${projetsList.length})`);
           }
         } catch (fallbackErr) {
           console.error('❌ Fallback projets échoué:', fallbackErr);
         }
       }
 
-      // Chargement des utilisateurs (indépendant)
       if (usersResult.status === 'fulfilled' && usersResult.value?.success) {
         usersList = Array.isArray(usersResult.value.data) ? usersResult.value.data : [];
-      } else {
-        console.error('❌ Erreur users admin:', usersResult.status === 'rejected' ? usersResult.reason : usersResult.value?.message);
       }
 
-      // Fallback users via statistiques de versions si nécessaire
       if (usersList.length === 0) {
         try {
           const versionsFallback = await apiCall('/admin/section-versions?limit=200');
@@ -98,33 +155,27 @@ export default function SectionVersionsTab({ apiCall }) {
               username: user.username || `user-${user.user_id}`,
               nom_complet: user.nom_complet || user.username || `Utilisateur ${user.user_id}`
             }));
-            console.log(`✅ Fallback users utilisé (${usersList.length})`);
           }
         } catch (fallbackErr) {
           console.error('❌ Fallback users échoué:', fallbackErr);
         }
       }
 
-      const projetsNormalises = projetsList.map(projet => ({
-        ...projet,
-        display_label: projet.display_label || `${projet.id_projet} - ${projet.nom_projet || 'Sans nom'}`
-      }));
-
-      setProjets(projetsNormalises);
+      setProjets(
+        projetsList.map((projet) => ({
+          ...projet,
+          display_label: projet.display_label || `${projet.id_projet} - ${projet.nom_projet || 'Sans nom'}`
+        }))
+      );
       setUsers(usersList);
-
-      console.log(`✅ ${projetsNormalises.length} projets chargés`);
-      console.log(`✅ ${usersList.length} utilisateurs chargés`);
-      console.log('📋 Projets disponibles:', projetsNormalises.map(p => ({ id: p.id_projet, label: p.display_label })));
     } catch (err) {
       console.error('❌ Erreur chargement dropdowns:', err);
     } finally {
       setLoadingDropdowns(false);
     }
-  };
+  }, [apiCall]);
 
-  // Charger les versions
-  const loadVersions = async () => {
+  const loadVersions = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -135,69 +186,149 @@ export default function SectionVersionsTab({ apiCall }) {
       if (filters.sectionName) params.append('sectionName', filters.sectionName);
       params.append('limit', filters.limit);
 
-      console.log('🔍 Chargement des versions avec filtres:', {
-        idProjet: filters.idProjet || 'Tous',
-        userId: filters.userId || 'Tous',
-        sectionName: filters.sectionName || 'Toutes',
-        limit: filters.limit
-      });
-
       const response = await apiCall(`/admin/section-versions?${params.toString()}`);
 
-      console.log('📡 Réponse API versions:', response);
-
       if (response.success) {
-        setVersions(response.data);
-        setStats(response.stats);
-        console.log(`✅ ${response.data.length} versions chargées`);
-        if (filters.idProjet) {
-          const versionsForProject = response.data.filter(v => v.id_projet === filters.idProjet);
-          console.log(`📊 Versions pour le projet ${filters.idProjet}:`, versionsForProject.length);
-        }
+        setVersions(Array.isArray(response.data) ? response.data : []);
+        setStats(response.stats || null);
       } else {
         setError(response.message || 'Erreur lors du chargement des versions');
-        console.error('❌ Erreur:', response.message);
       }
     } catch (err) {
       setError('Erreur réseau: ' + err.message);
-      console.error('❌ Erreur réseau:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiCall, filters.idProjet, filters.limit, filters.sectionName, filters.userId]);
 
-  // Charger au montage
   useEffect(() => {
     loadDropdowns();
-  }, []);
+  }, [loadDropdowns]);
 
-  // Charger quand les filtres changent
   useEffect(() => {
     if (!loadingDropdowns) {
-      console.log('🔄 Filtres changés, rechargement des versions...', filters);
       loadVersions();
     }
-  }, [filters, loadingDropdowns]);
+  }, [loadVersions, loadingDropdowns]);
 
-  // Afficher le modal de preview
-  const handleShowPreview = (version) => {
-    setSelectedVersion(version);
-    setShowPreviewModal(true);
+  const filteredVersions = useMemo(() => {
+    const query = normalizeSearchValue(filters.query);
+    return versions.filter((version) => {
+      if (filters.currentOnly && !version.is_current) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      const haystack = normalizeSearchValue([
+        version.id_projet,
+        version.projet_nom,
+        version.section_name,
+        getSectionDisplay(version.section_name).label,
+        version.description,
+        version.created_by?.nom_complet,
+        version.created_by?.username,
+        ...getSummaryItems(version)
+      ].join(' '));
+
+      return haystack.includes(query);
+    });
+  }, [filters.currentOnly, filters.query, versions]);
+
+  const quickStats = useMemo(() => {
+    const currentCount = filteredVersions.filter((version) => version.is_current).length;
+    const uniqueProjects = new Set(filteredVersions.map((version) => version.id_projet)).size;
+    const lastSevenDays = filteredVersions.filter((version) => {
+      const versionDate = version.snapshot_date ? new Date(version.snapshot_date) : null;
+      if (!versionDate) return false;
+      return Date.now() - versionDate.getTime() <= 7 * 24 * 60 * 60 * 1000;
+    }).length;
+
+    return {
+      total: filteredVersions.length,
+      current: currentCount,
+      projects: uniqueProjects,
+      recent: lastSevenDays
+    };
+  }, [filteredVersions]);
+
+  const topSectionStats = useMemo(() => {
+    if (!stats?.par_section) return [];
+    return stats.par_section
+      .slice()
+      .sort((a, b) => Number(b.count) - Number(a.count))
+      .slice(0, 4);
+  }, [stats]);
+
+  const topUserStats = useMemo(() => {
+    if (!stats?.par_utilisateur) return [];
+    return stats.par_utilisateur.slice(0, 4);
+  }, [stats]);
+
+  const toggleExpanded = (idVersion) => {
+    setExpandedVersionIds((current) => (
+      current.includes(idVersion)
+        ? current.filter((id) => id !== idVersion)
+        : [...current, idVersion]
+    ));
   };
 
-  // Afficher le modal de restauration
+  const resetFilters = () => {
+    setFilters({
+      idProjet: '',
+      userId: '',
+      sectionName: '',
+      query: '',
+      currentOnly: false,
+      limit: 50
+    });
+  };
+
   const handleShowRestore = (version) => {
     setSelectedVersion(version);
     setShowRestoreModal(true);
     setRestoreReason('');
   };
 
-  // Confirmer la restauration
+  const handleCompareWithCurrent = async (version) => {
+    try {
+      setExpandedVersionIds((current) => (
+        current.includes(version.id_version)
+          ? current
+          : [...current, version.id_version]
+      ));
+      setComparingVersionIds((current) => [...current, version.id_version]);
+      const response = await apiCall(`/admin/section-versions/compare?idVersion=${version.id_version}`);
+
+      if (response.success) {
+        setCompareResults((current) => ({
+          ...current,
+          [version.id_version]: response.data
+        }));
+      } else {
+        setNotice({
+          type: 'error',
+          message: response.message || 'Impossible de comparer cette version'
+        });
+      }
+    } catch (err) {
+      setNotice({
+        type: 'error',
+        message: `Erreur réseau: ${err.message}`
+      });
+    } finally {
+      setComparingVersionIds((current) => current.filter((id) => id !== version.id_version));
+    }
+  };
+
   const handleConfirmRestore = async () => {
     if (!selectedVersion) return;
 
     try {
       setRestoring(true);
+      setNotice(null);
 
       const response = await apiCall('/section-versions/restore', {
         method: 'POST',
@@ -209,28 +340,37 @@ export default function SectionVersionsTab({ apiCall }) {
       });
 
       if (response.success) {
-        alert(`✅ Section ${selectedVersion.section_name} restaurée avec succès !`);
+        setNotice({
+          type: 'success',
+          message: `Section ${getSectionDisplay(selectedVersion.section_name).label} restaurée pour le projet ${selectedVersion.id_projet}.`
+        });
         setShowRestoreModal(false);
         setSelectedVersion(null);
-        loadVersions(); // Recharger
+        loadVersions();
       } else {
-        alert(`❌ Erreur: ${response.message}`);
+        setNotice({
+          type: 'error',
+          message: response.message || 'Échec de la restauration'
+        });
       }
     } catch (err) {
-      alert(`❌ Erreur réseau: ${err.message}`);
+      setNotice({
+        type: 'error',
+        message: `Erreur réseau: ${err.message}`
+      });
     } finally {
       setRestoring(false);
     }
   };
 
-  // Déclencher le nettoyage
   const handleCleanup = async () => {
     // eslint-disable-next-line no-restricted-globals
-    if (!confirm('Voulez-vous lancer le nettoyage automatique ? (Supprime les versions de +15 jours et garde max 10 versions par section/utilisateur)')) {
+    if (!confirm('Lancer le nettoyage automatique des versions anciennes et en excès ?')) {
       return;
     }
 
     try {
+      setNotice(null);
       const response = await apiCall('/admin/section-versions', {
         method: 'DELETE'
       });
@@ -238,72 +378,92 @@ export default function SectionVersionsTab({ apiCall }) {
       if (response.success) {
         const diagnostics = response.data?.diagnostics || {};
         const policy = response.data?.policy || {};
-        alert(
-          `✅ Nettoyage effectué:\n` +
-          `- ${response.data.deleted_old_versions} versions anciennes supprimées\n` +
-          `- ${response.data.deleted_excess_versions} versions en excès supprimées\n` +
-          `- ${response.data.remaining_versions} versions restantes\n` +
-          `\n` +
-          `Règle appliquée:\n` +
-          `- max ${policy.max_versions_per_user_section ?? 10} versions par section/utilisateur\n` +
-          `- rétention ${policy.retention_days ?? 15} jours\n` +
-          `\n` +
-          `Diagnostic:\n` +
-          `- groupes > limite avant nettoyage: ${diagnostics.groups_over_limit_before ?? 0}\n` +
-          `- groupes > limite après nettoyage: ${diagnostics.groups_over_limit_after ?? 0}`
-        );
-        loadVersions(); // Recharger
+        setNotice({
+          type: 'success',
+          message: `Nettoyage terminé: ${response.data.deleted_old_versions} anciennes, ${response.data.deleted_excess_versions} en excès supprimées. Règle: max ${policy.max_versions_per_user_section ?? 10} versions par section/utilisateur, rétention ${policy.retention_days ?? 15} jours. Groupes encore au-dessus de la limite: ${diagnostics.groups_over_limit_after ?? 0}.`
+        });
+        loadVersions();
       } else {
-        alert(`❌ Erreur: ${response.message}`);
+        setNotice({
+          type: 'error',
+          message: response.message || 'Erreur lors du nettoyage'
+        });
       }
     } catch (err) {
-      alert(`❌ Erreur réseau: ${err.message}`);
+      setNotice({
+        type: 'error',
+        message: `Erreur réseau: ${err.message}`
+      });
     }
-  };
-
-  // Formater la date
-  const formatDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    const date = new Date(dateStr);
-    return date.toLocaleString('fr-FR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   };
 
   return (
     <div className="section-versions-container">
-      {/* En-tête avec filtres */}
       <div className="admin-header">
         <div>
-          <h2>🔄 Versions de Sections</h2>
+          <h2>Versions de sections</h2>
           <p className="admin-subtitle">
-            Sauvegarde et restauration granulaire par section (max 10 versions/section/utilisateur, rétention 15 jours)
+            Retrouvez les sauvegardes par section, voyez rapidement ce qu’elles contiennent, puis restaurez la bonne version au bon moment.
           </p>
         </div>
-        <button className="btn-cleanup" onClick={handleCleanup}>
-          🧹 Lancer le nettoyage
-        </button>
+        <div className="section-versions-header-actions">
+          <button className="btn-refresh" onClick={loadVersions} disabled={loading}>
+            Actualiser
+          </button>
+          <button className="btn-cleanup" onClick={handleCleanup}>
+            Nettoyer l’historique
+          </button>
+        </div>
       </div>
 
-      {/* Filtres */}
-      <div className="filters-section">
-        <div className="filter-group">
-          <label>📁 Projet:</label>
+      {notice && (
+        <div className={notice.type === 'success' ? 'success-banner' : 'error-message'}>
+          <span>{notice.type === 'success' ? '✅' : '❌'} {notice.message}</span>
+          <button onClick={() => setNotice(null)} aria-label="Fermer le message">×</button>
+        </div>
+      )}
+
+      <div className="section-versions-kpis">
+        <div className="section-version-kpi-card">
+          <span className="section-version-kpi-label">Versions affichées</span>
+          <strong className="section-version-kpi-value">{quickStats.total}</strong>
+        </div>
+        <div className="section-version-kpi-card">
+          <span className="section-version-kpi-label">Versions actuelles</span>
+          <strong className="section-version-kpi-value">{quickStats.current}</strong>
+        </div>
+        <div className="section-version-kpi-card">
+          <span className="section-version-kpi-label">Projets concernés</span>
+          <strong className="section-version-kpi-value">{quickStats.projects}</strong>
+        </div>
+        <div className="section-version-kpi-card">
+          <span className="section-version-kpi-label">Créées sur 7 jours</span>
+          <strong className="section-version-kpi-value">{quickStats.recent}</strong>
+        </div>
+      </div>
+
+      <div className="section-versions-filters">
+        <div className="section-version-filter">
+          <label htmlFor="section-version-search">Recherche</label>
+          <input
+            id="section-version-search"
+            type="text"
+            value={filters.query}
+            onChange={(e) => setFilters((current) => ({ ...current, query: e.target.value }))}
+            placeholder="Projet, section, utilisateur, description..."
+          />
+        </div>
+
+        <div className="section-version-filter">
+          <label htmlFor="section-version-project">Projet</label>
           <select
+            id="section-version-project"
             value={filters.idProjet}
-            onChange={(e) => {
-              const value = e.target.value;
-              console.log('🔄 Changement de projet sélectionné:', value);
-              setFilters({ ...filters, idProjet: value });
-            }}
+            onChange={(e) => setFilters((current) => ({ ...current, idProjet: e.target.value }))}
             disabled={loadingDropdowns}
           >
             <option value="">Tous les projets</option>
-            {projets.map(projet => (
+            {projets.map((projet) => (
               <option key={projet.id_projet} value={projet.id_projet}>
                 {projet.display_label}
               </option>
@@ -311,28 +471,30 @@ export default function SectionVersionsTab({ apiCall }) {
           </select>
         </div>
 
-        <div className="filter-group">
-          <label>📦 Section:</label>
+        <div className="section-version-filter">
+          <label htmlFor="section-version-section">Section</label>
           <select
+            id="section-version-section"
             value={filters.sectionName}
-            onChange={(e) => setFilters({ ...filters, sectionName: e.target.value })}
+            onChange={(e) => setFilters((current) => ({ ...current, sectionName: e.target.value }))}
           >
             <option value="">Toutes les sections</option>
-            {Object.entries(sectionLabels).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
+            {Object.entries(SECTION_CONFIG).map(([key, value]) => (
+              <option key={key} value={key}>{value.label}</option>
             ))}
           </select>
         </div>
 
-        <div className="filter-group">
-          <label>👤 Utilisateur:</label>
+        <div className="section-version-filter">
+          <label htmlFor="section-version-user">Utilisateur</label>
           <select
+            id="section-version-user"
             value={filters.userId}
-            onChange={(e) => setFilters({ ...filters, userId: e.target.value })}
+            onChange={(e) => setFilters((current) => ({ ...current, userId: e.target.value }))}
             disabled={loadingDropdowns}
           >
             <option value="">Tous les utilisateurs</option>
-            {users.map(user => (
+            {users.map((user) => (
               <option key={user.id_user} value={user.id_user}>
                 {user.nom_complet} ({user.username})
               </option>
@@ -340,11 +502,12 @@ export default function SectionVersionsTab({ apiCall }) {
           </select>
         </div>
 
-        <div className="filter-group">
-          <label>📊 Limite:</label>
+        <div className="section-version-filter">
+          <label htmlFor="section-version-limit">Limite</label>
           <select
+            id="section-version-limit"
             value={filters.limit}
-            onChange={(e) => setFilters({ ...filters, limit: parseInt(e.target.value) })}
+            onChange={(e) => setFilters((current) => ({ ...current, limit: parseInt(e.target.value, 10) }))}
           >
             <option value="25">25</option>
             <option value="50">50</option>
@@ -352,169 +515,212 @@ export default function SectionVersionsTab({ apiCall }) {
             <option value="200">200</option>
           </select>
         </div>
+
+        <label className="snapshot-checkbox section-version-toggle">
+          <input
+            type="checkbox"
+            checked={filters.currentOnly}
+            onChange={(e) => setFilters((current) => ({ ...current, currentOnly: e.target.checked }))}
+          />
+          Voir seulement la version actuelle
+        </label>
+
+        <button className="btn-secondary" onClick={resetFilters}>
+          Réinitialiser les filtres
+        </button>
       </div>
 
-      {/* Statistiques */}
-      {stats && (
-        <div className="stats-section">
-          <div className="stat-card">
-            <h3>📊 Total</h3>
-            <p className="stat-value">{stats.total}</p>
-            <p className="stat-label">versions</p>
-          </div>
-          <div className="stat-card">
-            <h3>📦 Par section</h3>
-            {stats.par_section?.map(s => (
-              <p key={s.section_name}>
-                {sectionLabels[s.section_name] || s.section_name}: <strong>{s.count}</strong>
-              </p>
-            ))}
-          </div>
-          <div className="stat-card">
-            <h3>👥 Top utilisateurs</h3>
-            {stats.par_utilisateur?.slice(0, 5).map(u => (
-              <p key={u.user_id}>
-                {u.nom_complet}: <strong>{u.count}</strong>
-              </p>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Chargement */}
-      {loading && <div className="loading">⏳ Chargement des versions...</div>}
-
-      {/* Erreur */}
-      {error && <div className="error-message">❌ {error}</div>}
-
-      {/* Liste des versions */}
-      {!loading && !error && (
-        <div className="versions-table-container">
-          {versions.length === 0 ? (
-            <div className="empty-state">
-              <p>Aucune version trouvée</p>
-            </div>
-          ) : (
-            <table className="versions-table">
-              <thead>
-                <tr>
-                  <th>Version</th>
-                  <th>Projet</th>
-                  <th>Section</th>
-                  <th>Utilisateur</th>
-                  <th>Date</th>
-                  <th>Actuelle</th>
-                  <th>Description</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {versions.map(v => (
-                  <tr key={v.id_version} className={v.is_current ? 'current-version' : ''}>
-                    <td>#{v.version_number}</td>
-                    <td>
-                      <span className="projet-id">{v.id_projet}</span>
-                      <br />
-                      <small>{v.projet_nom}</small>
-                    </td>
-                    <td>{sectionLabels[v.section_name] || v.section_name}</td>
-                    <td>{v.created_by?.nom_complet || 'N/A'}</td>
-                    <td>{formatDate(v.snapshot_date)}</td>
-                    <td>
-                      {v.is_current ? <span className="badge badge-success">✓ Actuelle</span> : '-'}
-                    </td>
-                    <td className="description-cell">{v.description || '-'}</td>
-                    <td>
-                      <div className="action-buttons">
-                        <button
-                          className="btn-preview"
-                          onClick={() => handleShowPreview(v)}
-                          title="Voir les données"
-                        >
-                          👁️
-                        </button>
-                        <button
-                          className="btn-restore"
-                          onClick={() => handleShowRestore(v)}
-                          title="Restaurer cette version"
-                        >
-                          🔄
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+      {(topSectionStats.length > 0 || topUserStats.length > 0) && (
+        <div className="section-versions-insights">
+          {topSectionStats.length > 0 && (
+            <div className="section-versions-insight-card">
+              <h3>Sections les plus versionnées</h3>
+              <div className="section-versions-mini-list">
+                {topSectionStats.map((item) => (
+                  <div key={item.section_name} className="section-versions-mini-row">
+                    <span>{getSectionDisplay(item.section_name).label}</span>
+                    <strong>{item.count}</strong>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
+          )}
+
+          {topUserStats.length > 0 && (
+            <div className="section-versions-insight-card">
+              <h3>Utilisateurs les plus actifs</h3>
+              <div className="section-versions-mini-list">
+                {topUserStats.map((item) => (
+                  <div key={item.user_id} className="section-versions-mini-row">
+                    <span>{item.nom_complet || item.username || `Utilisateur ${item.user_id}`}</span>
+                    <strong>{item.count}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       )}
 
-      {/* Modal de preview des données */}
-      {showPreviewModal && selectedVersion && (
-        <div className="modal-overlay" onClick={() => setShowPreviewModal(false)}>
-          <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
-            <h3>👁️ Aperçu des données - Version #{selectedVersion.version_number}</h3>
-            <div className="modal-body">
-              <div className="preview-header">
-                <p><strong>Projet:</strong> {selectedVersion.projet_nom} ({selectedVersion.id_projet})</p>
-                <p><strong>Section:</strong> {sectionLabels[selectedVersion.section_name]}</p>
-                <p><strong>Date:</strong> {formatDate(selectedVersion.snapshot_date)}</p>
-                <p><strong>Créée par:</strong> {selectedVersion.created_by?.nom_complet}</p>
-              </div>
+      {loading && <div className="loading">Chargement des versions...</div>}
+      {error && <div className="error-message">❌ {error}</div>}
 
-              <div className="preview-data">
-                <h4>📦 Contenu de la version:</h4>
-                <pre className="json-preview">
-                  {JSON.stringify(selectedVersion.section_data, null, 2)}
-                </pre>
-              </div>
+      {!loading && !error && (
+        <div className="section-versions-list">
+          {filteredVersions.length === 0 ? (
+            <div className="empty-state">
+              <p>Aucune version ne correspond aux filtres actuels.</p>
             </div>
-            <div className="modal-actions">
-              <button
-                className="btn-cancel"
-                onClick={() => setShowPreviewModal(false)}
-              >
-                Fermer
-              </button>
-              <button
-                className="btn-confirm"
-                onClick={() => {
-                  setShowPreviewModal(false);
-                  handleShowRestore(selectedVersion);
-                }}
-              >
-                🔄 Restaurer cette version
-              </button>
-            </div>
-          </div>
+          ) : (
+            filteredVersions.map((version) => {
+              const isExpanded = expandedVersionIds.includes(version.id_version);
+              const sectionDisplay = getSectionDisplay(version.section_name);
+              const summaryItems = getSummaryItems(version);
+              const compareResult = compareResults[version.id_version];
+              const isComparing = comparingVersionIds.includes(version.id_version);
+
+              return (
+                <article
+                  key={version.id_version}
+                  className={`section-version-card ${version.is_current ? 'section-version-card-current' : ''}`}
+                >
+                  <div className="section-version-card-header">
+                    <div className="section-version-card-title">
+                      <div className="section-version-section-badge">
+                        <span>{sectionDisplay.icon}</span>
+                        <span>{sectionDisplay.label}</span>
+                      </div>
+                      <div className="section-version-title-block">
+                        <h3>{version.projet_nom || 'Projet sans nom'}</h3>
+                        <p>{version.id_projet} · Version #{version.version_number}</p>
+                      </div>
+                    </div>
+                    <div className="section-version-card-badges">
+                      {version.is_current && (
+                        <span className="snapshot-current-badge">Version actuelle</span>
+                      )}
+                      <span className="section-version-date">{formatDate(version.snapshot_date)}</span>
+                    </div>
+                  </div>
+
+                  <div className="section-version-meta-grid">
+                    <div>
+                      <span className="section-version-meta-label">Créée par</span>
+                      <strong>{version.created_by?.nom_complet || version.created_by?.username || 'N/A'}</strong>
+                    </div>
+                    <div>
+                      <span className="section-version-meta-label">Description</span>
+                      <strong>{version.description || 'Aucune description'}</strong>
+                    </div>
+                  </div>
+
+                  {summaryItems.length > 0 && (
+                    <div className="section-version-summary-chips">
+                      {summaryItems.map((item) => (
+                        <span key={item} className="snapshot-section-chip">{item}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="section-version-card-actions">
+                    <button
+                      className="btn-secondary"
+                      onClick={() => toggleExpanded(version.id_version)}
+                    >
+                      {isExpanded ? 'Masquer le détail' : 'Voir le détail'}
+                    </button>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => handleCompareWithCurrent(version)}
+                      disabled={isComparing}
+                    >
+                      {isComparing ? 'Comparaison...' : 'Comparer avec l’état actuel'}
+                    </button>
+                    <button
+                      className="btn-restore"
+                      onClick={() => handleShowRestore(version)}
+                    >
+                      Restaurer cette version
+                    </button>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="section-version-expanded">
+                      <div className="preview-header">
+                        <p><strong>Projet :</strong> {version.projet_nom} ({version.id_projet})</p>
+                        <p><strong>Section :</strong> {sectionDisplay.label}</p>
+                        <p><strong>Date :</strong> {formatDate(version.snapshot_date)}</p>
+                        <p><strong>Créée par :</strong> {version.created_by?.nom_complet || 'N/A'}</p>
+                      </div>
+
+                      <div className="preview-data">
+                        <h4>Contenu sauvegardé</h4>
+                        <pre className="json-preview">
+                          {JSON.stringify(version.section_data, null, 2)}
+                        </pre>
+                      </div>
+
+                      {compareResult && (
+                        <div className="section-version-compare-panel">
+                          <h4>Différences avec l’état actuel</h4>
+                          {compareResult.hasChanges ? (
+                            <div className="section-version-diff-list">
+                              {compareResult.changes.map((change) => (
+                                <div key={`${version.id_version}-${change.key}`} className="section-version-diff-item">
+                                  <div className="section-version-diff-label">{change.label}</div>
+                                  <div className="section-version-diff-values">
+                                    <div className="section-version-diff-before">
+                                      <span>Avant</span>
+                                      <strong>{change.before}</strong>
+                                    </div>
+                                    <div className="section-version-diff-arrow">→</div>
+                                    <div className="section-version-diff-after">
+                                      <span>Actuel</span>
+                                      <strong>{change.after}</strong>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="section-version-no-diff">
+                              Cette version correspond déjà à l’état actuel de la section.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </article>
+              );
+            })
+          )}
         </div>
       )}
 
-      {/* Modal de confirmation de restauration */}
       {showRestoreModal && selectedVersion && (
         <div className="modal-overlay" onClick={() => setShowRestoreModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>🔄 Confirmer la restauration</h3>
+            <h3>Confirmer la restauration</h3>
             <div className="modal-body">
-              <p><strong>Projet:</strong> {selectedVersion.projet_nom} ({selectedVersion.id_projet})</p>
-              <p><strong>Section:</strong> {sectionLabels[selectedVersion.section_name]}</p>
-              <p><strong>Version:</strong> #{selectedVersion.version_number}</p>
-              <p><strong>Date:</strong> {formatDate(selectedVersion.snapshot_date)}</p>
-              <p><strong>Créée par:</strong> {selectedVersion.created_by?.nom_complet}</p>
+              <p><strong>Projet :</strong> {selectedVersion.projet_nom} ({selectedVersion.id_projet})</p>
+              <p><strong>Section :</strong> {getSectionDisplay(selectedVersion.section_name).label}</p>
+              <p><strong>Version :</strong> #{selectedVersion.version_number}</p>
+              <p><strong>Date :</strong> {formatDate(selectedVersion.snapshot_date)}</p>
+              <p><strong>Créée par :</strong> {selectedVersion.created_by?.nom_complet || 'N/A'}</p>
 
               <div className="form-group">
-                <label>Raison de la restauration (optionnel):</label>
+                <label>Raison de la restauration</label>
                 <textarea
                   value={restoreReason}
                   onChange={(e) => setRestoreReason(e.target.value)}
-                  placeholder="Ex: Correction d'une erreur de saisie"
+                  placeholder="Ex: retour à la dernière version validée"
                   rows="3"
                 />
               </div>
 
               <div className="warning-box">
-                ⚠️ <strong>Attention:</strong> Cette action va remplacer les données actuelles de cette section par celles de la version sélectionnée.
+                ⚠️ Cette restauration remplacera les données actuelles de cette section par celles de la version choisie.
               </div>
             </div>
             <div className="modal-actions">
@@ -530,7 +736,7 @@ export default function SectionVersionsTab({ apiCall }) {
                 onClick={handleConfirmRestore}
                 disabled={restoring}
               >
-                {restoring ? '⏳ Restauration...' : '✓ Confirmer la restauration'}
+                {restoring ? 'Restauration...' : 'Confirmer la restauration'}
               </button>
             </div>
           </div>

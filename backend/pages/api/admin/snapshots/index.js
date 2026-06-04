@@ -6,6 +6,12 @@ import { getProjectSnapshots, createSnapshot } from '../../../../lib/auditHelper
 import { requireAdmin } from '../../../../lib/adminAuthHelper';
 import db from '../../../../models';
 
+function truncateText(value, maxLength = 140) {
+  const text = String(value || '').trim();
+  if (!text) return null;
+  return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
+}
+
 /**
  * GET /api/admin/snapshots
  * Récupère les snapshots d'un projet ou de tous les projets
@@ -50,6 +56,12 @@ export default async function handler(req, res) {
       : 50;
 
     let snapshots;
+    const [statuts, services] = await Promise.all([
+      db.StatutProjetEnum.findAll({ attributes: ['id_statut', 'libelle'] }),
+      db.DdtServiceEnum.findAll({ attributes: ['id_service', 'libelle_service'] })
+    ]);
+    const statutLabels = new Map(statuts.map((item) => [String(item.id_statut), item.libelle]));
+    const serviceLabels = new Map(services.map((item) => [String(item.id_service), item.libelle_service]));
 
     if (idProjet) {
       // Récupérer les snapshots d'un projet spécifique
@@ -86,8 +98,10 @@ export default async function handler(req, res) {
     const formattedSnapshots = snapshots.map(snapshot => {
       // Extraire les données des sections
       const snapshotData = {};
+      const sectionsPresent = [];
       if (snapshot.sections && snapshot.sections.length > 0) {
         snapshot.sections.forEach(section => {
+          sectionsPresent.push(section.section_name);
           if (section.section_name === 'projet_info') {
             snapshotData.projetInfo = section.section_data;
           } else if (section.section_name === 'porteurs') {
@@ -119,15 +133,28 @@ export default async function handler(req, res) {
           nomComplet: `${snapshot.user.prenom || ''} ${snapshot.user.nom || ''}`.trim()
         } : null,
         createdAt: snapshot.created_at ? new Date(snapshot.created_at).toISOString() : null,
+        sectionsPresent,
         // Données du snapshot au moment de la création
         snapshotNomProjet: snapshotData.projetInfo?.nom_projet,
         snapshotStatutId: snapshotData.projetInfo?.statut_projet_id,
-        snapshotDescription: snapshotData.projetInfo?.description?.substring(0, 100),
+        snapshotStatutLabel: snapshotData.projetInfo?.statut_projet_id
+          ? (statutLabels.get(String(snapshotData.projetInfo.statut_projet_id)) || null)
+          : null,
+        snapshotServiceId: snapshotData.projetInfo?.service_id || null,
+        snapshotServiceLabel: snapshotData.projetInfo?.service_id
+          ? (serviceLabels.get(String(snapshotData.projetInfo.service_id)) || null)
+          : null,
+        snapshotReferentDdt: snapshotData.projetInfo?.referent_ddt || null,
+        snapshotDateIdentProjet: snapshotData.projetInfo?.date_ident_projet || null,
+        snapshotProjetSignale: snapshotData.projetInfo?.projet_signale ?? false,
+        snapshotCharteAccueil: snapshotData.projetInfo?.charte_accueil ?? false,
+        snapshotDescription: truncateText(snapshotData.projetInfo?.description, 160),
         nbPorteurs: snapshotData.nbPorteurs || 0,
         nbSuivis: snapshotData.nbSuivis || 0,
         nbThematiques: snapshotData.nbThematiques || 0,
         nbDocuments: snapshotData.nbDocuments || 0,
-        hasGeometry: snapshotData.hasGeometry || false
+        hasGeometry: snapshotData.hasGeometry || false,
+        rawProjectDescription: snapshotData.projetInfo?.description || null
       };
     });
 

@@ -92,6 +92,10 @@ export default async function handler(req, res) {
         await assertSectionRevision({ idProjet, sectionName, expectedRevision, transaction });
       } catch (error) {
         await transaction.rollback();
+        if (lockAcquired && lockContext) {
+          await releaseSectionLock(lockContext).catch(() => undefined);
+          lockAcquired = false;
+        }
         return res.status(409).json({
           success: false,
           message: 'Cette section a été modifiée par un autre agent. Rechargez avant de sauvegarder.',

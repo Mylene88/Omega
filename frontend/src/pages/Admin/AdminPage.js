@@ -1,6 +1,6 @@
 // frontend/src/pages/Admin/AdminPage.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AdminPage.css';
 import DeletionRequestsTab from '../../components/admin/DeletionRequestsTab';
@@ -103,6 +103,8 @@ const AdminPage = () => {
   const [stats, setStats] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
   const [snapshots, setSnapshots] = useState([]);
+  const [snapshotProjects, setSnapshotProjects] = useState([]);
+  const [expandedSnapshotIds, setExpandedSnapshotIds] = useState([]);
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [deletedProjects, setDeletedProjects] = useState([]);
@@ -120,6 +122,17 @@ const AdminPage = () => {
     offset: 0,
     event_type: '',
     username: ''
+  });
+  const [snapshotFilters, setSnapshotFilters] = useState({
+    query: '',
+    projectId: '',
+    creator: '',
+    type: '',
+    withGeometryOnly: false
+  });
+  const [snapshotForm, setSnapshotForm] = useState({
+    projectId: '',
+    description: ''
   });
 
   // État pour le formulaire de création d'utilisateur
@@ -200,6 +213,7 @@ const AdminPage = () => {
       fetchAuditLogs();
     } else if (activeTab === 'snapshots') {
       fetchSnapshots();
+      fetchAdminProjects();
     } else if (activeTab === 'users') {
       fetchUsers();
       fetchRoles();
@@ -335,6 +349,24 @@ const AdminPage = () => {
       setError(err.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchAdminProjects = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/admin/projets`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Erreur lors du chargement des projets');
+
+      const data = await response.json();
+      setSnapshotProjects(data.data || []);
+    } catch (err) {
+      console.error('❌ [ADMIN] Erreur lors du chargement des projets admin:', err);
     }
   };
 
@@ -1048,15 +1080,16 @@ Les modifications ont bien été appliquées en base de données.`);
     }
   };
 
-  const handleCreateSnapshot = async (idProjet) => {
+  const handleCreateSnapshot = async (idProjet, customDescription = '') => {
     console.log('📸 [ADMIN] Début de création manuelle de snapshot');
     console.log('🆔 [ADMIN] ID Projet:', idProjet);
 
-    const description = window.prompt('Description du snapshot (optionnel):');
-    if (description === null) {
-      console.log('❌ [ADMIN] Création de snapshot annulée par l\'utilisateur');
-      return; // Annulé
+    if (!idProjet) {
+      alert('❌ Sélectionnez un projet avant de créer un snapshot.');
+      return;
     }
+
+    const description = customDescription;
 
     console.log('📝 [ADMIN] Description:', description || '(vide)');
 
@@ -1093,6 +1126,7 @@ Les modifications ont bien été appliquées en base de données.`);
       console.log('📊 [ADMIN] Détails du nouveau snapshot:', data.data);
 
       alert('✅ Snapshot créé avec succès !');
+      setSnapshotForm({ projectId: '', description: '' });
 
       console.log('🔄 [ADMIN] Rechargement de la liste des snapshots...');
       fetchSnapshots(); // Recharger les snapshots
@@ -1120,6 +1154,80 @@ Les modifications ont bien été appliquées en base de données.`);
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
+
+  const inferSnapshotType = (snapshot) => {
+    const description = String(snapshot?.description || '').toLowerCase();
+    if (description.includes('manuel')) return 'manuel';
+    if (description.includes('avant modification')) return 'avant modification';
+    if (description.includes('jalon')) return 'jalon';
+    return 'automatique';
+  };
+
+  const formatSnapshotTypeLabel = (type) => {
+    const labels = {
+      manuel: 'Manuel',
+      'avant modification': 'Avant modif',
+      jalon: 'Jalon',
+      automatique: 'Auto'
+    };
+    return labels[type] || type;
+  };
+
+  const toggleSnapshotExpanded = (snapshotId) => {
+    setExpandedSnapshotIds((prev) => (
+      prev.includes(snapshotId)
+        ? prev.filter((id) => id !== snapshotId)
+        : [...prev, snapshotId]
+    ));
+  };
+
+  const filteredSnapshots = useMemo(() => {
+    const normalizedQuery = normalizeSearchValue(snapshotFilters.query).trim();
+    const normalizedCreator = normalizeSearchValue(snapshotFilters.creator).trim();
+
+    return snapshots.filter((snapshot) => {
+      const type = inferSnapshotType(snapshot);
+      const projectIdMatches = !snapshotFilters.projectId || snapshot.idProjet === snapshotFilters.projectId;
+      const typeMatches = !snapshotFilters.type || type === snapshotFilters.type;
+      const geometryMatches = !snapshotFilters.withGeometryOnly || snapshot.hasGeometry;
+
+      if (!projectIdMatches || !typeMatches || !geometryMatches) return false;
+
+      if (normalizedQuery) {
+        const haystacks = [
+          snapshot.projetNom,
+          snapshot.idProjet,
+          snapshot.snapshotNomProjet,
+          snapshot.snapshotDescription,
+          snapshot.description,
+          snapshot.snapshotStatutLabel,
+          snapshot.snapshotServiceLabel
+        ].map(normalizeSearchValue);
+
+        if (!haystacks.some((value) => value.includes(normalizedQuery))) {
+          return false;
+        }
+      }
+
+      if (normalizedCreator) {
+        const creatorLabel = normalizeSearchValue(
+          snapshot.creator?.nomComplet || snapshot.creator?.username || ''
+        );
+        if (!creatorLabel.includes(normalizedCreator)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [snapshotFilters, snapshots]);
+
+  const snapshotStats = useMemo(() => ({
+    total: filteredSnapshots.length,
+    manuals: filteredSnapshots.filter((snapshot) => inferSnapshotType(snapshot) === 'manuel').length,
+    current: filteredSnapshots.filter((snapshot) => snapshot.isCurrent).length,
+    withGeometry: filteredSnapshots.filter((snapshot) => snapshot.hasGeometry).length
+  }), [filteredSnapshots]);
 
   const normalizedUserSearchQuery = normalizeSearchValue(userSearchQuery).trim();
 
@@ -2240,63 +2348,205 @@ Les modifications ont bien été appliquées en base de données.`);
           {/* Tab: Snapshots */}
           {activeTab === 'snapshots' && !isLoading && (
               <div className="snapshots-container">
-                <div className="snapshots-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', padding: '10px', background: '#f8f9fa', borderRadius: '8px' }}>
-                  <h3 style={{ margin: 0 }}>Liste des Snapshots</h3>
+                <div className="snapshots-toolbar">
                   <div>
-                    <button onClick={() => handleDownloadSnapshots('csv')} className="btn-download" title="Télécharger en CSV" style={{ marginRight: '10px' }}>📥 CSV</button>
+                    <h3 style={{ margin: 0 }}>Snapshots de projets</h3>
+                    <p className="snapshots-subtitle">
+                      Consulte, filtre, crée et restaure les états complets d’un projet.
+                    </p>
+                  </div>
+                  <div className="snapshots-toolbar-actions">
+                    <button onClick={() => handleDownloadSnapshots('csv')} className="btn-download" title="Télécharger en CSV">📥 CSV</button>
                     <button onClick={() => handleDownloadSnapshots('json')} className="btn-download" title="Télécharger en JSON">📥 JSON</button>
                   </div>
                 </div>
-                <div className="snapshots-list">
-                  {snapshots.map((snapshot) => (
-                      <div key={snapshot.id} className="snapshot-item">
-                        <div className="snapshot-header">
-                          <span className="snapshot-projet">{snapshot.projetNom}</span>
-                          <span className="snapshot-version">v{snapshot.versionNumber}</span>
-                          <span className="snapshot-id">#{snapshot.id}</span>
-                        </div>
 
-                        {/* Données du snapshot au moment de sa création */}
-                        <div className="snapshot-data">
-                          <div className="snapshot-data-row">
-                            <strong>Nom du projet:</strong> {snapshot.snapshotNomProjet || 'N/A'}
-                          </div>
-                          <div className="snapshot-data-row">
-                            <strong>Statut ID:</strong> {snapshot.snapshotStatutId || 'N/A'}
-                          </div>
-                          <div className="snapshot-data-row">
-                            <strong>Description:</strong> {snapshot.snapshotDescription || 'N/A'}...
-                          </div>
-                          <div className="snapshot-data-counts">
-                            <span>👥 {snapshot.nbPorteurs} porteur(s)</span>
-                            <span>📋 {snapshot.nbSuivis} suivi(s)</span>
-                            <span>🏷️ {snapshot.nbThematiques} thématique(s)</span>
-                            <span>📄 {snapshot.nbDocuments} document(s)</span>
-                            {snapshot.hasGeometry && <span>📍 Géométrie</span>}
-                          </div>
-                        </div>
+                <div className="snapshots-quick-stats">
+                  <div className="snapshot-kpi">
+                    <span className="snapshot-kpi-label">Visibles</span>
+                    <span className="snapshot-kpi-value">{snapshotStats.total}</span>
+                  </div>
+                  <div className="snapshot-kpi">
+                    <span className="snapshot-kpi-label">Manuels</span>
+                    <span className="snapshot-kpi-value">{snapshotStats.manuals}</span>
+                  </div>
+                  <div className="snapshot-kpi">
+                    <span className="snapshot-kpi-label">Courants</span>
+                    <span className="snapshot-kpi-value">{snapshotStats.current}</span>
+                  </div>
+                  <div className="snapshot-kpi">
+                    <span className="snapshot-kpi-label">Avec géométrie</span>
+                    <span className="snapshot-kpi-value">{snapshotStats.withGeometry}</span>
+                  </div>
+                </div>
 
-                        <div className="snapshot-details">
+                <div className="snapshots-create-panel">
+                  <div className="snapshot-panel-title">Créer un snapshot manuel</div>
+                  <div className="snapshots-create-grid">
+                    <select
+                      value={snapshotForm.projectId}
+                      onChange={(e) => setSnapshotForm((prev) => ({ ...prev, projectId: e.target.value }))}
+                    >
+                      <option value="">Sélectionner un projet</option>
+                      {snapshotProjects.map((project) => (
+                        <option key={project.id_projet} value={project.id_projet}>
+                          {project.display_label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Description du jalon ou du contexte"
+                      value={snapshotForm.description}
+                      onChange={(e) => setSnapshotForm((prev) => ({ ...prev, description: e.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => handleCreateSnapshot(snapshotForm.projectId, snapshotForm.description)}
+                    >
+                      📸 Créer le snapshot
+                    </button>
+                  </div>
+                </div>
+
+                <div className="snapshots-filter-panel">
+                  <input
+                    type="text"
+                    placeholder="Rechercher un projet, une description, un statut…"
+                    value={snapshotFilters.query}
+                    onChange={(e) => setSnapshotFilters((prev) => ({ ...prev, query: e.target.value }))}
+                  />
+                  <select
+                    value={snapshotFilters.projectId}
+                    onChange={(e) => setSnapshotFilters((prev) => ({ ...prev, projectId: e.target.value }))}
+                  >
+                    <option value="">Tous les projets</option>
+                    {snapshotProjects.map((project) => (
+                      <option key={project.id_projet} value={project.id_projet}>
+                        {project.display_label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Créé par…"
+                    value={snapshotFilters.creator}
+                    onChange={(e) => setSnapshotFilters((prev) => ({ ...prev, creator: e.target.value }))}
+                  />
+                  <select
+                    value={snapshotFilters.type}
+                    onChange={(e) => setSnapshotFilters((prev) => ({ ...prev, type: e.target.value }))}
+                  >
+                    <option value="">Tous les types</option>
+                    <option value="automatique">Automatique</option>
+                    <option value="manuel">Manuel</option>
+                    <option value="avant modification">Avant modification</option>
+                    <option value="jalon">Jalon</option>
+                  </select>
+                  <label className="snapshot-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={snapshotFilters.withGeometryOnly}
+                      onChange={(e) => setSnapshotFilters((prev) => ({ ...prev, withGeometryOnly: e.target.checked }))}
+                    />
+                    Avec géométrie
+                  </label>
+                </div>
+
+                {filteredSnapshots.length === 0 ? (
+                  <div className="empty-state">
+                    <div className="empty-icon">📭</div>
+                    <p>Aucun snapshot ne correspond aux filtres.</p>
+                  </div>
+                ) : (
+                  <div className="snapshots-list">
+                    {filteredSnapshots.map((snapshot) => {
+                      const snapshotType = inferSnapshotType(snapshot);
+                      const isExpanded = expandedSnapshotIds.includes(snapshot.id);
+                      return (
+                        <div key={snapshot.id} className="snapshot-item">
+                          <div className="snapshot-header snapshot-header-strong">
+                            <div className="snapshot-heading">
+                              <div className="snapshot-title-row">
+                                <span className="snapshot-projet">{snapshot.projetNom}</span>
+                                <span className={`snapshot-type snapshot-type-${snapshotType.replace(/\s+/g, '-')}`}>
+                                  {formatSnapshotTypeLabel(snapshotType)}
+                                </span>
+                                {snapshot.isCurrent && <span className="snapshot-current-badge">Courant</span>}
+                              </div>
+                              <div className="snapshot-subtitle-row">
+                                <span className="snapshot-version">v{snapshot.versionNumber}</span>
+                                <span className="snapshot-id">#{snapshot.id}</span>
+                                <span className="snapshot-project-id">Projet {snapshot.idProjet}</span>
+                              </div>
+                            </div>
+                            <div className="snapshot-meta snapshot-meta-compact">
+                              <span>Créé par: {snapshot.creator ? snapshot.creator.nomComplet : 'Système'}</span>
+                              <span>Le: {formatDateTimeFr(snapshot.createdAt)}</span>
+                            </div>
+                          </div>
+
                           <div className="snapshot-description">
-                            {snapshot.description || 'Pas de description'}
+                            {snapshot.description || 'Snapshot sans description.'}
                           </div>
-                          <div className="snapshot-meta">
-                            <span>Créé par: {snapshot.creator ? snapshot.creator.nomComplet : 'Système'}</span>
-                            <span>Le: {formatDateTimeFr(snapshot.createdAt)}</span>
+
+                          <div className="snapshot-badges-row">
+                            <span className="snapshot-section-chip">👥 {snapshot.nbPorteurs} porteur(s)</span>
+                            <span className="snapshot-section-chip">📋 {snapshot.nbSuivis} suivi(s)</span>
+                            <span className="snapshot-section-chip">🏷️ {snapshot.nbThematiques} thématique(s)</span>
+                            <span className="snapshot-section-chip">📄 {snapshot.nbDocuments} document(s)</span>
+                            <span className="snapshot-section-chip">{snapshot.hasGeometry ? '📍 Géométrie présente' : '📍 Sans géométrie'}</span>
                           </div>
-                        </div>
-                        <div className="snapshot-actions">
-                          <button
+
+                          <div className="snapshot-summary-grid">
+                            <div><strong>Nom figé :</strong> {snapshot.snapshotNomProjet || 'N/A'}</div>
+                            <div><strong>Statut :</strong> {snapshot.snapshotStatutLabel || snapshot.snapshotStatutId || 'N/A'}</div>
+                            <div><strong>Service :</strong> {snapshot.snapshotServiceLabel || snapshot.snapshotServiceId || 'N/A'}</div>
+                            <div><strong>Référent :</strong> {snapshot.snapshotReferentDdt || 'N/A'}</div>
+                          </div>
+
+                          {isExpanded && (
+                            <div className="snapshot-data">
+                              <div className="snapshot-data-row">
+                                <strong>Description du projet :</strong> {snapshot.rawProjectDescription || 'Aucune description'}
+                              </div>
+                              <div className="snapshot-data-row">
+                                <strong>Date d’identification :</strong> {snapshot.snapshotDateIdentProjet ? formatDateTimeFr(snapshot.snapshotDateIdentProjet) : 'N/A'}
+                              </div>
+                              <div className="snapshot-data-row">
+                                <strong>Sections capturées :</strong> {(snapshot.sectionsPresent || []).join(', ') || 'N/A'}
+                              </div>
+                              <div className="snapshot-data-counts">
+                                {snapshot.snapshotProjetSignale && <span>🚨 Projet signalé</span>}
+                                {snapshot.snapshotCharteAccueil && <span>🤝 Charte accueil</span>}
+                                {snapshot.hasGeometry && <span>🗺️ Emprise sauvegardée</span>}
+                                {snapshot.isCurrent && <span>✅ Snapshot courant</span>}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="snapshot-actions">
+                            <button
+                              type="button"
+                              className="btn-preview"
+                              onClick={() => toggleSnapshotExpanded(snapshot.id)}
+                            >
+                              {isExpanded ? 'Réduire' : 'Voir le détail'}
+                            </button>
+                            <button
                               onClick={() => handleRestore(snapshot.id)}
                               className="btn-restore"
                               disabled={isLoading}
-                          >
-                            🔄 Restaurer
-                          </button>
+                            >
+                              🔄 Restaurer
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                  ))}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
           )}
 

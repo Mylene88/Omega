@@ -2,7 +2,7 @@ const db = require('../models');
 const { getCurrentSectionData, saveCurrentSectionVersion } = require('./sectionVersionHelper');
 
 const SECTION_NAMES = ['projet_info', 'porteurs', 'suivis', 'thematiques', 'documents', 'geometrie'];
-const LOCK_TTL_MS = 10 * 60 * 1000;
+const LOCK_TTL_MS = 30 * 1000;
 
 function isValidSectionName(sectionName) {
   return SECTION_NAMES.includes(sectionName);
