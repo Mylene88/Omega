@@ -40,7 +40,7 @@ async function calculateSpatialData(geometry, transaction = null) {
 
         // Trouver toutes les communes intersectées avec transformation de projection
         const intersectedCommunes = await sequelize.query(
-            `SELECT gc.nom_com, gc.code_insee, gc.nom_epci, gc.arrondisst,
+            `SELECT gc.id, gc.nom_com, gc.code_insee, gc.nom_epci, gc.arrondisst,
                     gc.maire_prenom, gc.maire_nom, gc.depute_prenom, gc.depute_nom,
                     ST_Area(ST_Intersection(
                         gc.geom, 

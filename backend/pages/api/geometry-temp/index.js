@@ -49,10 +49,10 @@ export default async function handler(req, res) {
         const length_m = (geom_type?.includes('LineString')) ? parseFloat(length) || 0 : null;
 
         const intersectedCommunes = await sequelize.query(
-            `SELECT gc.nom_com, gc.code_insee, gc.nom_epci, gc.arrondisst,
+            `SELECT gc.id, gc.nom_com, gc.code_insee, gc.nom_epci, gc.arrondisst,
                     gc.maire_prenom, gc.maire_nom, gc.depute_prenom, gc.depute_nom,
-                    ST_Area(ST_Intersection(
-                        gc.geom, 
+                     ST_Area(ST_Intersection(
+                         gc.geom, 
                         ST_Transform(${geomExpr}, ST_SRID(gc.geom))
                     )) as intersection_area
              FROM externe.geom_commune gc
