@@ -621,12 +621,20 @@ export default function VueListe({
 
                                         {/* Bouton modifier */}
                                         <button
-                                            className="badge badge-edit edit-btn"
+                                            className={`badge badge-edit edit-btn ${p.demande_suppression ? 'disabled' : ''}`}
                                             onClick={(e) => {
                                                 e.stopPropagation();
+                                                if (p.demande_suppression) {
+                                                    alert('Ce projet est en attente de suppression. Il ne peut pas être modifié tant que la demande n’a pas été validée ou rejetée.');
+                                                    return;
+                                                }
                                                 navigate(`/projets/edit/${p.id_projet}`);
                                             }}
-                                            title="Modifier le projet"
+                                            title={p.demande_suppression ? "Projet en attente de suppression" : "Modifier le projet"}
+                                            style={{
+                                                cursor: p.demande_suppression ? 'not-allowed' : 'pointer',
+                                                opacity: p.demande_suppression ? 0.5 : 1
+                                            }}
                                         >
                                             <span className="icon-pencil" aria-hidden="true">✏️</span> Modifier
                                         </button>
