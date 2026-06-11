@@ -74,6 +74,14 @@ export default async function handler(req, res) {
         return res.status(404).json({ success: false, message: 'Projet non trouvé' });
       }
 
+      if (projet.demande_suppression) {
+        await transaction.rollback();
+        return res.status(403).json({
+          success: false,
+          message: 'Ce projet est en attente de suppression. Les modifications sont bloquées jusqu’à la validation ou au rejet de la demande.'
+        });
+      }
+
       try {
         lockContext = { idProjet, sectionName, userId };
         await acquireSectionLock(lockContext);

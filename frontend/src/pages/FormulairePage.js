@@ -47,6 +47,7 @@ export default function FormulairePage() {
     const [dirtySections, setDirtySections] = useState({});
     const [savingSections, setSavingSections] = useState({});
     const [staleSections, setStaleSections] = useState({});
+    const [isDeletionPending, setIsDeletionPending] = useState(false);
 
     const [suiviData, setSuiviData] = useState({
         historique: [],
@@ -108,6 +109,7 @@ export default function FormulairePage() {
                         referent_ddt: projetComplet.projet.referentDdt,
                         service_ddt_id: projetComplet.serviceDdt?.id,
                     });
+                    setIsDeletionPending(!!projetComplet.projet.demandeSuppression);
 
                     // ✅ Transformation des PORTEURS (backend → frontend)
                     console.log('👥 Porteurs reçus:', projetComplet.porteurs);
@@ -422,6 +424,9 @@ export default function FormulairePage() {
     };
 
     const markSectionDirty = async (sectionName) => {
+        if (isDeletionPending) {
+            return;
+        }
         setHasUnsavedChanges(true);
         setDirtySections((prev) => ({ ...prev, [sectionName]: true }));
     };
@@ -514,6 +519,10 @@ export default function FormulairePage() {
 
     const saveExistingProjectSection = async (sectionName) => {
         if (!id) return false;
+        if (isDeletionPending) {
+            alert('Ce projet est en attente de suppression. Les modifications sont bloquées jusqu’à la validation ou au rejet de la demande.');
+            return false;
+        }
 
         setSavingSections((prev) => ({ ...prev, [sectionName]: true }));
 
@@ -572,6 +581,11 @@ export default function FormulairePage() {
     const handleSaveProject = async () => {
         if (!projetData.id_projet || !currentUser?.id_user) {
             alert('ID du projet manquant ou utilisateur non connecté.');
+            return;
+        }
+
+        if (isDeletionPending) {
+            alert('Ce projet est en attente de suppression. Les modifications sont bloquées jusqu’à la validation ou au rejet de la demande.');
             return;
         }
 
@@ -861,14 +875,14 @@ export default function FormulairePage() {
                 <button
                     type="button"
                     onClick={() => saveExistingProjectSection(sectionName)}
-                    disabled={!isDirty || lockedByOther || isSavingSection}
+                    disabled={!isDirty || lockedByOther || isSavingSection || isDeletionPending}
                     style={{
                         padding: '0.55rem 1rem',
-                        backgroundColor: (!isDirty || lockedByOther || isSavingSection) ? '#94A3B8' : '#2563EB',
+                        backgroundColor: (!isDirty || lockedByOther || isSavingSection || isDeletionPending) ? '#94A3B8' : '#2563EB',
                         color: 'white',
                         border: 'none',
                         borderRadius: '6px',
-                        cursor: (!isDirty || lockedByOther || isSavingSection) ? 'not-allowed' : 'pointer',
+                        cursor: (!isDirty || lockedByOther || isSavingSection || isDeletionPending) ? 'not-allowed' : 'pointer',
                         fontWeight: 600
                     }}
                 >
@@ -897,6 +911,19 @@ export default function FormulairePage() {
 
     return (
         <>
+        {isDeletionPending && (
+            <div style={{
+                margin: '0 0 1rem 0',
+                padding: '1rem 1.25rem',
+                borderRadius: '10px',
+                border: '1px solid #fdba74',
+                backgroundColor: '#fff7ed',
+                color: '#9a3412',
+                lineHeight: '1.5'
+            }}>
+                <strong>Projet en attente de suppression.</strong> Tant que la demande n’a pas été validée ou rejetée par un administrateur, ce projet ne peut plus être modifié.
+            </div>
+        )}
         {/* Modal de confirmation de sortie */}
         {showExitModal && (
             <div style={{

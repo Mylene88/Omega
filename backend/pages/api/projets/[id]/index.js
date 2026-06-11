@@ -720,6 +720,14 @@ export default async function handler(req, res) {
         });
       }
 
+      if (projet.demande_suppression) {
+        await transaction.rollback();
+        return res.status(403).json({
+          success: false,
+          message: 'Ce projet est en attente de suppression. Les modifications sont bloquées jusqu’à la validation ou au rejet de la demande.'
+        });
+      }
+
       const userId = authenticatedUserId;
       const projetAvant = projet.toJSON();
 
