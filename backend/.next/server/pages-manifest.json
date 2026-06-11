@@ -2,9 +2,9 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/api/auth/login": "pages/api/auth/login.js",
-  "/api/admin/section-versions": "pages/api/admin/section-versions.js",
+  "/api/admin/projets": "pages/api/admin/projets.js",
+  "/api/deletion-requests": "pages/api/deletion-requests.js",
   "/api/admin/users": "pages/api/admin/users.js",
-  "/api/admin/stats": "pages/api/admin/stats.js",
-  "/api/admin/projets": "pages/api/admin/projets.js"
+  "/api/admin/section-versions": "pages/api/admin/section-versions.js",
+  "/api/admin/stats": "pages/api/admin/stats.js"
 }

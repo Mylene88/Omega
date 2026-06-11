@@ -118,6 +118,22 @@
   box-shadow: var(--shadow-md);
 }
 
+.admin-tabs-toggle {
+  margin-left: auto;
+  background: white;
+  border-style: dashed;
+}
+
+.admin-tabs-toggle:hover {
+  background: #fff;
+}
+
+.admin-tabs-toggle.active-options {
+  background: var(--bg-tertiary);
+  color: var(--primary);
+  border-color: var(--accent);
+}
+
 .admin-content {
   /*max-width: 1400px;*/
   background: var(--bg-secondary);
@@ -327,6 +343,24 @@
   gap: 1.5rem;
 }
 
+.audit-intro {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+
+.audit-intro h3 {
+  margin: 0 0 0.35rem 0;
+  color: var(--primary);
+}
+
+.audit-intro p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
 .audit-filters {
   display: flex;
   gap: 1rem;
@@ -459,10 +493,81 @@
   font-weight: 500;
 }
 
-.audit-fields {
+.audit-summary {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-bottom: 0.65rem;
+}
+
+.audit-meta-list,
+.audit-fields-list,
+.audit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.audit-meta-list {
+  margin-bottom: 0.75rem;
+}
+
+.audit-meta-chip,
+.audit-field-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: #f8fafc;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.audit-fields-block {
+  margin-bottom: 0.75rem;
+}
+
+.audit-fields-title,
+.audit-json-title {
   color: var(--text-muted);
-  font-size: 0.875rem;
-  font-style: italic;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.45rem;
+}
+
+.audit-expanded {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1rem;
+}
+
+.audit-json-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.85rem;
+}
+
+.audit-json-panel {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #fcfcfd;
+  padding: 0.85rem;
+}
+
+.audit-json-preview {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  background: #111827;
+  color: #cbd5e1;
+  border-radius: 8px;
+  padding: 0.9rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
 
 /* Snapshots */

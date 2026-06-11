@@ -192,7 +192,8 @@ module.exports = (sequelize, DataTypes) => {
     epci: { type: DataTypes.ARRAY(DataTypes.TEXT) },
     arrondissements: { type: DataTypes.ARRAY(DataTypes.TEXT) },
     deputes: { type: DataTypes.ARRAY(DataTypes.TEXT) },
-    maires: { type: DataTypes.ARRAY(DataTypes.TEXT) }
+    maires: { type: DataTypes.ARRAY(DataTypes.TEXT) },
+    updated_at: { type: DataTypes.DATE }
   }, {
     schema,
     tableName: 'projet_geometry',

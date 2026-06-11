@@ -102,6 +102,7 @@ const AdminPage = () => {
   // États pour les différentes données
   const [stats, setStats] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [expandedAuditIds, setExpandedAuditIds] = useState([]);
   const [snapshots, setSnapshots] = useState([]);
   const [snapshotProjects, setSnapshotProjects] = useState([]);
   const [expandedSnapshotIds, setExpandedSnapshotIds] = useState([]);
@@ -165,6 +166,7 @@ const AdminPage = () => {
   const [importUsersPreview, setImportUsersPreview] = useState(null);
   const [importDeactivateIds, setImportDeactivateIds] = useState([]);
   const [importResult, setImportResult] = useState(null);
+  const [showOptionalAdminTabs, setShowOptionalAdminTabs] = useState(false);
 
   // États pour la pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -1150,6 +1152,77 @@ Les modifications ont bien été appliquées en base de données.`);
     return colors[action] || '#9E9E9E';
   };
 
+  const getActionLabel = (action) => {
+    const labels = {
+      CREATE: 'Création',
+      UPDATE: 'Modification',
+      DELETE: 'Suppression',
+      RESTORE: 'Restauration'
+    };
+    return labels[action] || action;
+  };
+
+  const getAuditTableLabel = (tableName) => {
+    const labels = {
+      projet: 'Projet',
+      projet_porteur: 'Porteur',
+      projet_suivi: 'Suivi',
+      projet_in_thematique: 'Thématique',
+      document: 'Document',
+      projet_geometry: 'Géométrie',
+      projet_snapshot: 'Snapshot',
+      section_version: 'Version de section',
+      projet_archive_request: 'Demande d’archivage',
+      projet_deletion_request: 'Demande de suppression',
+      user: 'Utilisateur'
+    };
+    return labels[tableName] || tableName;
+  };
+
+  const getAuditProjectId = (log) => (
+    log.newValues?.id_projet
+    || log.oldValues?.id_projet
+    || log.newValues?.project_id
+    || log.oldValues?.project_id
+    || null
+  );
+
+  const getAuditRecordTitle = (log) => {
+    if (log.tableName === 'projet' && (log.newValues?.nom_projet || log.oldValues?.nom_projet)) {
+      return log.newValues?.nom_projet || log.oldValues?.nom_projet;
+    }
+
+    if (log.tableName === 'section_version' && log.newValues?.section_name) {
+      return `Section ${log.newValues.section_name}`;
+    }
+
+    if (log.tableName === 'projet_snapshot' && log.newValues?.description) {
+      return log.newValues.description;
+    }
+
+    return null;
+  };
+
+  const getAuditSummary = (log) => {
+    const tableLabel = getAuditTableLabel(log.tableName);
+    const actionLabel = getActionLabel(log.action);
+    const changedCount = Array.isArray(log.changedFields) ? log.changedFields.length : 0;
+
+    if (log.action === 'UPDATE' && changedCount > 0) {
+      return `${actionLabel} de ${tableLabel.toLowerCase()} sur ${changedCount} champ${changedCount > 1 ? 's' : ''}`;
+    }
+
+    return `${actionLabel} de ${tableLabel.toLowerCase()}`;
+  };
+
+  const toggleAuditExpanded = (auditId) => {
+    setExpandedAuditIds((current) => (
+      current.includes(auditId)
+        ? current.filter((id) => id !== auditId)
+        : [...current, auditId]
+    ));
+  };
+
   const normalizeSearchValue = (value) => String(value || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -1267,6 +1340,28 @@ Les modifications ont bien été appliquées en base de données.`);
     ? 0
     : Math.min(adjustedCurrentPage * itemsPerPage, totalFilteredUsers);
 
+  const primaryAdminTabs = [
+    { id: 'stats', label: '📊 Statistiques' },
+    { id: 'users', label: '👥 Utilisateurs' },
+    { id: 'deletion-requests', label: '🗑️ Demandes de suppression' },
+    { id: 'section-versions', label: '🔄 Versions de Sections' }
+  ];
+
+  const optionalAdminTabs = [
+    { id: 'security-logs', label: '🔒 Historique de connexion' },
+    { id: 'audit', label: '📝 Historique d\'audit' },
+    { id: 'snapshots', label: '📸 Snapshots' },
+    { id: 'archive-requests', label: '🗃️ Demandes d\'archivage' },
+    { id: 'deleted-projects', label: '♻️ Projets supprimés' }
+  ];
+
+  const visibleAdminTabs = showOptionalAdminTabs
+    ? [...primaryAdminTabs, ...optionalAdminTabs]
+    : [
+      ...primaryAdminTabs,
+      ...optionalAdminTabs.filter((tab) => tab.id === activeTab)
+    ];
+
   return (
       <div className="admin-page">
         {/* Header */}
@@ -1281,59 +1376,21 @@ Les modifications ont bien été appliquées en base de données.`);
 
         {/* Tabs */}
         <div className="admin-tabs">
+          {visibleAdminTabs.map((tab) => (
+            <button
+                key={tab.id}
+                className={`tab ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
           <button
-              className={`tab ${activeTab === 'stats' ? 'active' : ''}`}
-              onClick={() => setActiveTab('stats')}
+              type="button"
+              className={`tab admin-tabs-toggle ${showOptionalAdminTabs ? 'active-options' : ''}`}
+              onClick={() => setShowOptionalAdminTabs((current) => !current)}
           >
-            📊 Statistiques
-          </button>
-          <button
-              className={`tab ${activeTab === 'users' ? 'active' : ''}`}
-              onClick={() => setActiveTab('users')}
-          >
-            👥 Utilisateurs
-          </button>
-          <button
-              className={`tab ${activeTab === 'security-logs' ? 'active' : ''}`}
-              onClick={() => setActiveTab('security-logs')}
-          >
-            🔒 Historique de connexion
-          </button>
-          <button
-              className={`tab ${activeTab === 'audit' ? 'active' : ''}`}
-              onClick={() => setActiveTab('audit')}
-          >
-            📝 Historique d'audit
-          </button>
-          <button
-              className={`tab ${activeTab === 'snapshots' ? 'active' : ''}`}
-              onClick={() => setActiveTab('snapshots')}
-          >
-            📸 Snapshots
-          </button>
-          <button
-              className={`tab ${activeTab === 'deletion-requests' ? 'active' : ''}`}
-              onClick={() => setActiveTab('deletion-requests')}
-          >
-            🗑️ Demandes de suppression
-          </button>
-          <button
-              className={`tab ${activeTab === 'archive-requests' ? 'active' : ''}`}
-              onClick={() => setActiveTab('archive-requests')}
-          >
-            🗃️ Demandes d'archivage
-          </button>
-          <button
-              className={`tab ${activeTab === 'deleted-projects' ? 'active' : ''}`}
-              onClick={() => setActiveTab('deleted-projects')}
-          >
-            ♻️ Projets supprimés
-          </button>
-          <button
-              className={`tab ${activeTab === 'section-versions' ? 'active' : ''}`}
-              onClick={() => setActiveTab('section-versions')}
-          >
-            🔄 Versions de Sections
+            {showOptionalAdminTabs ? 'Masquer les options' : 'Afficher les options'}
           </button>
         </div>
 
@@ -2282,10 +2339,17 @@ Les modifications ont bien été appliquées en base de données.`);
           {/* Tab: Historique d'audit */}
           {activeTab === 'audit' && !isLoading && (
               <div className="audit-container">
+                <div className="audit-intro">
+                  <h3>Historique d’audit</h3>
+                  <p>
+                    Cet écran sert à comprendre qui a fait quoi, sur quel objet, et à quel moment.
+                    Il est surtout utile pour enquêter après une suppression, une restauration ou une modification inattendue.
+                  </p>
+                </div>
                 <div className="audit-filters">
                   <input
                       type="text"
-                      placeholder="Table name..."
+                      placeholder="Table technique..."
                       value={filters.tableName}
                       onChange={(e) => setFilters({ ...filters, tableName: e.target.value })}
                   />
@@ -2320,23 +2384,66 @@ Les modifications ont bien été appliquées en base de données.`);
                   {auditLogs.map((log) => (
                       <div key={log.id} className="audit-item">
                         <div className="audit-header">
-                    <span className="audit-action" style={{ backgroundColor: getActionColor(log.action) }}>
-                      {log.action}
-                    </span>
-                          <span className="audit-table">{log.tableName}</span>
+                          <span className="audit-action" style={{ backgroundColor: getActionColor(log.action) }}>
+                            {getActionLabel(log.action)}
+                          </span>
+                          <span className="audit-table">{getAuditTableLabel(log.tableName)}</span>
                           <span className="audit-record">#{log.recordId}</span>
                           <span className="audit-date">
-                      {formatDateTimeFr(log.createdAt)}
-                    </span>
+                            {formatDateTimeFr(log.createdAt)}
+                          </span>
                         </div>
                         <div className="audit-details">
                           <div className="audit-user">
                             Par: {log.user ? log.user.nomComplet || log.user.username : 'Système'}
                           </div>
+                          <div className="audit-summary">
+                            {getAuditSummary(log)}
+                          </div>
+                          <div className="audit-meta-list">
+                            {getAuditProjectId(log) && (
+                              <span className="audit-meta-chip">Projet {getAuditProjectId(log)}</span>
+                            )}
+                            {getAuditRecordTitle(log) && (
+                              <span className="audit-meta-chip">{getAuditRecordTitle(log)}</span>
+                            )}
+                          </div>
                           {log.changedFields && log.changedFields.length > 0 && (
-                              <div className="audit-fields">
-                                Champs modifiés: {log.changedFields.join(', ')}
+                            <div className="audit-fields-block">
+                              <div className="audit-fields-title">Champs modifiés</div>
+                              <div className="audit-fields-list">
+                                {log.changedFields.map((field) => (
+                                  <span key={`${log.id}-${field}`} className="audit-field-chip">{field}</span>
+                                ))}
                               </div>
+                            </div>
+                          )}
+                          <div className="audit-actions">
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => toggleAuditExpanded(log.id)}
+                            >
+                              {expandedAuditIds.includes(log.id) ? 'Masquer le détail' : 'Voir le détail'}
+                            </button>
+                          </div>
+                          {expandedAuditIds.includes(log.id) && (
+                            <div className="audit-expanded">
+                              <div className="audit-json-panels">
+                                <div className="audit-json-panel">
+                                  <div className="audit-json-title">Avant</div>
+                                  <pre className="audit-json-preview">
+                                    {JSON.stringify(log.oldValues, null, 2)}
+                                  </pre>
+                                </div>
+                                <div className="audit-json-panel">
+                                  <div className="audit-json-title">Après</div>
+                                  <pre className="audit-json-preview">
+                                    {JSON.stringify(log.newValues, null, 2)}
+                                  </pre>
+                                </div>
+                              </div>
+                            </div>
                           )}
                         </div>
                       </div>

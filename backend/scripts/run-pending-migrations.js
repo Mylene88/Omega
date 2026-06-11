@@ -4,7 +4,8 @@ const sequelize = require('../config/database');
 
 const MIGRATIONS = [
   '202605180001-add-user-is-active.js',
-  '202605180002-add-project-section-concurrency.js'
+  '202605180002-add-project-section-concurrency.js',
+  '202606080001-add-updated-at-to-projet-geometry.js'
 ];
 
 const HISTORY_SCHEMA = 'principale';
